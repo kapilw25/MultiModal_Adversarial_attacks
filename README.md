@@ -102,6 +102,7 @@ data-engine/
     python iq.py
     ```
 
+`original_dataset` contains parts of the dataset (our synthesized code, domain, question). The complete dataset (question, answer, image) can be found in our Hugging Face dataset.[![Datasets](https://img.shields.io/badge/HuggingFace-Datasets-orange.svg)](https://huggingface.co/datasets/zwq2018/Multi-modal-Self-instruct)
 ## Evaluation
 We present a collection of 11,193 high-quality abstract images and corresponding question-answer pairs, meticulously curated using our multi-modal self-instruct strategy (Huggingface dataset [![Datasets](https://img.shields.io/badge/HuggingFace-Datasets-orange.svg)](https://huggingface.co/datasets/zwq2018/Multi-modal-Self-instruct)). You can use these benchmarks for evaluating your own VLMs.
 
