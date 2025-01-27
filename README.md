@@ -148,16 +148,11 @@ In `scripts` folder, we provide automatic evaluation pipeline to evaluate your m
       Ma, Yanna  and
       Lu, Weiming  and
       Zhuang, Yueting",
-    editor = "Al-Onaizan, Yaser  and
-      Bansal, Mohit  and
-      Chen, Yun-Nung",
     booktitle = "Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing",
-    month = nov,
     year = "2024",
     address = "Miami, Florida, USA",
     publisher = "Association for Computational Linguistics",
     url = "https://aclanthology.org/2024.emnlp-main.1072/",
-    doi = "10.18653/v1/2024.emnlp-main.1072",
     pages = "19228--19252"}
 ```
 
