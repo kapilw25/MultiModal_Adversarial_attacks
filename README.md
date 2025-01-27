@@ -135,12 +135,30 @@ In `scripts` folder, we provide automatic evaluation pipeline to evaluate your m
 
 ## Citation
 ```
-@article{zhang2024multimodal,
-  title={Multimodal Self-Instruct: Synthetic Abstract Image and Visual Reasoning Instruction Using Language Model},
-  author={Zhang, Wenqi and Cheng, Zhenglin and He, Yuanyu and Wang, Mengna and Shen, Yongliang and Tan, Zeqi and Hou, Guiyang and He, Mingqian and Ma, Yanna and Lu, Weiming and others},
-  journal={arXiv preprint arXiv:2407.07053},
-  year={2024}
-}
+@inproceedings{zhang-etal-2024-multimodal,
+    title = "Multimodal Self-Instruct: Synthetic Abstract Image and Visual Reasoning Instruction Using Language Model",
+    author = "Zhang, Wenqi  and
+      Cheng, Zhenglin  and
+      He, Yuanyu  and
+      Wang, Mengna  and
+      Shen, Yongliang  and
+      Tan, Zeqi  and
+      Hou, Guiyang  and
+      He, Mingqian  and
+      Ma, Yanna  and
+      Lu, Weiming  and
+      Zhuang, Yueting",
+    editor = "Al-Onaizan, Yaser  and
+      Bansal, Mohit  and
+      Chen, Yun-Nung",
+    booktitle = "Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing",
+    month = nov,
+    year = "2024",
+    address = "Miami, Florida, USA",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2024.emnlp-main.1072/",
+    doi = "10.18653/v1/2024.emnlp-main.1072",
+    pages = "19228--19252"}
 ```
 
 
