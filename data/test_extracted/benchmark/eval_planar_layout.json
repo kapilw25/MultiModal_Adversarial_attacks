@@ -1,0 +1,252 @@
+{"question_id": "0325", "image": "planar_layout/0325.png", "text": "This is a park. How many gates?", "answer": "3", "type": "planar_layout", "markers": []}
+{"question_id": "0325", "image": "planar_layout/0325.png", "text": "Which gate is near the BBQ area?", "answer": "Gate 3", "type": "planar_layout", "markers": []}
+{"question_id": "0325", "image": "planar_layout/0325.png", "text": "Is there a gate near the stream?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0325", "image": "planar_layout/0325.png", "text": "Is there a stream near the mountain?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0325", "image": "planar_layout/0325.png", "text": "Where is the mountain located in the park?", "answer": "Upper right section of the park", "type": "planar_layout", "markers": []}
+{"question_id": "0325", "image": "planar_layout/0325.png", "text": "Which gate do you want to enter to enjoy the flowers?", "answer": "Either Gate 1 or Gate 2", "type": "planar_layout", "markers": []}
+{"question_id": "0325", "image": "planar_layout/0325.png", "text": "Which gate is closer to Gate 1?", "answer": "Gate 3", "type": "planar_layout", "markers": []}
+{"question_id": "0325", "image": "planar_layout/0325.png", "text": "Can you hike in this park?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0325", "image": "planar_layout/0325.png", "text": "Are the flower beds in the grassy area?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0325", "image": "planar_layout/0325.png", "text": "Does the stream go through the flower bed area?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0325", "image": "planar_layout/0325.png", "text": "Is there a bathroom in this park?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "This is a playground. How many persons?", "answer": "5", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "How many tracks?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "How many people can this playground hold at the same time for a race?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Is there Person 10?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Is there an entrance?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Is there a bathroom?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Is there a football gate?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Is this playground suitable for football?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Do we have to cross the tracks to get into the football field?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Where is Person 4 in the playground?", "answer": "Left side", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Who is closest to Person 4?", "answer": "Person 3", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Is the distribution of Person 3 and Person 5 symmetrical?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "This is a pharmacy floor plan. Is there an exit?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Is there a restroom?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "If I have abdominal pain, where should I go?", "answer": "Digestive System", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Where should I pay my bills?", "answer": "Cashier area", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Where is the Cashier area?", "answer": "Top left corner", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Can I go upstairs/downstairs?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "How many exit doors are there?", "answer": "2", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Where are the ENT medicines?", "answer": "Middle right", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Is Hematology under Cardiovascular, according to this figure?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Which exit is the ENT pharmacy near?", "answer": "Emergency Exit", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Where should patients go for counseling?", "answer": "Service counter", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Where is the Service counter?", "answer": "Lower right part", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Is the Cashier close to the exit?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "If I have a stomachache, where should I go?", "answer": "Digestive System", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "If I want to go to the restroom from the service center, which direction should I go?", "answer": "Left", "type": "planar_layout", "markers": []}
+{"question_id": "0501", "image": "planar_layout/0501.png", "text": "What is this place?", "answer": "1", "type": "planar_layout", "markers": []}
+{"question_id": "0501", "image": "planar_layout/0501.png", "text": "How many people can the conference room accommodate?", "answer": "8", "type": "planar_layout", "markers": []}
+{"question_id": "0501", "image": "planar_layout/0501.png", "text": "How many entrances or exits does the conference room have?", "answer": "1", "type": "planar_layout", "markers": []}
+{"question_id": "0501", "image": "planar_layout/0501.png", "text": "Where is the entrance located?", "answer": "Bottom right corner", "type": "planar_layout", "markers": []}
+{"question_id": "0501", "image": "planar_layout/0501.png", "text": "Is there a place for storing files in the conference room?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0501", "image": "planar_layout/0501.png", "text": "How many meeting tables are there in the conference room?", "answer": "1", "type": "planar_layout", "markers": []}
+{"question_id": "0501", "image": "planar_layout/0501.png", "text": "Are all the chairs in the conference room the same?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0501", "image": "planar_layout/0501.png", "text": "Is there a projection area in the conference room?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0501", "image": "planar_layout/0501.png", "text": "Is there a laptop in the conference room?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0501", "image": "planar_layout/0501.png", "text": "If a laptop needs to be placed in the conference room, where is the best location for it?", "answer": "meeting table", "type": "planar_layout", "markers": []}
+{"question_id": "0530", "image": "planar_layout/0530.png", "text": "This is a house. How many bedrooms does this house have?", "answer": "3", "type": "planar_layout", "markers": []}
+{"question_id": "0530", "image": "planar_layout/0530.png", "text": "How many washrooms are there in this house?", "answer": "2", "type": "planar_layout", "markers": []}
+{"question_id": "0530", "image": "planar_layout/0530.png", "text": "Does the smallest bedroom have a washroom?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0530", "image": "planar_layout/0530.png", "text": "Where is the kitchen located?", "answer": "top right corner of the house", "type": "planar_layout", "markers": []}
+{"question_id": "0530", "image": "planar_layout/0530.png", "text": "What is the shape of the kitchen?", "answer": "L shaped", "type": "planar_layout", "markers": []}
+{"question_id": "0530", "image": "planar_layout/0530.png", "text": "Is the kitchen close to the living room?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0530", "image": "planar_layout/0530.png", "text": "Which bedroom, Bedroom1 or Bedroom3, is closer to Bedroom2?", "answer": "Bedroom1", "type": "planar_layout", "markers": []}
+{"question_id": "0530", "image": "planar_layout/0530.png", "text": "Is there a dining table?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0530", "image": "planar_layout/0530.png", "text": "If a dining table needs to be added, should it be placed in the living room or the kitchen?", "answer": "living room", "type": "planar_layout", "markers": []}
+{"question_id": "0530", "image": "planar_layout/0530.png", "text": "Which room is more suitable to be used as the master bedroom?", "answer": "Bedroom2", "type": "planar_layout", "markers": []}
+{"question_id": "0605", "image": "planar_layout/0605.png", "text": "This is a two-story house. How many bedrooms does this house have?", "answer": "2", "type": "planar_layout", "markers": []}
+{"question_id": "0605", "image": "planar_layout/0605.png", "text": "How many washrooms are there in this house?", "answer": "2", "type": "planar_layout", "markers": []}
+{"question_id": "0605", "image": "planar_layout/0605.png", "text": "Does the smallest bedroom have a washroom?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0605", "image": "planar_layout/0605.png", "text": "Where is the kitchen located?", "answer": "left side", "type": "planar_layout", "markers": []}
+{"question_id": "0605", "image": "planar_layout/0605.png", "text": "What is the shape of the kitchen?", "answer": "rectangular", "type": "planar_layout", "markers": []}
+{"question_id": "0605", "image": "planar_layout/0605.png", "text": "Is the kitchen close to the living room?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0605", "image": "planar_layout/0605.png", "text": "Is there a dining table?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0605", "image": "planar_layout/0605.png", "text": "If a dining table needs to be added, should it be placed in the living room or the kitchen?", "answer": "Living Room1", "type": "planar_layout", "markers": []}
+{"question_id": "0605", "image": "planar_layout/0605.png", "text": "Which room is more suitable to be used as the master bedroom?", "answer": "Bedroom2", "type": "planar_layout", "markers": []}
+{"question_id": "0605", "image": "planar_layout/0605.png", "text": "Is Bedroom1 directly above the kitchen?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0605", "image": "planar_layout/0605.png", "text": "How many stairs are there?", "answer": "2", "type": "planar_layout", "markers": []}
+{"question_id": "0605", "image": "planar_layout/0605.png", "text": "If I want to go upstairs from Living Room1?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0627", "image": "planar_layout/0627.png", "text": "This is a seaside environment. How many houses?", "answer": "3", "type": "planar_layout", "markers": []}
+{"question_id": "0627", "image": "planar_layout/0627.png", "text": "Does each house have a window?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0627", "image": "planar_layout/0627.png", "text": "How many rocky reefs?", "answer": "2", "type": "planar_layout", "markers": []}
+{"question_id": "0627", "image": "planar_layout/0627.png", "text": "What is the shape of the rocky reef?", "answer": "trapezoidal", "type": "planar_layout", "markers": []}
+{"question_id": "0627", "image": "planar_layout/0627.png", "text": "Are all the rocky reefs in the ocean?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0627", "image": "planar_layout/0627.png", "text": "Which rocky reef is more likely to harbor marine life?", "answer": "The rocky reef located in the ocean", "type": "planar_layout", "markers": []}
+{"question_id": "0627", "image": "planar_layout/0627.png", "text": "Is there a beach?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0627", "image": "planar_layout/0627.png", "text": "Is there anyone in the floor plan?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0627", "image": "planar_layout/0627.png", "text": "Where is House1 located?", "answer": "House1", "type": "planar_layout", "markers": []}
+{"question_id": "0627", "image": "planar_layout/0627.png", "text": "Which house is closer to the path?", "answer": "House1", "type": "planar_layout", "markers": []}
+{"question_id": "0627", "image": "planar_layout/0627.png", "text": "Is there a rocky reef in the ocean?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0723", "image": "planar_layout/0723.png", "text": "This is a typical cloud computing or service architecture.", "answer": "3", "type": "planar_layout", "markers": []}
+{"question_id": "0723", "image": "planar_layout/0723.png", "text": "How many terminal devices are shown in the diagram?", "answer": "5", "type": "planar_layout", "markers": []}
+{"question_id": "0723", "image": "planar_layout/0723.png", "text": "At which layer is the storage functionality located (Use , to seprate)?", "answer": "Platform, Infrastructure", "type": "planar_layout", "markers": []}
+{"question_id": "0723", "image": "planar_layout/0723.png", "text": "What are the components included in the Application layer (Use , to seprate)?", "answer": "Monitoring, Content, Collaboration, Communication, Finance", "type": "planar_layout", "markers": []}
+{"question_id": "0723", "image": "planar_layout/0723.png", "text": "Is there a database in the Infrastructure layer?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0723", "image": "planar_layout/0723.png", "text": "Do phones and laptops belong to servers?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0723", "image": "planar_layout/0723.png", "text": "Are Runtime and Queue in a parallel relationship?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0723", "image": "planar_layout/0723.png", "text": "Is there a monitoring function in the architecture diagram?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0723", "image": "planar_layout/0723.png", "text": "Is there a feedback function in the architecture diagram?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0815", "image": "planar_layout/0815.png", "text": "This is a boat race. How many people are on the shore?", "answer": "5", "type": "planar_layout", "markers": []}
+{"question_id": "0815", "image": "planar_layout/0815.png", "text": "Are person2 and person5 on the same side of the river?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0815", "image": "planar_layout/0815.png", "text": "Who is closer to person3, person2 or person4?", "answer": "Person2", "type": "planar_layout", "markers": []}
+{"question_id": "0815", "image": "planar_layout/0815.png", "text": "Which boat is positioned the furthest ahead?", "answer": "Boat 2", "type": "planar_layout", "markers": []}
+{"question_id": "0815", "image": "planar_layout/0815.png", "text": "Which boat is in second place?", "answer": "Boat 1", "type": "planar_layout", "markers": []}
+{"question_id": "0815", "image": "planar_layout/0815.png", "text": "Which boat is in third place (Use , to seperate)?", "answer": "Boat 3, Boat 4", "type": "planar_layout", "markers": []}
+{"question_id": "0815", "image": "planar_layout/0815.png", "text": "If Boat 4 starts accelerating and eventually surpasses Boat 2, what place will it be in the race?", "answer": "first place", "type": "planar_layout", "markers": []}
+{"question_id": "0815", "image": "planar_layout/0815.png", "text": "Which boat needs the most encouragement right now?", "answer": "Boat 5", "type": "planar_layout", "markers": []}
+{"question_id": "0815", "image": "planar_layout/0815.png", "text": "How mant boats are there?", "answer": "5", "type": "planar_layout", "markers": []}
+{"question_id": "0815", "image": "planar_layout/0815.png", "text": "What is the color of the river?", "answer": "Blue", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "How many rooms are there?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "What room is directly above the living room?", "answer": "Bedroom", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Is there a sofa in the living room?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "How many doors are there?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Is there a bathtub in the bathroom?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "What room is to the right of the living room?", "answer": "Kitchen", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Is there a wardrobe in the bedroom?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "What is the label inside the bathroom?", "answer": "Bathroom", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "How many windows are there in the living room?", "answer": "1", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Which room has a TV?", "answer": "Living Room", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "If you move from the bedroom to the living room, which direction do you go?", "answer": "Down", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Which is larger, the living room or the kitchen?", "answer": "Living Room", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Which is larger, the bedroom or the bathroom?", "answer": "Bedroom", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Is there a door between the living room and the kitchen?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Is there a sink in the bathroom?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Which is larger, the kitchen or the bathroom?", "answer": "Kitchen", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Does the bedroom have a window?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Is there a door between the living room and the bedroom?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "How many beds are there?", "answer": "1", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Is there a dining table in the kitchen?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "What room is below the bedroom?", "answer": "Living Room", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "What room is to the left of the kitchen?", "answer": "Living Room", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "What room is below the bathroom?", "answer": "Living Room", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "If you move left from the kitchen, which room do you enter?", "answer": "Living Room", "type": "planar_layout", "markers": []}
+{"question_id": "web1", "image": "planar_layout/web1.png", "text": "How many input boxes does the webpage have?", "answer": "2", "type": "planar_layout", "markers": []}
+{"question_id": "web1", "image": "planar_layout/web1.png", "text": "How many buttons does the webpage have?", "answer": "1", "type": "planar_layout", "markers": []}
+{"question_id": "web1", "image": "planar_layout/web1.png", "text": "What is the function of this webpage?", "answer": "Login", "type": "planar_layout", "markers": []}
+{"question_id": "web1", "image": "planar_layout/web1.png", "text": "How many items do I need to fill in if I want to submit the form?", "answer": "2", "type": "planar_layout", "markers": []}
+{"question_id": "web1", "image": "planar_layout/web1.png", "text": "What is the first item I need to fill in?", "answer": "Username", "type": "planar_layout", "markers": []}
+{"question_id": "web1", "image": "planar_layout/web1.png", "text": "What is the second item I need to fill in?", "answer": "Password", "type": "planar_layout", "markers": []}
+{"question_id": "web1", "image": "planar_layout/web1.png", "text": "What is the shape of the form?", "answer": "Rounded rectangle", "type": "planar_layout", "markers": []}
+{"question_id": "web1", "image": "planar_layout/web1.png", "text": "What is the color of the form?", "answer": "White", "type": "planar_layout", "markers": []}
+{"question_id": "web1", "image": "planar_layout/web1.png", "text": "What is the content inside the Username input box?", "answer": "Enter your username", "type": "planar_layout", "markers": []}
+{"question_id": "web1", "image": "planar_layout/web1.png", "text": "What is the content inside the Password input box?", "answer": "Enter your password", "type": "planar_layout", "markers": []}
+{"question_id": "web1", "image": "planar_layout/web1.png", "text": "Can I pass if I only fill in username?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "web2", "image": "planar_layout/web2.png", "text": "Which page are we browsing?", "answer": "Profile", "type": "planar_layout", "markers": []}
+{"question_id": "web2", "image": "planar_layout/web2.png", "text": "What is the name displayed on the screen?", "answer": "oneko", "type": "planar_layout", "markers": []}
+{"question_id": "web2", "image": "planar_layout/web2.png", "text": "What is the profile avatar like?", "answer": "Cat", "type": "planar_layout", "markers": []}
+{"question_id": "web2", "image": "planar_layout/web2.png", "text": "What is the region shown in the profile?", "answer": "China", "type": "planar_layout", "markers": []}
+{"question_id": "web2", "image": "planar_layout/web2.png", "text": "What is the birth date shown in the figure?", "answer": "2000.1.1", "type": "planar_layout", "markers": []}
+{"question_id": "web2", "image": "planar_layout/web2.png", "text": "How may items does the top navigation bar have?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "2047", "image": "planar_layout/2047.png", "text": "This is a webpage. What is the main title of the website?", "answer": "Python Learning Hub", "type": "planar_layout", "markers": []}
+{"question_id": "2047", "image": "planar_layout/2047.png", "text": "What color is the header section of the website?", "answer": "Dark gray", "type": "planar_layout", "markers": []}
+{"question_id": "2047", "image": "planar_layout/2047.png", "text": "Where is the 'Welcome to Python Learning Hub' text located?", "answer": "At the beginning of the main section", "type": "planar_layout", "markers": []}
+{"question_id": "2047", "image": "planar_layout/2047.png", "text": "How many navigation links are there in the navigation bar?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "2047", "image": "planar_layout/2047.png", "text": "Which section is described as 'Perfect for beginners with no prior programming experience'?", "answer": "Beginner's Guide", "type": "planar_layout", "markers": []}
+{"question_id": "2047", "image": "planar_layout/2047.png", "text": "What kind of projects does the 'Projects' card encourage you to work on?", "answer": "Real-world projects", "type": "planar_layout", "markers": []}
+{"question_id": "2047", "image": "planar_layout/2047.png", "text": "Where is the footer located on the webpage?", "answer": "At the bottom of the webpage", "type": "planar_layout", "markers": []}
+{"question_id": "2047", "image": "planar_layout/2047.png", "text": "What year is displayed in the footer copyright notice?", "answer": "2024", "type": "planar_layout", "markers": []}
+{"question_id": "2047", "image": "planar_layout/2047.png", "text": "Which section of the website is described as helping to build your portfolio?", "answer": "The Projects section", "type": "planar_layout", "markers": []}
+{"question_id": "2047", "image": "planar_layout/2047.png", "text": "If I want to find the contact information, which section should I click?", "answer": "The Contact navigation link", "type": "planar_layout", "markers": []}
+{"question_id": "2146", "image": "planar_layout/2146.png", "text": "This is a webpage. What is the title of the website?", "answer": "Snacks and Books Shop", "type": "planar_layout", "markers": []}
+{"question_id": "2146", "image": "planar_layout/2146.png", "text": "How many navigation links are there in the navigation bar?", "answer": "5", "type": "planar_layout", "markers": []}
+{"question_id": "2146", "image": "planar_layout/2146.png", "text": "What is the first sentence in the intro section?", "answer": "Welcome to Snacks and Books Shop", "type": "planar_layout", "markers": []}
+{"question_id": "2146", "image": "planar_layout/2146.png", "text": "What color is the navigation bar?", "answer": "Steel blue", "type": "planar_layout", "markers": []}
+{"question_id": "2146", "image": "planar_layout/2146.png", "text": "What section is described with 'Discover a wide variety of delicious snacks, from chips and cookies to healthy options'?", "answer": "Snacks", "type": "planar_layout", "markers": []}
+{"question_id": "2146", "image": "planar_layout/2146.png", "text": "What section includes bestsellers, classics, and new releases?", "answer": "Books", "type": "planar_layout", "markers": []}
+{"question_id": "2146", "image": "planar_layout/2146.png", "text": "How many categories of snacks are listed in the 'Snacks' card?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "2146", "image": "planar_layout/2146.png", "text": "Can we find a 'Beverages' card on the webpage?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "2207", "image": "planar_layout/2207.png", "text": "How many floors does this supermarket have?", "answer": "2", "type": "planar_layout", "markers": []}
+{"question_id": "2207", "image": "planar_layout/2207.png", "text": "This is a supermarket. What sections are located on the first floor (Use , to seperate)?", "answer": "Food, Beverages, Fresh Produce", "type": "planar_layout", "markers": []}
+{"question_id": "2207", "image": "planar_layout/2207.png", "text": "Which section is positioned next to the Fresh Produce on the first floor?", "answer": "Beverages", "type": "planar_layout", "markers": []}
+{"question_id": "2207", "image": "planar_layout/2207.png", "text": "How many sections are there on the second floor?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "2207", "image": "planar_layout/2207.png", "text": "Does this supermarket show a parking area?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "2207", "image": "planar_layout/2207.png", "text": "How many sections are there in total on the first and second floors?", "answer": "7", "type": "planar_layout", "markers": []}
+{"question_id": "2207", "image": "planar_layout/2207.png", "text": "How many more sections are there on the second floor compared to the first floor?", "answer": "1", "type": "planar_layout", "markers": []}
+{"question_id": "2207", "image": "planar_layout/2207.png", "text": "If I want to buy women's clothing, which floor should I go to?", "answer": "Second", "type": "planar_layout", "markers": []}
+{"question_id": "2207", "image": "planar_layout/2207.png", "text": "Where should I go to buy electronics?", "answer": "Second", "type": "planar_layout", "markers": []}
+{"question_id": "2207", "image": "planar_layout/2207.png", "text": "I want to buy some medicine. Can I buy it in this supermarket?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "2305", "image": "planar_layout/2305.png", "text": "This is a simple road layout diagram. How many houses are there in the diagram?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "2305", "image": "planar_layout/2305.png", "text": "What color are the roofs of the houses?", "answer": "Red", "type": "planar_layout", "markers": []}
+{"question_id": "2305", "image": "planar_layout/2305.png", "text": "Which location has the most houses?", "answer": "The top left location of the crossroads", "type": "planar_layout", "markers": []}
+{"question_id": "2305", "image": "planar_layout/2305.png", "text": "Which house is the furthest from the park?", "answer": "House 3", "type": "planar_layout", "markers": []}
+{"question_id": "2305", "image": "planar_layout/2305.png", "text": "If I start from House 3 to go to the cinema, will I pass by House 4?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "2305", "image": "planar_layout/2305.png", "text": "Which house has the most convenient shopping?", "answer": "House 3", "type": "planar_layout", "markers": []}
+{"question_id": "2305", "image": "planar_layout/2305.png", "text": "Does House 4 have windows drawn?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "2305", "image": "planar_layout/2305.png", "text": "If I start from House 1 and plan to buy some snacks to play in the park, where do I need to go?", "answer": "You need to go to the shop to buy snacks and then to the park", "type": "planar_layout", "markers": []}
+{"question_id": "2305", "image": "planar_layout/2305.png", "text": "If I start from House 1 and need to go to the office to get some documents, where do I need to go?", "answer": "office", "type": "planar_layout", "markers": []}
+{"question_id": "2305", "image": "planar_layout/2305.png", "text": "Is there a hospital in the diagram?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "2306", "image": "planar_layout/2306.png", "text": "Is it a plane diagram?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "2306", "image": "planar_layout/2306.png", "text": "How many fins does it have?", "answer": "2", "type": "planar_layout", "markers": []}
+{"question_id": "2306", "image": "planar_layout/2306.png", "text": "Is there a rocket stand in the diagram?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "2306", "image": "planar_layout/2306.png", "text": "What color is the payload in the diagram?", "answer": "Light blue", "type": "planar_layout", "markers": []}
+{"question_id": "2306", "image": "planar_layout/2306.png", "text": "Which part provides thrust for the rocket?", "answer": "Engine", "type": "planar_layout", "markers": []}
+{"question_id": "2306", "image": "planar_layout/2306.png", "text": "What are the components of the body?", "answer": "Body Upper and Body Lower", "type": "planar_layout", "markers": []}
+{"question_id": "2306", "image": "planar_layout/2306.png", "text": "What is the function of the rocket fins?", "answer": "Provide stability and control during flight", "type": "planar_layout", "markers": []}
+{"question_id": "2306", "image": "planar_layout/2306.png", "text": "What is the installation direction of the nose cone?", "answer": "The nose cone is installed facing downward", "type": "planar_layout", "markers": []}
+{"question_id": "2307", "image": "planar_layout/2307.png", "text": "What layout diagram is this?", "answer": "Microcontroller", "type": "planar_layout", "markers": []}
+{"question_id": "2307", "image": "planar_layout/2307.png", "text": "How many pins are there in the diagram?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "2307", "image": "planar_layout/2307.png", "text": "How many SMA connectors are there in the diagram?", "answer": "0", "type": "planar_layout", "markers": []}
+{"question_id": "2307", "image": "planar_layout/2307.png", "text": "Which part can provide illumination?", "answer": "LEDs", "type": "planar_layout", "markers": []}
+{"question_id": "2307", "image": "planar_layout/2307.png", "text": "If external power is needed, which part should be connected?", "answer": "Power Supply", "type": "planar_layout", "markers": []}
+{"question_id": "2307", "image": "planar_layout/2307.png", "text": "Which part can communicate with a computer?", "answer": "USB connector", "type": "planar_layout", "markers": []}
+{"question_id": "2307", "image": "planar_layout/2307.png", "text": "If one button controls one LED, can all the LEDs in the diagram be controlled?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "2307", "image": "planar_layout/2307.png", "text": "Where are the LEDs located in the diagram?", "answer": "Top left", "type": "planar_layout", "markers": []}
+{"question_id": "2307", "image": "planar_layout/2307.png", "text": "Are there any circuit connection wires in the diagram?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "2307", "image": "planar_layout/2307.png", "text": "What color is the microcontroller?", "answer": "White with black text", "type": "planar_layout", "markers": []}
+{"question_id": "2309", "image": "planar_layout/2309.png", "text": "This is a translator interface, where is the input located in the diagram?", "answer": "Left", "type": "planar_layout", "markers": []}
+{"question_id": "2309", "image": "planar_layout/2309.png", "text": "Is the input section labeled?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "2309", "image": "planar_layout/2309.png", "text": "How many languages does the input support?", "answer": "2", "type": "planar_layout", "markers": []}
+{"question_id": "2309", "image": "planar_layout/2309.png", "text": "What color is the output section?", "answer": "Green", "type": "planar_layout", "markers": []}
+{"question_id": "2309", "image": "planar_layout/2309.png", "text": "How many languages does the output support?", "answer": "More than 4", "type": "planar_layout", "markers": []}
+{"question_id": "2309", "image": "planar_layout/2309.png", "text": "What year is displayed in the footer copyright notice?", "answer": "2024", "type": "planar_layout", "markers": []}
+{"question_id": "2309", "image": "planar_layout/2309.png", "text": "Can this translator translate from English to German?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "2309", "image": "planar_layout/2309.png", "text": "Can this translator translate from Japanese to English?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "2310", "image": "planar_layout/2310.png", "text": "This is a diagram of the main components of a CPU, how many control units are there in the diagram?", "answer": "1", "type": "planar_layout", "markers": []}
+{"question_id": "2310", "image": "planar_layout/2310.png", "text": "What color is the bus interface unit?", "answer": "Light pink", "type": "planar_layout", "markers": []}
+{"question_id": "2310", "image": "planar_layout/2310.png", "text": "Which component is closest to the cache?", "answer": "Memory Management Unit", "type": "planar_layout", "markers": []}
+{"question_id": "2310", "image": "planar_layout/2310.png", "text": "Which component is shown in green and located at the bottom right in the diagram?", "answer": "Branch Predictor", "type": "planar_layout", "markers": []}
+{"question_id": "2332", "image": "planar_layout/2332.png", "text": "This is a computer desktop, how many desktop icons does it have?", "answer": "0", "type": "planar_layout", "markers": []}
+{"question_id": "2332", "image": "planar_layout/2332.png", "text": "Which search engine is being used?", "answer": "Google", "type": "planar_layout", "markers": []}
+{"question_id": "2332", "image": "planar_layout/2332.png", "text": "How many search boxes are there in the diagram?", "answer": "1", "type": "planar_layout", "markers": []}
+{"question_id": "2332", "image": "planar_layout/2332.png", "text": "What color is the search box?", "answer": "White", "type": "planar_layout", "markers": []}
+{"question_id": "2332", "image": "planar_layout/2332.png", "text": "Which operating system is being used?", "answer": "Windows", "type": "planar_layout", "markers": []}
+{"question_id": "2332", "image": "planar_layout/2332.png", "text": "How many cities are displayed in the diagram?", "answer": "3", "type": "planar_layout", "markers": []}
+{"question_id": "2332", "image": "planar_layout/2332.png", "text": "What is the temperature in London?", "answer": "18", "type": "planar_layout", "markers": []}
+{"question_id": "2332", "image": "planar_layout/2332.png", "text": "What color is the weather forecast box?", "answer": "Light blue", "type": "planar_layout", "markers": []}
+{"question_id": "2332", "image": "planar_layout/2332.png", "text": "Where is the word 'Windows' located in the diagram?", "answer": "Bottom right of the desktop", "type": "planar_layout", "markers": []}
+{"question_id": "2332", "image": "planar_layout/2332.png", "text": "If I want to search for Chinese food, where should I enter the text?", "answer": "The search box", "type": "planar_layout", "markers": []}
+{"question_id": "2335", "image": "planar_layout/2335.png", "text": "This is a computer desktop, how many desktop icons does it have?", "answer": "6", "type": "planar_layout", "markers": []}
+{"question_id": "2335", "image": "planar_layout/2335.png", "text": "Which search engine is being used?", "answer": "Google", "type": "planar_layout", "markers": []}
+{"question_id": "2335", "image": "planar_layout/2335.png", "text": "How many folders are there in the diagram?", "answer": "3", "type": "planar_layout", "markers": []}
+{"question_id": "2335", "image": "planar_layout/2335.png", "text": "Which operating system is being used?", "answer": "Windows", "type": "planar_layout", "markers": []}
+{"question_id": "2335", "image": "planar_layout/2335.png", "text": "Where is 'My Computer' located?", "answer": "Top left of the desktop", "type": "planar_layout", "markers": []}
+{"question_id": "2335", "image": "planar_layout/2335.png", "text": "Is there a Recycle Bin in the diagram?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "2335", "image": "planar_layout/2335.png", "text": "What color is the desktop background?", "answer": "White", "type": "planar_layout", "markers": []}
+{"question_id": "2335", "image": "planar_layout/2335.png", "text": "If I want to check the capacity of the C drive, which icon should I click?", "answer": "My Computer", "type": "planar_layout", "markers": []}
+{"question_id": "2335", "image": "planar_layout/2335.png", "text": "From which icon can deleted files be restored?", "answer": "Recycle Bin", "type": "planar_layout", "markers": []}
+{"question_id": "3146", "image": "planar_layout/3146.png", "text": "How many rows are there in the window display?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "3146", "image": "planar_layout/3146.png", "text": "What category of items is sold in the third row?", "answer": "3", "type": "planar_layout", "markers": []}
+{"question_id": "3146", "image": "planar_layout/3146.png", "text": "Which row are the basketball shoes in?", "answer": "first row", "type": "planar_layout", "markers": []}
+{"question_id": "3146", "image": "planar_layout/3146.png", "text": "Which row are the children's sports outfits in?", "answer": "There is no children's sports outfit", "type": "planar_layout", "markers": []}
+{"question_id": "3146", "image": "planar_layout/3146.png", "text": "Does the store sell men's basketball outfits?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "3146", "image": "planar_layout/3146.png", "text": "How many types of shoes are there?", "answer": "3", "type": "planar_layout", "markers": []}
+{"question_id": "3146", "image": "planar_layout/3146.png", "text": "It's about to snow, is there suitable clothing for me?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "3146", "image": "planar_layout/3146.png", "text": "If I want to participate in a volleyball match, is there suitable clothing for me?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "3146", "image": "planar_layout/3146.png", "text": "Are the men's outfits located above the women's outfits?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "3333", "image": "planar_layout/3333.png", "text": "How many cities are there in the diagram?", "answer": "10", "type": "planar_layout", "markers": []}
+{"question_id": "3333", "image": "planar_layout/3333.png", "text": "How many green cities are there?", "answer": "5", "type": "planar_layout", "markers": []}
+{"question_id": "3333", "image": "planar_layout/3333.png", "text": "Which city has the most directly reachable neighboring cities?", "answer": "City 6", "type": "planar_layout", "markers": []}
+{"question_id": "3333", "image": "planar_layout/3333.png", "text": "Which city has only 2 directly reachable neighboring cities?", "answer": "City 2 and City 4", "type": "planar_layout", "markers": []}
+{"question_id": "3333", "image": "planar_layout/3333.png", "text": "Can City 2 directly reach City 5?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "3333", "image": "planar_layout/3333.png", "text": "From City 4 to City 8, at least how many cities need to be passed through?", "answer": "2", "type": "planar_layout", "markers": []}
+{"question_id": "3333", "image": "planar_layout/3333.png", "text": "Based on the diagram, which city has the most developed transportation?", "answer": "City 6", "type": "planar_layout", "markers": []}
+{"question_id": "3333", "image": "planar_layout/3333.png", "text": "Among City 3, City 4, and City 5, which is more convenient to reach City 1?", "answer": "City 5", "type": "planar_layout", "markers": []}
+{"question_id": "3621", "image": "planar_layout/3621.png", "text": "How many capital cities are shown in the chart?", "answer": "11", "type": "planar_layout", "markers": []}
+{"question_id": "3621", "image": "planar_layout/3621.png", "text": "Which country's capital has the highest longitude?", "answer": "Japan", "type": "planar_layout", "markers": []}
+{"question_id": "3621", "image": "planar_layout/3621.png", "text": "Which capital has the highest temperature?", "answer": "New Delhi", "type": "planar_layout", "markers": []}
+{"question_id": "3621", "image": "planar_layout/3621.png", "text": "Beijing is the capital of which country?", "answer": "Beijing is the capital of China", "type": "planar_layout", "markers": []}
+{"question_id": "3621", "image": "planar_layout/3621.png", "text": "Which two capitals have the largest difference in latitude?", "answer": "Beijing and Jakarta", "type": "planar_layout", "markers": []}
+{"question_id": "3621", "image": "planar_layout/3621.png", "text": "What is the temperature of Manila?", "answer": "92\u00b0F", "type": "planar_layout", "markers": []}
+{"question_id": "3621", "image": "planar_layout/3621.png", "text": "What color represents India?", "answer": "Purple", "type": "planar_layout", "markers": []}

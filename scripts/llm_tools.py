@@ -1,11 +1,17 @@
 import time
 from functools import wraps
 import threading
+import os
+import dotenv
 
 import random
 from openai import AzureOpenAI, OpenAI
 import requests
 import json
+
+# Load environment variables from .env file
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+dotenv.load_dotenv(dotenv_path)
 
 def retry(exception_to_check, tries=3, delay=3, backoff=1):
     """
@@ -80,12 +86,19 @@ def send_chat_request_azure(
 ):
     data_res_list = []
 
-    if engine == "xxx":
+    if engine == "gpt4o":
+        
+        url = "https://api.openai.com/v1/chat/completions"
 
-        url = "xxx"
+        # Debug: Check if API key is available
+        api_key = os.environ.get('OPENAI_API_KEY')
+        if api_key is None:
+            print("DEBUG: OPENAI_API_KEY environment variable is not set!")
+            # Use a placeholder for testing
+            api_key = "YOUR_API_KEY_HERE"  # Replace with your actual API key for testing
 
         payload = json.dumps({
-            "model": engine,
+            "model": "gpt-4o",
             "stream": False,
             "messages": message_text,
             "temperature": temp,
@@ -96,7 +109,7 @@ def send_chat_request_azure(
         })
         headers = {
             'Accept': 'application/json',
-            'Authorization': 'Bearer ' + '<Your-Api Key>',
+            'Authorization': 'Bearer ' + api_key,
             'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
             'Content-Type': 'application/json'
         }

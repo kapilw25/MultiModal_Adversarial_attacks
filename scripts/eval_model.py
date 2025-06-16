@@ -26,20 +26,23 @@ def local_image_to_data_url(image_path):
 if __name__ == '__main__':
 
     eval_data = []
-    engine = 'xxx'
-    task = 'xxx'
-    with open('xxx/eval_xxxk.json') as f:
+    engine = 'gpt4o'
+    task = 'chart'
+    # Use proper string formatting and relative path to parent directory
+    file_path = f'../{engine}/eval_{task}.json'
+    with open(file_path) as f:
         for line in f:
             eval_data.append(json.loads(line))
 
-        random_count = len(eval_data)
+        # random_count = len(eval_data)
+        random_count = 5
 
         human_select = eval_data[:random_count]
 
         res_list = []
         try:
             for data in tqdm(human_select):
-                img_path = './' + data['image']
+                img_path = '../data/test_extracted/' + data['image']
                 url = local_image_to_data_url(img_path)
 
                 msgs = [
@@ -64,6 +67,9 @@ if __name__ == '__main__':
 
                 if 'markers' in data.keys():
                     markers = data['markers']
+                else:
+                    # Initialize markers to avoid NoneType error
+                    markers = []
 
                 res = {
                     "question_id": data['question_id'],
@@ -81,10 +87,10 @@ if __name__ == '__main__':
 
                 time.sleep(0.1)
 
-                with open(f'{engine}/eval_{engine}_{task}_{random_count}.json', 'a') as fout:
+                with open(f'../{engine}/eval_{engine}_{task}_{random_count}.json', 'a') as fout:
                     fout.write(json.dumps(res) + '\n')
         except Exception as e:
             print(e)
-            with open(f'{engine}/eval_{engine}_{task}_{random_count}.json', 'w') as fout:
+            with open(f'../{engine}/eval_{engine}_{task}_{random_count}.json', 'w') as fout:
                 for res in res_list:
                     fout.write(json.dumps(res) + '\n')

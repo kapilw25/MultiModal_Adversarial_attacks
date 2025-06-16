@@ -250,7 +250,7 @@ def evaluator_map(path):
     return ok_res, bad_res
 
 # Evaluate 7 scenario: charts, tables, dashboards, flowcharts, relation graphs, floor plans, and visual puzzles
-evaluator('./xxx.json')
+evaluator('../gpt4o/eval_gpt4o_chart_5.json')
 
 # Evaluate 1 scenario: simulated maps
-evaluator_map('./xxx.json')
+# evaluator_map('../gpt4o/eval_gpt4o_chart_5.json')
