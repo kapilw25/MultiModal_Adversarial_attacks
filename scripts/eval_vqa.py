@@ -92,8 +92,8 @@ def evaluator(path):
     summary_score = 0.0
 
     for result in tqdm(eval_file):
-        pr = result['text']
-        gt = result['truth']
+        pr = result['text'] # predicted response
+        gt = result['truth'] # ground truth
 
         pr = pr.strip().lower()
         gt = gt.strip().lower()
@@ -183,7 +183,8 @@ def evaluator(path):
             ok_results.append(result)
         else:
             bad_results.append(result)
-
+    # print(f"ok_results: {ok_results}")
+    # print(f"bad_results: {bad_results}")
     print(f'Overall Accuracy: {len(ok_results) / (len(eval_file) - summary_cnt) * 100:.2f}%')
 
     if summary_cnt > 0:
@@ -231,11 +232,11 @@ def evaluator_map(path):
         if len(gt_list) == 0:
             continue
 
-        pr_list = list(dict.fromkeys(pr_list))
+        pr_list = list(dict.fromkeys(pr_list)) # remove duplicates
 
         cnt = 0
         match_index = []
-        for i in range(len(pr_list)):
+        for i in range(len(pr_list)): # check if pr_list[i] in gt_list
             if pr_list[i] in gt_list:
                 cnt += 1
 
