@@ -35,7 +35,7 @@ if __name__ == '__main__':
             eval_data.append(json.loads(line))
 
         # random_count = len(eval_data)
-        random_count = 5
+        random_count = 17
 
         human_select = eval_data[:random_count]
 
