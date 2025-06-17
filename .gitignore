@@ -5,3 +5,12 @@ data/test
 
 # __pycache__ files
 __pycache__
+
+# Byte-compiled files
+*.py[cod]
+# C extensions
+*.so
+# Distribution / packaging
+.Python
+build/
+dist/

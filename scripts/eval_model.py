@@ -1,8 +1,13 @@
 import time
 
-from llm_tools import send_chat_request_azure
+# For OpenAI GPT-4o model
+# from llm_tools import send_chat_request_azure
+# For local Qwen2.5-VL model
+from local_llm_tools import send_chat_request_azure
+
 import random, json
 from tqdm import tqdm
+import os
 
 import base64
 from mimetypes import guess_type
@@ -26,10 +31,18 @@ def local_image_to_data_url(image_path):
 if __name__ == '__main__':
 
     eval_data = []
-    engine = 'gpt4o'
+    
+    # For OpenAI GPT-4o model
+    # engine = 'gpt4o'
+    # For local Qwen2.5-VL model
+    engine = 'Qwen25_VL_3B'
+    
     task = 'chart'
-    # Use proper string formatting and relative path to parent directory
-    file_path = f'../{engine}/eval_{task}.json'
+    
+    # Define input and output file paths
+    file_path = f'results/{engine}/eval_{task}.json'
+    output_file = f'results/{engine}/eval_{engine}_{task}_output.json'
+    
     with open(file_path) as f:
         for line in f:
             eval_data.append(json.loads(line))
@@ -42,7 +55,7 @@ if __name__ == '__main__':
         res_list = []
         try:
             for data in tqdm(human_select):
-                img_path = '../data/test_extracted/' + data['image']
+                img_path = 'data/test_extracted/' + data['image']
                 url = local_image_to_data_url(img_path)
 
                 msgs = [
@@ -87,10 +100,16 @@ if __name__ == '__main__':
 
                 time.sleep(0.1)
 
-                with open(f'../{engine}/eval_{engine}_{task}_{random_count}.json', 'a') as fout:
+                # Ensure output directory exists
+                os.makedirs(os.path.dirname(output_file), exist_ok=True)
+                
+                with open(output_file, 'a') as fout:
                     fout.write(json.dumps(res) + '\n')
         except Exception as e:
             print(e)
-            with open(f'../{engine}/eval_{engine}_{task}_{random_count}.json', 'w') as fout:
+            # Ensure output directory exists
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+            
+            with open(output_file, 'w') as fout:
                 for res in res_list:
                     fout.write(json.dumps(res) + '\n')
