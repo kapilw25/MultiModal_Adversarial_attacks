@@ -29,7 +29,7 @@ Note: The evaluation scripts automatically download required NLTK resources (lik
 
 ## Evaluation Pipeline
 
-The evaluation pipeline consists of three main components:
+The evaluation pipeline consists of four main components:
 
 ### 1. `eval_model.py`
 
@@ -58,24 +58,22 @@ python eval_vqa.py
 ```
 
 Interactive Usage:
-- When you run the script, it will prompt you to:
-  - Select the engine (1 for GPT-4o or 2 for Qwen25_VL_3B)
-  - Select the task (chart, table, dashboard, etc.)
-- The script will find all evaluation files for the selected model and task
+- When you run the script, it will prompt you to select the engine (1 for GPT-4o or 2 for Qwen25_VL_3B)
+- The script uses a fixed task ('chart') to match `eval_model.py`
+- It will find all evaluation files for the selected model and task
 - It will evaluate each file and show a comparison of results
-- For adversarial testing, it will show the accuracy drop due to the attack
+- For adversarial testing, it will show the accuracy drop due to each attack type (PGD and FGSM)
 
 Functions:
-- `evaluator()` - Tests accuracy on 7 tasks (charts, tables, dashboards, flowcharts, relation graphs, floor plans, and visual puzzles)
-- `evaluator_map()` - Tests accuracy on simulated maps
+- `evaluator()` - Tests accuracy on chart tasks
 - `evaluate_all_files()` - Evaluates and compares all result files for a given model and task
 
-### 3. `attack_model/v2_pgd_attack.py`
+### 3. `attack_models/black_box_attacks/v2_pgd_attack.py`
 
 This script applies a Projected Gradient Descent (PGD) adversarial attack to images.
 
 ```bash
-python attack_model/v2_pgd_attack.py --image_path data/test_extracted/chart/image.png --eps 0.03
+python attack_models/black_box_attacks/v2_pgd_attack.py --image_path data/test_extracted/chart/image.png --eps 0.03
 ```
 
 Parameters:
@@ -86,9 +84,25 @@ Parameters:
 
 The script will generate an adversarial version of the image and save it to `data/test_extracted_adv/`.
 
+### 4. `attack_models/black_box_attacks/v3_fgsm_attack.py`
+
+This script applies a Fast Gradient Sign Method (FGSM) adversarial attack to images.
+
+```bash
+python attack_models/black_box_attacks/v3_fgsm_attack.py --image_path data/test_extracted/chart/image.png --eps 0.03
+```
+
+Parameters:
+- `--image_path`: Path to the input image
+- `--eps`: Maximum perturbation (default: 8/255)
+
+The script will generate an adversarial version of the image and save it to `data/test_extracted_adv_fgsm/`.
+
 #### Attack Implementation Notes
 
-- The implementation uses a "black-box transfer attack" strategy, employing a pre-trained ResNet50 as a substitute model
+- Both attacks use a "black-box transfer attack" strategy, employing a pre-trained ResNet50 as a substitute model
+- PGD is an iterative attack that refines the adversarial perturbation over multiple steps
+- FGSM is a single-step attack that creates adversarial examples in one go (faster but generally less effective)
 - This approach is necessary because most VLMs are accessed through APIs or don't provide gradient access needed for direct attacks
 - Transfer attacks rely on the principle that adversarial examples often transfer between different models
 - For evaluating proprietary models, this transfer-based approach is practical and effective, as shown by the significant accuracy drop in Qwen25_VL_3B
@@ -104,32 +118,47 @@ The script will generate an adversarial version of the image and save it to `dat
 
 To test model robustness against adversarial attacks:
 
-1. Generate adversarial images:
+1. Generate adversarial images using PGD:
    ```bash
-   python attack_model/v2_pgd_attack.py --image_path data/test_extracted/chart/20231114102825506748.png --eps 0.03
+   python attack_models/black_box_attacks/v2_pgd_attack.py --image_path data/test_extracted/chart/20231114102825506748.png --eps 0.03
    ```
 
-2. Run evaluation on original images:
+2. Generate adversarial images using FGSM:
+   ```bash
+   python attack_models/black_box_attacks/v3_fgsm_attack.py --image_path data/test_extracted/chart/20231114102825506748.png --eps 0.03
+   ```
+
+3. Run evaluation on original images:
    ```bash
    # Edit eval_model.py to use original images:
    # img_path = 'data/test_extracted/' + data['image']
    python scripts/eval_model.py
    ```
 
-3. Run evaluation on adversarial images:
+4. Run evaluation on PGD adversarial images:
    ```bash
-   # Edit eval_model.py to use adversarial images:
+   # Edit eval_model.py to use PGD adversarial images:
    # img_path = 'data/test_extracted_adv/' + data['image']
    python scripts/eval_model.py
    ```
 
-4. Compare results:
+5. Run evaluation on FGSM adversarial images:
+   ```bash
+   # Edit eval_model.py to use FGSM adversarial images:
+   # img_path = 'data/test_extracted_adv_fgsm/' + data['image']
+   python scripts/eval_model.py
+   ```
+
+6. Compare results:
    ```bash
    python scripts/eval_vqa.py
    ```
 
 ## Recent Progress
 
+- Added FGSM (Fast Gradient Sign Method) attack implementation for comparison with PGD
+- Simplified evaluation scripts to focus on chart tasks for more direct comparisons
+- Enhanced `eval_vqa.py` to automatically detect and compare results from different attack types
 - Added adversarial attack capabilities using PGD (Projected Gradient Descent)
 - Enhanced evaluation scripts to compare performance on original vs. adversarial images
 - Implemented automatic detection and comparison of multiple evaluation files
@@ -138,29 +167,32 @@ To test model robustness against adversarial attacks:
 - Implemented proper environment variable loading for API keys
 - Added error handling for missing data
 - Added automatic download of NLTK resources when needed
-- Successfully ran evaluations on multiple models:
-  - Qwen25_VL_3B: 82.35% accuracy on original images, 35.29% on adversarial images
-  - GPT-4o: 64.71% accuracy on original images, 70.59% on adversarial images
 
 ## Directory Structure
 
 ```
 Multi-modal-Self-instruct/
 ├── .env                    # Environment variables (API keys)
-├── attack_model/           # Adversarial attack scripts
-│   └── v2_pgd_attack.py    # PGD attack implementation
+├── attack_models/          # Adversarial attack scripts
+│   └── black_box_attacks/  # Black-box attack implementations
+│       ├── v1_image_distortions.py  # Basic image distortions
+│       ├── v2_pgd_attack.py         # PGD attack implementation
+│       └── v3_fgsm_attack.py        # FGSM attack implementation
 ├── data/                   # Dataset files
-│   ├── test_extracted/     # Original test images
-│   └── test_extracted_adv/ # Adversarial test images
+│   ├── test_extracted/        # Original test images
+│   ├── test_extracted_adv/    # PGD adversarial images
+│   └── test_extracted_adv_fgsm/ # FGSM adversarial images
 ├── results/                # Evaluation results
 │   ├── gpt4o/              # GPT-4o results
 │   │   ├── eval_chart.json # Input evaluation data
-│   │   ├── eval_gpt4o_chart_17.json      # Results on original images
-│   │   └── eval_gpt4o_chart_17_adv.json  # Results on adversarial images
+│   │   ├── eval_gpt4o_chart_17.json         # Results on original images
+│   │   ├── eval_gpt4o_chart_17_adv.json     # Results on PGD adversarial images
+│   │   └── eval_gpt4o_chart_17_adv_fgsm.json # Results on FGSM adversarial images
 │   └── Qwen25_VL_3B/       # Qwen results
 │       ├── eval_chart.json # Input evaluation data
-│       ├── eval_Qwen25_VL_3B_chart_17.json      # Results on original images
-│       └── eval_Qwen25_VL_3B_chart_17_adv.json  # Results on adversarial images
+│       ├── eval_Qwen25_VL_3B_chart_17.json         # Results on original images
+│       ├── eval_Qwen25_VL_3B_chart_17_adv.json     # Results on PGD adversarial images
+│       └── eval_Qwen25_VL_3B_chart_17_adv_fgsm.json # Results on FGSM adversarial images
 ├── scripts/                # Evaluation scripts
 │   ├── eval_model.py       # Script to generate model responses
 │   ├── eval_vqa.py         # Script to calculate accuracy metrics
@@ -185,39 +217,80 @@ Multi-modal-Self-instruct/
    ```bash
    cd scripts
    python eval_vqa.py
-   # Follow the interactive prompts to select the model and task
+   # Follow the interactive prompts to select the model
    ```
 
-Example workflow for adversarial testing:
+Example workflow for comparing attack methods:
 ```bash
-# Generate adversarial image
-python attack_model/v2_pgd_attack.py --image_path data/test_extracted/chart/20231114102825506748.png --eps 0.03
+# Generate PGD adversarial image
+python attack_models/black_box_attacks/v2_pgd_attack.py --image_path data/test_extracted/chart/20231114102825506748.png --eps 0.03
 
-# Generate responses with GPT-4o on adversarial images
-# (Make sure eval_model.py is set to use adversarial images)
-python scripts/eval_model.py
-# Select option 1 for GPT-4o
+# Generate FGSM adversarial image
+python attack_models/black_box_attacks/v3_fgsm_attack.py --image_path data/test_extracted/chart/20231114102825506748.png --eps 0.03
 
 # Evaluate and compare results
 python scripts/eval_vqa.py
-# Select option 1 for GPT-4o
-# Select option 1 for chart task
+# Select the model to evaluate
 ```
 
 ## Adversarial Robustness Results
 
-Initial testing shows interesting differences in model robustness:
+Testing shows interesting differences in model robustness against different attack types:
 
-| Model | Original Accuracy | Adversarial Accuracy | Accuracy Change |
-|-------|------------------|---------------------|----------------|
-| GPT-4o | 64.71% | 70.59% | +5.88% |
-| Qwen25_VL_3B | 82.35% | 35.29% | -47.06% |
+### Comprehensive Results Table
 
-These results suggest that while Qwen25_VL_3B performs better on clean images, GPT-4o shows significantly higher robustness against adversarial attacks.
+| Model | Image Type | Accuracy | Accuracy Change |
+|-------|------------|----------|----------------|
+| GPT-4o | Original | 64.71% | - |
+| GPT-4o | PGD Adversarial | 70.59% | +5.88% |
+| GPT-4o | FGSM Adversarial | 64.71% | 0.00% |
+| Qwen25_VL_3B | Original | 82.35% | - |
+| Qwen25_VL_3B | PGD Adversarial | 35.29% | -47.06% |
+| Qwen25_VL_3B | FGSM Adversarial | 41.18% | -41.18% |
+
+### Raw Evaluation Output
+
+#### GPT-4o Results:
+```
+=== ACCURACY COMPARISON ===
+Adversarial (PGD) (eval_gpt4o_chart_17_adv.json): 70.59%
+Adversarial (FGSM) (eval_gpt4o_chart_17_adv_fgsm.json): 64.71%
+Original (eval_gpt4o_chart_17.json): 64.71%
+
+Accuracy drop due to PGD attack: -5.88%
+Accuracy drop due to FGSM attack: 0.00%
+```
+
+#### Qwen25_VL_3B Results:
+```
+=== ACCURACY COMPARISON ===
+Original (eval_Qwen25_VL_3B_chart_17.json): 82.35%
+Adversarial (PGD) (eval_Qwen25_VL_3B_chart_17_adv.json): 35.29%
+Adversarial (FGSM) (eval_Qwen25_VL_3B_chart_17_adv_fgsm.json): 41.18%
+
+Accuracy drop due to PGD attack: 47.06%
+Accuracy drop due to FGSM attack: 41.18%
+```
+
+These results reveal several key insights:
+
+1. **Baseline Performance**: Qwen25_VL_3B performs significantly better on original images (82.35% vs 64.71%)
+
+2. **Adversarial Robustness**: 
+   - GPT-4o shows remarkable robustness to both attack types, with PGD attacks actually improving performance
+   - Qwen25_VL_3B shows significant vulnerability to both attack types, with accuracy dropping by over 40%
+
+3. **Attack Effectiveness**:
+   - For Qwen25_VL_3B, the PGD attack was more effective than FGSM (as expected)
+   - For GPT-4o, neither attack was effective at reducing performance
+
+4. **Comparative Analysis**:
+   - While Qwen25_VL_3B outperforms GPT-4o on clean images, GPT-4o is substantially more robust to adversarial examples
+   - The difference in robustness is dramatic - GPT-4o's performance is completely unaffected or even improved by attacks that cut Qwen25_VL_3B's performance in half
 
 ## Notes
 
-- The evaluation pipeline supports various visual reasoning tasks
+- The evaluation pipeline now supports multiple attack types for comprehensive robustness testing
 - The interactive scripts eliminate the need to manually edit code when switching models
 - The pipeline supports both OpenAI API models and local models
 - Error handling has been improved to provide helpful messages when issues occur

@@ -68,8 +68,10 @@ if __name__ == '__main__':
 
             # Original output file
             # output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}.json'
-            # Output file for adversarial evaluation
-            output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}_adv.json'
+            # PGD adversarial output file
+            # output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}_adv.json'
+            # FGSM adversarial output file
+            output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}_adv_fgsm.json'
             print(f"\nOutput file: {output_file}")
             
             # Check if output file already exists
@@ -86,8 +88,10 @@ if __name__ == '__main__':
                 for data in tqdm(human_select):
                     # Original image path
                     # img_path = 'data/test_extracted/' + data['image']
-                    # Adversarial image path
-                    img_path = 'data/test_extracted_adv/' + data['image']
+                    # PGD adversarial image path
+                    # img_path = 'data/test_extracted_adv/' + data['image']
+                    # FGSM adversarial image path
+                    img_path = 'data/test_extracted_adv_fgsm/' + data['image']
                     url = local_image_to_data_url(img_path)
 
                     msgs = [

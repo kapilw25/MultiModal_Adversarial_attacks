@@ -212,82 +212,6 @@ def evaluator(path):
     return ok_results, bad_results, accuracy if len(eval_file) - summary_cnt > 0 else 0
 
 
-def extract_marker(s):
-    pattern = r'(?:[A-Za-z][0-9]|[0-9][A-Za-z])'
-    marker_list = []
-    for match in re.finditer(pattern, s):
-        marker_list.append(match[0])
-
-    return marker_list
-
-# For map evaluation
-def evaluator_map(path):
-    # Check if file exists
-    if not os.path.exists(path):
-        print(f"Error: File {path} not found.")
-        return None, None, 0
-        
-    print(f"Evaluating {path}...")
-    
-    eval_file = []
-    with open(path) as f:
-        for line in f:
-            eval_file.append(json.loads(line))
-            
-    # Check if maze dataset exists
-    maze_path = './maze_dataset2/eval_3k.json'
-    if not os.path.exists(maze_path):
-        print(f"Error: Maze dataset file {maze_path} not found.")
-        return None, None, 0
-            
-    data_file = []
-    with open(maze_path, 'r') as f:
-        for line in f:
-            data_file.append(json.loads(line))
-
-    ok_res = []
-    bad_res = []
-
-    score = 0.0
-    for result in eval_file:
-        index = 0
-        pr = result['text']
-        gt = result['truth']
-
-        pr_list = extract_marker(pr)
-        while data_file[index]['question_id'] != result['question_id']:
-            index += 1
-        gt_list = data_file[index]['markers']
-        # gt_list = result['markers']
-        # gt_list = extract_marker(gt)
-
-        if len(gt_list) == 0:
-            continue
-
-        pr_list = list(dict.fromkeys(pr_list)) # remove duplicates
-
-        cnt = 0
-        match_index = []
-        for i in range(len(pr_list)): # check if pr_list[i] in gt_list
-            if pr_list[i] in gt_list:
-                cnt += 1
-
-        if cnt / len(gt_list) >= 0.9:
-            ok_res.append(result)
-        elif cnt / len(gt_list) <= 0.1:
-            bad_res.append(result)
-
-        score = score + cnt / len(gt_list)
-
-    # Check if this is an adversarial evaluation
-    is_adversarial = "_adv" in path
-    file_type = "Adversarial" if is_adversarial else "Original"
-    
-    accuracy = score / len(eval_file) * 100
-    print(f'{file_type} Accuracy: {accuracy:.2f}%')
-    return ok_res, bad_res, accuracy
-
-
 def select_engine():
     """Interactive function to select the engine to evaluate"""
     print("\nSelect the engine to evaluate:")
@@ -308,40 +232,7 @@ def select_engine():
             print("Invalid choice. Please enter 1 or 2.")
 
 
-def select_task():
-    """Interactive function to select the task"""
-    print("\nSelect the task to evaluate:")
-    print("  [1] chart")
-    print("  [2] table")
-    print("  [3] dashboard")
-    print("  [4] flowchart")
-    print("  [5] relation_graph")
-    print("  [6] floor_plan")
-    print("  [7] visual_puzzle")
-    print("  [8] map")
-    
-    task_mapping = {
-        '1': 'chart',
-        '2': 'table',
-        '3': 'dashboard',
-        '4': 'flowchart',
-        '5': 'relation_graph',
-        '6': 'floor_plan',
-        '7': 'visual_puzzle',
-        '8': 'map'
-    }
-    
-    while True:
-        choice = input("\nEnter your choice (1-8): ")
-        if choice in task_mapping:
-            selected_task = task_mapping[choice]
-            print(f"Selected task: {selected_task}")
-            return selected_task
-        else:
-            print("Invalid choice. Please enter a number between 1 and 8.")
-
-
-def evaluate_all_files(engine, task, random_count=17):
+def evaluate_all_files(engine, task="chart", random_count=17):
     """Evaluate all files for a given engine and task"""
     # Base directory for results
     dir_path = f'results/{engine}'
@@ -364,39 +255,48 @@ def evaluate_all_files(engine, task, random_count=17):
     results = {}
     for path in file_paths:
         file_name = os.path.basename(path)
-        is_map = task == 'map'
-        
-        if is_map:
-            _, _, accuracy = evaluator_map(path)
-        else:
-            _, _, accuracy = evaluator(path)
-        
+        _, _, accuracy = evaluator(path)
         results[file_name] = accuracy
     
-    # Print comparison if we have both original and adversarial results
+    # Print comparison if we have multiple results
     if len(results) > 1:
         print("\n=== ACCURACY COMPARISON ===")
         for file_name, accuracy in results.items():
-            file_type = "Adversarial" if "_adv" in file_name else "Original"
+            if "_adv_fgsm" in file_name:
+                file_type = "Adversarial (FGSM)"
+            elif "_adv" in file_name:
+                file_type = "Adversarial (PGD)"
+            else:
+                file_type = "Original"
             print(f"{file_type} ({file_name}): {accuracy:.2f}%")
         
-        # If we have both original and adversarial, calculate the difference
+        # If we have original and adversarial results, calculate the differences
         orig_file = next((f for f in results.keys() if "_adv" not in f), None)
-        adv_file = next((f for f in results.keys() if "_adv" in f), None)
         
-        if orig_file and adv_file:
+        if orig_file:
             orig_acc = results[orig_file]
-            adv_acc = results[adv_file]
-            diff = orig_acc - adv_acc
-            print(f"\nAccuracy drop due to adversarial attack: {diff:.2f}%")
+            
+            # Check for PGD adversarial file
+            pgd_file = next((f for f in results.keys() if "_adv" in f and "_fgsm" not in f), None)
+            if pgd_file:
+                pgd_acc = results[pgd_file]
+                pgd_diff = orig_acc - pgd_acc
+                print(f"\nAccuracy drop due to PGD attack: {pgd_diff:.2f}%")
+            
+            # Check for FGSM adversarial file
+            fgsm_file = next((f for f in results.keys() if "_adv_fgsm" in f), None)
+            if fgsm_file:
+                fgsm_acc = results[fgsm_file]
+                fgsm_diff = orig_acc - fgsm_acc
+                print(f"Accuracy drop due to FGSM attack: {fgsm_diff:.2f}%")
 
 
 if __name__ == "__main__":
     # Select engine
     engine = select_engine()
     
-    # Select task
-    task = select_task()
+    # Fixed task
+    task = "chart"
     
     # Fixed sample count
     random_count = 17
