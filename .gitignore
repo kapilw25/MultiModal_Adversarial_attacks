@@ -1,7 +1,10 @@
 .env
 venv_MM
+
+# directories
 data/train
 data/test
+fig
 
 # __pycache__ files
 __pycache__
@@ -14,3 +17,4 @@ __pycache__
 .Python
 build/
 dist/
+

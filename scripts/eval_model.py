@@ -71,7 +71,13 @@ if __name__ == '__main__':
             # PGD adversarial output file
             # output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}_adv.json'
             # FGSM adversarial output file
-            output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}_adv_fgsm.json'
+            # output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}_adv_fgsm.json'
+            # CW-L2 adversarial output file
+            # output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}_adv_cw_l2.json'
+            # CW-L0 adversarial output file
+            # output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}_adv_cw_l0.json'
+            # CW-L∞ adversarial output file
+            output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}_adv_cw_linf.json'
             print(f"\nOutput file: {output_file}")
             
             # Check if output file already exists
@@ -91,7 +97,13 @@ if __name__ == '__main__':
                     # PGD adversarial image path
                     # img_path = 'data/test_extracted_adv/' + data['image']
                     # FGSM adversarial image path
-                    img_path = 'data/test_extracted_adv_fgsm/' + data['image']
+                    # img_path = 'data/test_extracted_adv_fgsm/' + data['image']
+                    # CW-L2 adversarial image path
+                    # img_path = 'data/test_extracted_adv_cw_l2/' + data['image']
+                    # CW-L0 adversarial image path
+                    # img_path = 'data/test_extracted_adv_cw_l0/' + data['image']
+                    # CW-L∞ adversarial image path
+                    img_path = 'data/test_extracted_adv_cw_linf/' + data['image']
                     url = local_image_to_data_url(img_path)
 
                     msgs = [
@@ -142,7 +154,7 @@ if __name__ == '__main__':
                     with open(output_file, 'a') as fout:
                         fout.write(json.dumps(res) + '\n')
                 
-                print(f"\nInference completeds! Results saved to {output_file}")
+                print(f"\nInference completed! Results saved to {output_file}")
                 
             except Exception as e:
                 print(f"Error during evaluation: {e}")

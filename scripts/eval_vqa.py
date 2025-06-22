@@ -262,7 +262,13 @@ def evaluate_all_files(engine, task="chart", random_count=17):
     if len(results) > 1:
         print("\n=== ACCURACY COMPARISON ===")
         for file_name, accuracy in results.items():
-            if "_adv_fgsm" in file_name:
+            if "_adv_cw_l2" in file_name:
+                file_type = "Adversarial (CW-L2)"
+            elif "_adv_cw_l0" in file_name:
+                file_type = "Adversarial (CW-L0)"
+            elif "_adv_cw_linf" in file_name:
+                file_type = "Adversarial (CW-L∞)"
+            elif "_adv_fgsm" in file_name:
                 file_type = "Adversarial (FGSM)"
             elif "_adv" in file_name:
                 file_type = "Adversarial (PGD)"
@@ -277,18 +283,64 @@ def evaluate_all_files(engine, task="chart", random_count=17):
             orig_acc = results[orig_file]
             
             # Check for PGD adversarial file
-            pgd_file = next((f for f in results.keys() if "_adv" in f and "_fgsm" not in f), None)
+            pgd_file = next((f for f in results.keys() if "_adv" in f and "_fgsm" not in f and "_cw" not in f), None)
             if pgd_file:
                 pgd_acc = results[pgd_file]
-                pgd_diff = orig_acc - pgd_acc
-                print(f"\nAccuracy drop due to PGD attack: {pgd_diff:.2f}%")
+                pgd_diff = pgd_acc - orig_acc
+                if pgd_diff > 0:
+                    print(f"PGD: +{abs(pgd_diff):.2f}% (improvement)")
+                elif pgd_diff < 0:
+                    print(f"PGD: -{abs(pgd_diff):.2f}% (degradation)")
+                else:
+                    print(f"PGD: 0.00% (no change)")
             
             # Check for FGSM adversarial file
             fgsm_file = next((f for f in results.keys() if "_adv_fgsm" in f), None)
             if fgsm_file:
                 fgsm_acc = results[fgsm_file]
-                fgsm_diff = orig_acc - fgsm_acc
-                print(f"Accuracy drop due to FGSM attack: {fgsm_diff:.2f}%")
+                fgsm_diff = fgsm_acc - orig_acc
+                if fgsm_diff > 0:
+                    print(f"FGSM: +{abs(fgsm_diff):.2f}% (improvement)")
+                elif fgsm_diff < 0:
+                    print(f"FGSM: -{abs(fgsm_diff):.2f}% (degradation)")
+                else:
+                    print(f"FGSM: 0.00% (no change)")
+                
+            # Check for CW-L2 adversarial file
+            cw_l2_file = next((f for f in results.keys() if "_adv_cw_l2" in f), None)
+            if cw_l2_file:
+                cw_l2_acc = results[cw_l2_file]
+                cw_l2_diff = cw_l2_acc - orig_acc
+                if cw_l2_diff > 0:
+                    print(f"CW-L2: +{abs(cw_l2_diff):.2f}% (improvement)")
+                elif cw_l2_diff < 0:
+                    print(f"CW-L2: -{abs(cw_l2_diff):.2f}% (degradation)")
+                else:
+                    print(f"CW-L2: 0.00% (no change)")
+                
+            # Check for CW-L0 adversarial file
+            cw_l0_file = next((f for f in results.keys() if "_adv_cw_l0" in f), None)
+            if cw_l0_file:
+                cw_l0_acc = results[cw_l0_file]
+                cw_l0_diff = cw_l0_acc - orig_acc
+                if cw_l0_diff > 0:
+                    print(f"CW-L0: +{abs(cw_l0_diff):.2f}% (improvement)")
+                elif cw_l0_diff < 0:
+                    print(f"CW-L0: -{abs(cw_l0_diff):.2f}% (degradation)")
+                else:
+                    print(f"CW-L0: 0.00% (no change)")
+                
+            # Check for CW-L∞ adversarial file
+            cw_linf_file = next((f for f in results.keys() if "_adv_cw_linf" in f), None)
+            if cw_linf_file:
+                cw_linf_acc = results[cw_linf_file]
+                cw_linf_diff = cw_linf_acc - orig_acc
+                if cw_linf_diff > 0:
+                    print(f"CW-L∞: +{abs(cw_linf_diff):.2f}% (improvement)")
+                elif cw_linf_diff < 0:
+                    print(f"CW-L∞: -{abs(cw_linf_diff):.2f}% (degradation)")
+                else:
+                    print(f"CW-L∞: 0.00% (no change)")
 
 
 if __name__ == "__main__":

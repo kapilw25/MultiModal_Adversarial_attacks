@@ -62,3 +62,9 @@ tzdata==2024.1
 urllib3==2.2.1
 wcwidth==0.2.13
 wheel==0.43.0
+# PDF extraction dependencies
+pymupdf
+camelot-py[cv]
+ghostscript
+tabulate
+markitdown
