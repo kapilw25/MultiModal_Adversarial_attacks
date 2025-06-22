@@ -1,14 +1,15 @@
-# Multi-modal Self-instruct Evaluation Pipeline
+# Evaluating Nano Vision-Language Models (VLMs) Against Cyber Security Attacks: Comprehensive Analysis Across White-Box (Finetuning) and Black-Box (Inference) Attack Scenarios
 
-This repository contains tools for evaluating vision-language models (VLMs) on a collection of high-quality abstract images and corresponding question-answer pairs, including adversarial robustness testing.
+This repository contains tools for evaluating small (4-bit, 3 Billion parameter) vision-language models (VLMs) under various multi-modal adversarial attacks, focusing on their robustness and performance degradation.
 
 ## Overview
 
-The Multi-modal Self-instruct dataset includes:
-- 11,193 high-quality abstract images with corresponding question-answer pairs
-- 62,476 training instructions covering tables, charts, and road maps
-- Evaluation pipeline for testing model performance on visual reasoning tasks
-- Adversarial attack capabilities to test model robustness
+This evaluation framework includes:
+- Testing infrastructure for lightweight VLMs (4-bit quantized, ~3B parameters)
+- Multi-modal adversarial attack implementations to test model robustness
+- Performance benchmarking on visual reasoning tasks under attack conditions
+- Comparative analysis between original and adversarially perturbed inputs
+- Evaluation across diverse visual content including charts, tables, and maps
 
 ## Setup
 
@@ -84,6 +85,20 @@ Parameters:
 - `--max_iter`: Maximum number of iterations (default: 10)
 
 The script will generate an adversarial version of the image and save it to `data/test_extracted_adv/`.
+
+#### Attack Implementation Notes
+
+- The implementation uses a "black-box transfer attack" strategy, employing a pre-trained ResNet50 as a substitute model
+- This approach is necessary because most VLMs are accessed through APIs or don't provide gradient access needed for direct attacks
+- Transfer attacks rely on the principle that adversarial examples often transfer between different models
+- For evaluating proprietary models, this transfer-based approach is practical and effective, as shown by the significant accuracy drop in Qwen25_VL_3B
+
+#### Future Work
+
+- Implement white-box attacks for models where architecture and gradients are accessible
+- Evaluate finetuned models under adversarial conditions to measure robustness improvements
+- Compare effectiveness of adversarial training techniques in improving VLM robustness
+- Explore multi-modal adversarial attacks that target both vision and language components
 
 ## Adversarial Evaluation Workflow
 
