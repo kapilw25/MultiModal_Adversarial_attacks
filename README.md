@@ -1,6 +1,6 @@
 # Multi-modal Self-instruct Evaluation Pipeline
 
-This repository contains tools for evaluating vision-language models (VLMs) on a collection of high-quality abstract images and corresponding question-answer pairs.
+This repository contains tools for evaluating vision-language models (VLMs) on a collection of high-quality abstract images and corresponding question-answer pairs, including adversarial robustness testing.
 
 ## Overview
 
@@ -8,6 +8,7 @@ The Multi-modal Self-instruct dataset includes:
 - 11,193 high-quality abstract images with corresponding question-answer pairs
 - 62,476 training instructions covering tables, charts, and road maps
 - Evaluation pipeline for testing model performance on visual reasoning tasks
+- Adversarial attack capabilities to test model robustness
 
 ## Setup
 
@@ -27,7 +28,7 @@ Note: The evaluation scripts automatically download required NLTK resources (lik
 
 ## Evaluation Pipeline
 
-The evaluation pipeline consists of two main scripts:
+The evaluation pipeline consists of three main components:
 
 ### 1. `eval_model.py`
 
@@ -38,11 +39,13 @@ cd scripts
 python eval_model.py
 ```
 
-Configuration:
-- Set `engine` variable to specify the model (e.g., 'gpt4o')
-- Set `task` variable to specify the task (e.g., 'chart')
-- The script will load data from `../{engine}/eval_{task}.json`
-- Results will be saved to `../{engine}/eval_{engine}_{task}_{random_count}.json`
+Interactive Usage:
+- When you run the script, it will prompt you to:
+  - Select the engine (1 for GPT-4o or 2 for Qwen25_VL_3B)
+  - The script automatically handles the correct imports based on your selection
+- The script uses a fixed task ('chart') and sample count (17)
+- Results will be saved to `results/{engine}/eval_{engine}_{task}_{random_count}.json`
+- The script can be configured to use either original or adversarial images by modifying the image path
 
 ### 2. `eval_vqa.py`
 
@@ -53,38 +56,104 @@ cd scripts
 python eval_vqa.py
 ```
 
+Interactive Usage:
+- When you run the script, it will prompt you to:
+  - Select the engine (1 for GPT-4o or 2 for Qwen25_VL_3B)
+  - Select the task (chart, table, dashboard, etc.)
+- The script will find all evaluation files for the selected model and task
+- It will evaluate each file and show a comparison of results
+- For adversarial testing, it will show the accuracy drop due to the attack
+
 Functions:
-- `evaluator('../{engine}/eval_{engine}_{task}_{count}.json')` - Tests accuracy on 7 tasks (charts, tables, dashboards, flowcharts, relation graphs, floor plans, and visual puzzles)
-- `evaluator_map('../{engine}/eval_{engine}_{task}_{count}.json')` - Tests accuracy on simulated maps
+- `evaluator()` - Tests accuracy on 7 tasks (charts, tables, dashboards, flowcharts, relation graphs, floor plans, and visual puzzles)
+- `evaluator_map()` - Tests accuracy on simulated maps
+- `evaluate_all_files()` - Evaluates and compares all result files for a given model and task
+
+### 3. `attack_model/v2_pgd_attack.py`
+
+This script applies a Projected Gradient Descent (PGD) adversarial attack to images.
+
+```bash
+python attack_model/v2_pgd_attack.py --image_path data/test_extracted/chart/image.png --eps 0.03
+```
+
+Parameters:
+- `--image_path`: Path to the input image
+- `--eps`: Maximum perturbation (default: 8/255)
+- `--eps_step`: Attack step size (default: 2/255)
+- `--max_iter`: Maximum number of iterations (default: 10)
+
+The script will generate an adversarial version of the image and save it to `data/test_extracted_adv/`.
+
+## Adversarial Evaluation Workflow
+
+To test model robustness against adversarial attacks:
+
+1. Generate adversarial images:
+   ```bash
+   python attack_model/v2_pgd_attack.py --image_path data/test_extracted/chart/20231114102825506748.png --eps 0.03
+   ```
+
+2. Run evaluation on original images:
+   ```bash
+   # Edit eval_model.py to use original images:
+   # img_path = 'data/test_extracted/' + data['image']
+   python scripts/eval_model.py
+   ```
+
+3. Run evaluation on adversarial images:
+   ```bash
+   # Edit eval_model.py to use adversarial images:
+   # img_path = 'data/test_extracted_adv/' + data['image']
+   python scripts/eval_model.py
+   ```
+
+4. Compare results:
+   ```bash
+   python scripts/eval_vqa.py
+   ```
 
 ## Recent Progress
 
+- Added adversarial attack capabilities using PGD (Projected Gradient Descent)
+- Enhanced evaluation scripts to compare performance on original vs. adversarial images
+- Implemented automatic detection and comparison of multiple evaluation files
+- Moved test files to a dedicated `unit_test` directory for better organization
 - Fixed file path issues in evaluation scripts to use relative paths
 - Implemented proper environment variable loading for API keys
 - Added error handling for missing data
 - Added automatic download of NLTK resources when needed
 - Successfully ran evaluations on multiple models:
-  - Qwen25_VL_3B: 76.47% accuracy on chart task
-  - GPT-4o: 64.71% accuracy on chart task
+  - Qwen25_VL_3B: 82.35% accuracy on original images, 35.29% on adversarial images
+  - GPT-4o: 64.71% accuracy on original images, 70.59% on adversarial images
 
 ## Directory Structure
 
 ```
 Multi-modal-Self-instruct/
 ├── .env                    # Environment variables (API keys)
+├── attack_model/           # Adversarial attack scripts
+│   └── v2_pgd_attack.py    # PGD attack implementation
 ├── data/                   # Dataset files
-│   └── test_extracted/     # Test images
+│   ├── test_extracted/     # Original test images
+│   └── test_extracted_adv/ # Adversarial test images
 ├── results/                # Evaluation results
 │   ├── gpt4o/              # GPT-4o results
 │   │   ├── eval_chart.json # Input evaluation data
-│   │   └── eval_gpt4o_chart_17.json # Results
+│   │   ├── eval_gpt4o_chart_17.json      # Results on original images
+│   │   └── eval_gpt4o_chart_17_adv.json  # Results on adversarial images
 │   └── Qwen25_VL_3B/       # Qwen results
 │       ├── eval_chart.json # Input evaluation data
-│       └── eval_Qwen25_VL_3B_chart_17.json # Results
+│       ├── eval_Qwen25_VL_3B_chart_17.json      # Results on original images
+│       └── eval_Qwen25_VL_3B_chart_17_adv.json  # Results on adversarial images
 ├── scripts/                # Evaluation scripts
 │   ├── eval_model.py       # Script to generate model responses
 │   ├── eval_vqa.py         # Script to calculate accuracy metrics
-│   └── llm_tools.py        # Utilities for API calls
+│   ├── llm_tools.py        # Utilities for OpenAI API calls
+│   └── local_llm_tools.py  # Utilities for local model inference
+├── unit_test/              # Test scripts
+│   ├── test_local_llm_tools.py  # Tests for local model tools
+│   └── test_qwen_model.py       # Tests for Qwen model
 └── venv_MM/                # Virtual environment
 ```
 
@@ -94,27 +163,48 @@ Multi-modal-Self-instruct/
 2. Run `eval_model.py` to generate model responses:
    ```bash
    cd scripts
-   # Edit eval_model.py to set the engine and task variables
    python eval_model.py
+   # Follow the interactive prompts to select the model
    ```
 3. Run `eval_vqa.py` to calculate accuracy metrics:
    ```bash
    cd scripts
-   # Edit eval_vqa.py to specify which model results to evaluate
    python eval_vqa.py
+   # Follow the interactive prompts to select the model and task
    ```
 
-You can evaluate different models by modifying the following in `eval_vqa.py`:
-```python
-# Evaluate GPT-4o results
-evaluator('results/gpt4o/eval_gpt4o_chart_17.json')
+Example workflow for adversarial testing:
+```bash
+# Generate adversarial image
+python attack_model/v2_pgd_attack.py --image_path data/test_extracted/chart/20231114102825506748.png --eps 0.03
 
-# Evaluate Qwen25_VL_3B results
-# evaluator('results/Qwen25_VL_3B/eval_Qwen25_VL_3B_chart_17.json')
+# Generate responses with GPT-4o on adversarial images
+# (Make sure eval_model.py is set to use adversarial images)
+python scripts/eval_model.py
+# Select option 1 for GPT-4o
+
+# Evaluate and compare results
+python scripts/eval_vqa.py
+# Select option 1 for GPT-4o
+# Select option 1 for chart task
 ```
+
+## Adversarial Robustness Results
+
+Initial testing shows interesting differences in model robustness:
+
+| Model | Original Accuracy | Adversarial Accuracy | Accuracy Change |
+|-------|------------------|---------------------|----------------|
+| GPT-4o | 64.71% | 70.59% | +5.88% |
+| Qwen25_VL_3B | 82.35% | 35.29% | -47.06% |
+
+These results suggest that while Qwen25_VL_3B performs better on clean images, GPT-4o shows significantly higher robustness against adversarial attacks.
 
 ## Notes
 
 - The evaluation pipeline supports various visual reasoning tasks
-- You can customize the evaluation by modifying the model and task parameters
-- The pipeline uses the OpenAI API for model inference
+- The interactive scripts eliminate the need to manually edit code when switching models
+- The pipeline supports both OpenAI API models and local models
+- Error handling has been improved to provide helpful messages when issues occur
+- File overwrite protection prevents accidental data loss
+- Adversarial testing can be extended to other image types and attack methods

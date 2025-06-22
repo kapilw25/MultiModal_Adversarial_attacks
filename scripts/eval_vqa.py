@@ -1,5 +1,8 @@
 import json
 import re
+import os
+import sys
+import glob
 from rouge import Rouge
 from tqdm import tqdm
 import spacy
@@ -78,6 +81,12 @@ def remove_units(text):
 # For evalution except map
 def evaluator(path):
     print(f"Evaluating {path}...")
+    
+    # Check if file exists
+    if not os.path.exists(path):
+        print(f"Error: File {path} not found.")
+        return None, None, 0
+        
     eval_file = []
     with open(path) as f:
         for line in f:
@@ -187,15 +196,20 @@ def evaluator(path):
             ok_results.append(result)
         else:
             bad_results.append(result)
-    # print(f"ok_results: {ok_results}")
-    # print(f"bad_results: {bad_results}")
-    print(f'Overall Accuracy: {len(ok_results) / (len(eval_file) - summary_cnt) * 100:.2f}%')
+    
+    # Check if this is an adversarial evaluation
+    is_adversarial = "_adv" in path
+    file_type = "Adversarial" if is_adversarial else "Original"
+    
+    if len(eval_file) - summary_cnt > 0:
+        accuracy = len(ok_results) / (len(eval_file) - summary_cnt) * 100
+        print(f'{file_type} Accuracy: {accuracy:.2f}%')
 
     if summary_cnt > 0:
-        print(f'Overall Summary Rouge-L Score: {summary_score / summary_cnt:.2f}')
+        print(f'{file_type} Summary Rouge-L Score: {summary_score / summary_cnt:.2f}')
 
     assert len(ok_results) + len(bad_results) == len(eval_file) - summary_cnt
-    return ok_results, bad_results
+    return ok_results, bad_results, accuracy if len(eval_file) - summary_cnt > 0 else 0
 
 
 def extract_marker(s):
@@ -208,12 +222,26 @@ def extract_marker(s):
 
 # For map evaluation
 def evaluator_map(path):
+    # Check if file exists
+    if not os.path.exists(path):
+        print(f"Error: File {path} not found.")
+        return None, None, 0
+        
+    print(f"Evaluating {path}...")
+    
     eval_file = []
     with open(path) as f:
         for line in f:
             eval_file.append(json.loads(line))
+            
+    # Check if maze dataset exists
+    maze_path = './maze_dataset2/eval_3k.json'
+    if not os.path.exists(maze_path):
+        print(f"Error: Maze dataset file {maze_path} not found.")
+        return None, None, 0
+            
     data_file = []
-    with open('./maze_dataset2/eval_3k.json', 'r') as f:
+    with open(maze_path, 'r') as f:
         for line in f:
             data_file.append(json.loads(line))
 
@@ -251,12 +279,127 @@ def evaluator_map(path):
 
         score = score + cnt / len(gt_list)
 
-    print(f'Accuracy: {score / len(eval_file) * 100:.2f}%')
-    return ok_res, bad_res
+    # Check if this is an adversarial evaluation
+    is_adversarial = "_adv" in path
+    file_type = "Adversarial" if is_adversarial else "Original"
+    
+    accuracy = score / len(eval_file) * 100
+    print(f'{file_type} Accuracy: {accuracy:.2f}%')
+    return ok_res, bad_res, accuracy
 
-# Evaluate 7 scenario: charts, tables, dashboards, flowcharts, relation graphs, floor plans, and visual puzzles
-evaluator('results/gpt4o/eval_gpt4o_chart_17.json')
-# evaluator('results/Qwen25_VL_3B/eval_Qwen25_VL_3B_chart_17.json')
 
-# Evaluate 1 scenario: simulated maps
-# evaluator_map('../gpt4o/eval_gpt4o_chart_5.json')
+def select_engine():
+    """Interactive function to select the engine to evaluate"""
+    print("\nSelect the engine to evaluate:")
+    print("  [1] OpenAI GPT-4o")
+    print("  [2] Qwen25_VL_3B")
+    
+    while True:
+        choice = input("\nEnter your choice (1 or 2): ")
+        if choice == '1':
+            engine = 'gpt4o'
+            print(f"Selected: {engine}")
+            return engine
+        elif choice == '2':
+            engine = 'Qwen25_VL_3B'
+            print(f"Selected: {engine}")
+            return engine
+        else:
+            print("Invalid choice. Please enter 1 or 2.")
+
+
+def select_task():
+    """Interactive function to select the task"""
+    print("\nSelect the task to evaluate:")
+    print("  [1] chart")
+    print("  [2] table")
+    print("  [3] dashboard")
+    print("  [4] flowchart")
+    print("  [5] relation_graph")
+    print("  [6] floor_plan")
+    print("  [7] visual_puzzle")
+    print("  [8] map")
+    
+    task_mapping = {
+        '1': 'chart',
+        '2': 'table',
+        '3': 'dashboard',
+        '4': 'flowchart',
+        '5': 'relation_graph',
+        '6': 'floor_plan',
+        '7': 'visual_puzzle',
+        '8': 'map'
+    }
+    
+    while True:
+        choice = input("\nEnter your choice (1-8): ")
+        if choice in task_mapping:
+            selected_task = task_mapping[choice]
+            print(f"Selected task: {selected_task}")
+            return selected_task
+        else:
+            print("Invalid choice. Please enter a number between 1 and 8.")
+
+
+def evaluate_all_files(engine, task, random_count=17):
+    """Evaluate all files for a given engine and task"""
+    # Base directory for results
+    dir_path = f'results/{engine}'
+    
+    # Pattern for finding all relevant files
+    pattern = f'eval_{engine}_{task}_{random_count}*.json'
+    
+    # Find all matching files
+    file_paths = glob.glob(os.path.join(dir_path, pattern))
+    
+    if not file_paths:
+        print(f"No evaluation files found matching pattern: {pattern}")
+        return
+    
+    print(f"Found {len(file_paths)} evaluation files:")
+    for i, path in enumerate(file_paths):
+        print(f"  [{i+1}] {os.path.basename(path)}")
+    
+    # Evaluate each file
+    results = {}
+    for path in file_paths:
+        file_name = os.path.basename(path)
+        is_map = task == 'map'
+        
+        if is_map:
+            _, _, accuracy = evaluator_map(path)
+        else:
+            _, _, accuracy = evaluator(path)
+        
+        results[file_name] = accuracy
+    
+    # Print comparison if we have both original and adversarial results
+    if len(results) > 1:
+        print("\n=== ACCURACY COMPARISON ===")
+        for file_name, accuracy in results.items():
+            file_type = "Adversarial" if "_adv" in file_name else "Original"
+            print(f"{file_type} ({file_name}): {accuracy:.2f}%")
+        
+        # If we have both original and adversarial, calculate the difference
+        orig_file = next((f for f in results.keys() if "_adv" not in f), None)
+        adv_file = next((f for f in results.keys() if "_adv" in f), None)
+        
+        if orig_file and adv_file:
+            orig_acc = results[orig_file]
+            adv_acc = results[adv_file]
+            diff = orig_acc - adv_acc
+            print(f"\nAccuracy drop due to adversarial attack: {diff:.2f}%")
+
+
+if __name__ == "__main__":
+    # Select engine
+    engine = select_engine()
+    
+    # Select task
+    task = select_task()
+    
+    # Fixed sample count
+    random_count = 17
+    
+    # Evaluate all files for this engine and task
+    evaluate_all_files(engine, task, random_count)
