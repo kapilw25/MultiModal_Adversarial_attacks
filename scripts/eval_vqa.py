@@ -4,6 +4,9 @@ from rouge import Rouge
 from tqdm import tqdm
 import spacy
 import nltk
+
+# Download wordnet if not already downloaded
+nltk.download('wordnet', quiet=True)
 from nltk.corpus import wordnet as wn
 
 def are_synonyms(word1, word2):
@@ -252,8 +255,8 @@ def evaluator_map(path):
     return ok_res, bad_res
 
 # Evaluate 7 scenario: charts, tables, dashboards, flowcharts, relation graphs, floor plans, and visual puzzles
-# evaluator('results/gpt4o/eval_gpt4o_chart_17.json')
-evaluator('results/Qwen25_VL_3B/eval_Qwen25_VL_3B_chart_17.json')
+evaluator('results/gpt4o/eval_gpt4o_chart_17.json')
+# evaluator('results/Qwen25_VL_3B/eval_Qwen25_VL_3B_chart_17.json')
 
 # Evaluate 1 scenario: simulated maps
 # evaluator_map('../gpt4o/eval_gpt4o_chart_5.json')

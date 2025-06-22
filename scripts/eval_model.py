@@ -41,7 +41,6 @@ if __name__ == '__main__':
     
     # Define input and output file paths
     file_path = f'results/{engine}/eval_{task}.json'
-    output_file = f'results/{engine}/eval_{engine}_{task}_output.json'
     
     with open(file_path) as f:
         for line in f:
@@ -52,6 +51,8 @@ if __name__ == '__main__':
 
         human_select = eval_data[:random_count]
 
+        output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}.json'
+        print(f"Output file: {output_file}")
         res_list = []
         try:
             for data in tqdm(human_select):

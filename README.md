@@ -23,6 +23,8 @@ The Multi-modal Self-instruct dataset includes:
    OPENAI_API_KEY=your_api_key_here
    ```
 
+Note: The evaluation scripts automatically download required NLTK resources (like WordNet) when needed.
+
 ## Evaluation Pipeline
 
 The evaluation pipeline consists of two main scripts:
@@ -60,8 +62,10 @@ Functions:
 - Fixed file path issues in evaluation scripts to use relative paths
 - Implemented proper environment variable loading for API keys
 - Added error handling for missing data
-- Successfully ran evaluation on GPT-4o model with chart task
-- Achieved 100% accuracy on the test set
+- Added automatic download of NLTK resources when needed
+- Successfully ran evaluations on multiple models:
+  - Qwen25_VL_3B: 76.47% accuracy on chart task
+  - GPT-4o: 64.71% accuracy on chart task
 
 ## Directory Structure
 
@@ -70,8 +74,13 @@ Multi-modal-Self-instruct/
 ├── .env                    # Environment variables (API keys)
 ├── data/                   # Dataset files
 │   └── test_extracted/     # Test images
-├── gpt4o/                  # Model-specific evaluation files
-│   └── eval_chart.json     # Evaluation data for charts
+├── results/                # Evaluation results
+│   ├── gpt4o/              # GPT-4o results
+│   │   ├── eval_chart.json # Input evaluation data
+│   │   └── eval_gpt4o_chart_17.json # Results
+│   └── Qwen25_VL_3B/       # Qwen results
+│       ├── eval_chart.json # Input evaluation data
+│       └── eval_Qwen25_VL_3B_chart_17.json # Results
 ├── scripts/                # Evaluation scripts
 │   ├── eval_model.py       # Script to generate model responses
 │   ├── eval_vqa.py         # Script to calculate accuracy metrics
@@ -81,10 +90,28 @@ Multi-modal-Self-instruct/
 
 ## Usage
 
-1. Set up your environment and API key
-2. Run `eval_model.py` to generate model responses
-3. Run `eval_vqa.py` to calculate accuracy metrics
-4. Modify the scripts to evaluate different models or tasks
+1. Set up your environment and API key as described in the Setup section
+2. Run `eval_model.py` to generate model responses:
+   ```bash
+   cd scripts
+   # Edit eval_model.py to set the engine and task variables
+   python eval_model.py
+   ```
+3. Run `eval_vqa.py` to calculate accuracy metrics:
+   ```bash
+   cd scripts
+   # Edit eval_vqa.py to specify which model results to evaluate
+   python eval_vqa.py
+   ```
+
+You can evaluate different models by modifying the following in `eval_vqa.py`:
+```python
+# Evaluate GPT-4o results
+evaluator('results/gpt4o/eval_gpt4o_chart_17.json')
+
+# Evaluate Qwen25_VL_3B results
+# evaluator('results/Qwen25_VL_3B/eval_Qwen25_VL_3B_chart_17.json')
+```
 
 ## Notes
 
