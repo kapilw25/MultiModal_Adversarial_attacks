@@ -1473,6 +1473,9 @@ channel changed independently (so that if all three color
 channels of one pixel change change, the L0 norm would be
 3). While we do not believe this is a meaningful threat model,
 when comparing to this attack, we evaluate under both models.
+
+
+
 D. Deepfool
 Deepfool [34] is an untargeted attack technique optimized
 for the L2 distance metric. It is efﬁcient and produces closer

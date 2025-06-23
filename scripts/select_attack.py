@@ -44,6 +44,21 @@ def select_attack(engine, task, random_count):
             "name": "CW-L∞ Attack",
             "suffix": "_adv_cw_linf",
             "img_dir": "data/test_extracted_adv_cw_linf/"
+        },
+        {
+            "name": "L-BFGS Attack",
+            "suffix": "_adv_lbfgs",
+            "img_dir": "data/test_extracted_adv_lbfgs/"
+        },
+        {
+            "name": "JSMA Attack",
+            "suffix": "_adv_jsma",
+            "img_dir": "data/test_extracted_adv_jsma/"
+        },
+        {
+            "name": "DeepFool Attack",
+            "suffix": "_adv_deepfool",
+            "img_dir": "data/test_extracted_adv_deepfool/"
         }
     ]
     

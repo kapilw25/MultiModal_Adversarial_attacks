@@ -28,21 +28,28 @@ def select_engine():
     print("\nSelect the engine to use:")
     print("  [1] OpenAI GPT-4o")
     print("  [2] Qwen25_VL_3B")
+    print("  [3] ALL")
     
     while True:
-        choice = input("\nEnter your choice (1 or 2): ")
+        choice = input("\nEnter your choice (1, 2, or 3): ")
         if choice == '1':
             print("Selected: OpenAI GPT-4o")
             # Import for OpenAI GPT-4o
             from llm_tools import send_chat_request_azure
-            return 'gpt4o', send_chat_request_azure
+            return [('gpt4o', send_chat_request_azure)]
         elif choice == '2':
             print("Selected: Qwen25_VL_3B")
             # Import for Qwen25_VL_3B
             from local_llm_tools import send_chat_request_azure
-            return 'Qwen25_VL_3B', send_chat_request_azure
+            return [('Qwen25_VL_3B', send_chat_request_azure)]
+        elif choice == '3':
+            print("Selected: ALL engines")
+            # Import both modules
+            from llm_tools import send_chat_request_azure as gpt4o_send_chat
+            from local_llm_tools import send_chat_request_azure as qwen_send_chat
+            return [('gpt4o', gpt4o_send_chat), ('Qwen25_VL_3B', qwen_send_chat)]
         else:
-            print("Invalid choice. Please enter 1 or 2.")
+            print("Invalid choice. Please enter 1, 2, or 3.")
 
 
 def run_evaluation(engine, send_chat_request_azure, task, random_count, output_file, img_dir, attack_name):
@@ -140,8 +147,8 @@ def run_evaluation(engine, send_chat_request_azure, task, random_count, output_f
 
 
 if __name__ == '__main__':
-    # Select engine and get the appropriate send_chat_request_azure function
-    engine, send_chat_request_azure = select_engine()
+    # Select engine(s) and get the appropriate send_chat_request_azure function(s)
+    engine_configs = select_engine()
     
     # Fixed task
     task = 'chart'
@@ -149,13 +156,17 @@ if __name__ == '__main__':
     # Fixed random count
     random_count = 17
     
-    # Select attack type(s)
-    attack_configs = select_attack(engine, task, random_count)
-    
-    if not attack_configs:
-        print("No attacks selected or all selected attacks already have output files. Exiting.")
-        sys.exit(0)
-    
-    # Run evaluation for each selected attack
-    for output_file, img_dir, attack_name in attack_configs:
-        run_evaluation(engine, send_chat_request_azure, task, random_count, output_file, img_dir, attack_name)
+    # Process each engine
+    for engine, send_chat_request_azure in engine_configs:
+        print(f"\n{'='*20} Evaluating {engine} {'='*20}")
+        
+        # Select attack type(s)
+        attack_configs = select_attack(engine, task, random_count)
+        
+        if not attack_configs:
+            print(f"No attacks selected or all selected attacks already have output files for {engine}. Skipping.")
+            continue
+        
+        # Run evaluation for each selected attack
+        for output_file, img_dir, attack_name in attack_configs:
+            run_evaluation(engine, send_chat_request_azure, task, random_count, output_file, img_dir, attack_name)
