@@ -5,6 +5,7 @@ import os
 import base64
 from mimetypes import guess_type
 import sys
+from select_attack import select_attack
 
 
 # Function to encode a local image into data URL
@@ -44,66 +45,36 @@ def select_engine():
             print("Invalid choice. Please enter 1 or 2.")
 
 
-if __name__ == '__main__':
-    # Select engine and get the appropriate send_chat_request_azure function
-    engine, send_chat_request_azure = select_engine()
+def run_evaluation(engine, send_chat_request_azure, task, random_count, output_file, img_dir, attack_name):
+    """Run evaluation for a specific attack type"""
+    print(f"\nRunning evaluation for {attack_name}")
+    print(f"Output file: {output_file}")
+    print(f"Image directory: {img_dir}")
     
-    # Fixed task
-    task = 'chart'
-    
-    # Fixed random count
-    random_count = 17
-    
-    eval_data = []
-    
-    # Define input and output file paths
+    # Define input file path
     file_path = f'results/{engine}/eval_{task}.json'
     
     try:
         with open(file_path) as f:
+            eval_data = []
             for line in f:
                 eval_data.append(json.loads(line))
 
             human_select = eval_data[:random_count]
-
-            # Original output file
-            # output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}.json'
-            # PGD adversarial output file
-            # output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}_adv.json'
-            # FGSM adversarial output file
-            # output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}_adv_fgsm.json'
-            # CW-L2 adversarial output file
-            # output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}_adv_cw_l2.json'
-            # CW-L0 adversarial output file
-            # output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}_adv_cw_l0.json'
-            # CW-L∞ adversarial output file
-            output_file = f'results/{engine}/eval_{engine}_{task}_{random_count}_adv_cw_linf.json'
-            print(f"\nOutput file: {output_file}")
             
-            # Check if output file already exists
-            if os.path.exists(output_file):
-                overwrite = input(f"File {output_file} already exists. Overwrite? (y/n): ")
-                if overwrite.lower() != 'y':
-                    print("Evaluation cancelled.")
-                    sys.exit(0)
-                # Remove existing file to start fresh
-                os.remove(output_file)
+            # Ensure output directory exists
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
             
             res_list = []
             try:
                 for data in tqdm(human_select):
-                    # Original image path
-                    # img_path = 'data/test_extracted/' + data['image']
-                    # PGD adversarial image path
-                    # img_path = 'data/test_extracted_adv/' + data['image']
-                    # FGSM adversarial image path
-                    # img_path = 'data/test_extracted_adv_fgsm/' + data['image']
-                    # CW-L2 adversarial image path
-                    # img_path = 'data/test_extracted_adv_cw_l2/' + data['image']
-                    # CW-L0 adversarial image path
-                    # img_path = 'data/test_extracted_adv_cw_l0/' + data['image']
-                    # CW-L∞ adversarial image path
-                    img_path = 'data/test_extracted_adv_cw_linf/' + data['image']
+                    img_path = img_dir + data['image']
+                    
+                    # Check if image exists
+                    if not os.path.exists(img_path):
+                        print(f"Warning: Image not found: {img_path}")
+                        continue
+                        
                     url = local_image_to_data_url(img_path)
 
                     msgs = [
@@ -141,15 +112,12 @@ if __name__ == '__main__':
                         "answer_id": "",
                         "markers": markers,
                         "model_id": engine,
-                        "metadata": {"adversarial": True}
+                        "metadata": {"adversarial": attack_name != "Original (No Attack)"}
                     }
 
                     res_list.append(res)
 
                     time.sleep(0.1)
-
-                    # Ensure output directory exists
-                    os.makedirs(os.path.dirname(output_file), exist_ok=True)
                     
                     with open(output_file, 'a') as fout:
                         fout.write(json.dumps(res) + '\n')
@@ -158,16 +126,36 @@ if __name__ == '__main__':
                 
             except Exception as e:
                 print(f"Error during evaluation: {e}")
-                # Ensure output directory exists
-                os.makedirs(os.path.dirname(output_file), exist_ok=True)
-                
+                # Save partial results
                 with open(output_file, 'w') as fout:
                     for res in res_list:
                         fout.write(json.dumps(res) + '\n')
                 print(f"Partial results saved to {output_file}")
-    
+                
     except FileNotFoundError:
         print(f"Error: Input file {file_path} not found.")
         print(f"Make sure the file exists at {os.path.abspath(file_path)}")
         print("Directory structure should be:")
         print(f"  results/{engine}/eval_{task}.json")
+
+
+if __name__ == '__main__':
+    # Select engine and get the appropriate send_chat_request_azure function
+    engine, send_chat_request_azure = select_engine()
+    
+    # Fixed task
+    task = 'chart'
+    
+    # Fixed random count
+    random_count = 17
+    
+    # Select attack type(s)
+    attack_configs = select_attack(engine, task, random_count)
+    
+    if not attack_configs:
+        print("No attacks selected or all selected attacks already have output files. Exiting.")
+        sys.exit(0)
+    
+    # Run evaluation for each selected attack
+    for output_file, img_dir, attack_name in attack_configs:
+        run_evaluation(engine, send_chat_request_azure, task, random_count, output_file, img_dir, attack_name)

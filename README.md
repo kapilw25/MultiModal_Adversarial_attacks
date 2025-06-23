@@ -1,4 +1,4 @@
-# Evaluating Nano Vision-Language Models (VLMs) Against Cyber Security Attacks: Comprehensive Analysis Across White-Box (Finetuning) and Black-Box (Inference) Attack Scenarios
+# Evaluating Nano Vision-Language Models' (VLMs) Robustness Against Cyber Security Attacks: White-Box (Finetuning) and Black-Box (Inference) Scenarios
 
 This repository contains tools for evaluating small (4-bit, 3 Billion parameter) vision-language models (VLMs) under various multi-modal adversarial attacks, focusing on their robustness and performance degradation.
 

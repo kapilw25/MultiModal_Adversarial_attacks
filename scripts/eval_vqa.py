@@ -7,6 +7,7 @@ from rouge import Rouge
 from tqdm import tqdm
 import spacy
 import nltk
+import tabulate
 
 # Download wordnet if not already downloaded
 nltk.download('wordnet', quiet=True)
@@ -197,9 +198,19 @@ def evaluator(path):
         else:
             bad_results.append(result)
     
-    # Check if this is an adversarial evaluation
-    is_adversarial = "_adv" in path
-    file_type = "Adversarial" if is_adversarial else "Original"
+    # Determine file type based on filename
+    if "_adv_cw_l2" in path:
+        file_type = "CW-L2 Adversarial"
+    elif "_adv_cw_l0" in path:
+        file_type = "CW-L0 Adversarial"
+    elif "_adv_cw_linf" in path:
+        file_type = "CW-L∞ Adversarial"
+    elif "_adv_fgsm" in path:
+        file_type = "FGSM Adversarial"
+    elif "_adv" in path:
+        file_type = "PGD Adversarial"
+    else:
+        file_type = "Original"
     
     if len(eval_file) - summary_cnt > 0:
         accuracy = len(ok_results) / (len(eval_file) - summary_cnt) * 100
@@ -209,7 +220,7 @@ def evaluator(path):
         print(f'{file_type} Summary Rouge-L Score: {summary_score / summary_cnt:.2f}')
 
     assert len(ok_results) + len(bad_results) == len(eval_file) - summary_cnt
-    return ok_results, bad_results, accuracy if len(eval_file) - summary_cnt > 0 else 0
+    return ok_results, bad_results, accuracy if len(eval_file) - summary_cnt > 0 else 0, file_type
 
 
 def select_engine():
@@ -217,19 +228,23 @@ def select_engine():
     print("\nSelect the engine to evaluate:")
     print("  [1] OpenAI GPT-4o")
     print("  [2] Qwen25_VL_3B")
+    print("  [3] ALL")
     
     while True:
-        choice = input("\nEnter your choice (1 or 2): ")
+        choice = input("\nEnter your choice (1, 2, or 3): ")
         if choice == '1':
             engine = 'gpt4o'
             print(f"Selected: {engine}")
-            return engine
+            return [engine]
         elif choice == '2':
             engine = 'Qwen25_VL_3B'
             print(f"Selected: {engine}")
-            return engine
+            return [engine]
+        elif choice == '3':
+            print("Selected: ALL engines")
+            return ['gpt4o', 'Qwen25_VL_3B']
         else:
-            print("Invalid choice. Please enter 1 or 2.")
+            print("Invalid choice. Please enter 1, 2, or 3.")
 
 
 def evaluate_all_files(engine, task="chart", random_count=17):
@@ -253,99 +268,61 @@ def evaluate_all_files(engine, task="chart", random_count=17):
     
     # Evaluate each file
     results = {}
+    file_types = {}
     for path in file_paths:
         file_name = os.path.basename(path)
-        _, _, accuracy = evaluator(path)
+        _, _, accuracy, file_type = evaluator(path)
         results[file_name] = accuracy
+        file_types[file_name] = file_type
     
     # Print comparison if we have multiple results
     if len(results) > 1:
-        print("\n=== ACCURACY COMPARISON ===")
-        for file_name, accuracy in results.items():
-            if "_adv_cw_l2" in file_name:
-                file_type = "Adversarial (CW-L2)"
-            elif "_adv_cw_l0" in file_name:
-                file_type = "Adversarial (CW-L0)"
-            elif "_adv_cw_linf" in file_name:
-                file_type = "Adversarial (CW-L∞)"
-            elif "_adv_fgsm" in file_name:
-                file_type = "Adversarial (FGSM)"
-            elif "_adv" in file_name:
-                file_type = "Adversarial (PGD)"
-            else:
-                file_type = "Original"
-            print(f"{file_type} ({file_name}): {accuracy:.2f}%")
-        
         # If we have original and adversarial results, calculate the differences
         orig_file = next((f for f in results.keys() if "_adv" not in f), None)
         
         if orig_file:
             orig_acc = results[orig_file]
             
-            # Check for PGD adversarial file
-            pgd_file = next((f for f in results.keys() if "_adv" in f and "_fgsm" not in f and "_cw" not in f), None)
-            if pgd_file:
-                pgd_acc = results[pgd_file]
-                pgd_diff = pgd_acc - orig_acc
-                if pgd_diff > 0:
-                    print(f"PGD: +{abs(pgd_diff):.2f}% (improvement)")
-                elif pgd_diff < 0:
-                    print(f"PGD: -{abs(pgd_diff):.2f}% (degradation)")
-                else:
-                    print(f"PGD: 0.00% (no change)")
+            print(f"\n=== ACCURACY CHANGES FOR {engine.upper()} ===")
+            change_data = []
             
-            # Check for FGSM adversarial file
-            fgsm_file = next((f for f in results.keys() if "_adv_fgsm" in f), None)
-            if fgsm_file:
-                fgsm_acc = results[fgsm_file]
-                fgsm_diff = fgsm_acc - orig_acc
-                if fgsm_diff > 0:
-                    print(f"FGSM: +{abs(fgsm_diff):.2f}% (improvement)")
-                elif fgsm_diff < 0:
-                    print(f"FGSM: -{abs(fgsm_diff):.2f}% (degradation)")
-                else:
-                    print(f"FGSM: 0.00% (no change)")
-                
-            # Check for CW-L2 adversarial file
-            cw_l2_file = next((f for f in results.keys() if "_adv_cw_l2" in f), None)
-            if cw_l2_file:
-                cw_l2_acc = results[cw_l2_file]
-                cw_l2_diff = cw_l2_acc - orig_acc
-                if cw_l2_diff > 0:
-                    print(f"CW-L2: +{abs(cw_l2_diff):.2f}% (improvement)")
-                elif cw_l2_diff < 0:
-                    print(f"CW-L2: -{abs(cw_l2_diff):.2f}% (degradation)")
-                else:
-                    print(f"CW-L2: 0.00% (no change)")
-                
-            # Check for CW-L0 adversarial file
-            cw_l0_file = next((f for f in results.keys() if "_adv_cw_l0" in f), None)
-            if cw_l0_file:
-                cw_l0_acc = results[cw_l0_file]
-                cw_l0_diff = cw_l0_acc - orig_acc
-                if cw_l0_diff > 0:
-                    print(f"CW-L0: +{abs(cw_l0_diff):.2f}% (improvement)")
-                elif cw_l0_diff < 0:
-                    print(f"CW-L0: -{abs(cw_l0_diff):.2f}% (degradation)")
-                else:
-                    print(f"CW-L0: 0.00% (no change)")
-                
-            # Check for CW-L∞ adversarial file
-            cw_linf_file = next((f for f in results.keys() if "_adv_cw_linf" in f), None)
-            if cw_linf_file:
-                cw_linf_acc = results[cw_linf_file]
-                cw_linf_diff = cw_linf_acc - orig_acc
-                if cw_linf_diff > 0:
-                    print(f"CW-L∞: +{abs(cw_linf_diff):.2f}% (improvement)")
-                elif cw_linf_diff < 0:
-                    print(f"CW-L∞: -{abs(cw_linf_diff):.2f}% (degradation)")
-                else:
-                    print(f"CW-L∞: 0.00% (no change)")
+            # Add the original row as baseline reference
+            change_data.append(["Original", f"{orig_acc:.2f}%", f"{orig_acc:.2f}%", "0.00%", "Baseline"])
+            
+            # Check for all attack types
+            attack_types = {
+                "PGD": next((f for f in results.keys() if "_adv" in f and "_fgsm" not in f and "_cw" not in f), None),
+                "FGSM": next((f for f in results.keys() if "_adv_fgsm" in f), None),
+                "CW-L2": next((f for f in results.keys() if "_adv_cw_l2" in f), None),
+                "CW-L0": next((f for f in results.keys() if "_adv_cw_l0" in f), None),
+                "CW-L∞": next((f for f in results.keys() if "_adv_cw_linf" in f), None)
+            }
+            
+            for attack_name, attack_file in attack_types.items():
+                if attack_file:
+                    attack_acc = results[attack_file]
+                    diff = attack_acc - orig_acc
+                    
+                    if diff > 0:
+                        change_type = "Improvement"
+                        change_str = f"+{abs(diff):.2f}%"
+                    elif diff < 0:
+                        change_type = "Degradation"
+                        change_str = f"-{abs(diff):.2f}%"
+                    else:
+                        change_type = "No Change"
+                        change_str = "0.00%"
+                        
+                    change_data.append([attack_name, f"{orig_acc:.2f}%", f"{attack_acc:.2f}%", change_str, change_type])
+            
+            print(tabulate.tabulate(change_data, 
+                          headers=["Attack Type", f"{engine} Original", f"{engine} Attack", "Change", "Effect"], 
+                          tablefmt="grid"))
 
 
 if __name__ == "__main__":
-    # Select engine
-    engine = select_engine()
+    # Select engine(s)
+    engines = select_engine()
     
     # Fixed task
     task = "chart"
@@ -353,5 +330,7 @@ if __name__ == "__main__":
     # Fixed sample count
     random_count = 17
     
-    # Evaluate all files for this engine and task
-    evaluate_all_files(engine, task, random_count)
+    # Evaluate all files for each selected engine
+    for engine in engines:
+        print(f"\n{'='*20} Evaluating {engine} {'='*20}")
+        evaluate_all_files(engine, task, random_count)
