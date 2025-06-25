@@ -11,8 +11,8 @@ This evaluation framework includes:
 - Comparative analysis between original and adversarially perturbed inputs
 - Evaluation across diverse visual content including charts, tables, and maps
 
-![VLM Adversarial Attacks Framework](readme_files/VLM_adversarial_attacks.png)
-*Framework for evaluating VLM robustness against adversarial attacks, showing both white-box (green path) and black-box (red path) attack scenarios.*
+<!-- ![VLM Adversarial Attacks Framework](readme_files/VLM_adversarial_attacks.png)
+*Framework for evaluating VLM robustness against adversarial attacks, showing both white-box (green path) and black-box (red path) attack scenarios.* -->
 
 ### Adversarial Attack Variants
 

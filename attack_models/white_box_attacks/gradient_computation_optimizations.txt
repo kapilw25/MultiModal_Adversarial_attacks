@@ -1,0 +1,180 @@
+to implement each of these approaches for enabling true white-box attacks with gradient computation while 
+maintaining memory efficiency:
+
+## 1. Using a different quantization approach that better supports gradient computation
+
+The bitsandbytes library offers more gradient-friendly quantization options:
+
+python
+from transformers import BitsAndBytesConfig
+import bitsandbytes as bnb
+
+# Configure NF4 quantization with double quantization and compute in fp16
+quantization_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_compute_dtype=torch.float16,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_quant_type="nf4"  # Normalized float 4-bit quantization
+)
+
+model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+    "Qwen/Qwen2.5-VL-3B-Instruct",
+    quantization_config=quantization_config,
+    device_map="auto",
+    torch_dtype=torch.float16
+)
+
+# Enable gradient computation
+model.requires_grad_(True)
+
+
+## 2. Implementing a custom backward hook to compute gradients properly with 8-bit models
+
+Custom hooks can intercept and modify gradients during backpropagation:
+
+python
+# Register hooks for gradient computation
+def hook_fn(module, grad_input, grad_output):
+    # Dequantize gradients to fp16 for more accurate computation
+    return tuple(g.to(torch.float16) if g is not None else None for g in grad_input)
+
+# Apply hooks to critical layers
+for name, module in model.named_modules():
+    if "attention" in name or "mlp" in name:
+        module.register_backward_hook(hook_fn)
+
+# When computing gradients
+image_tensor.requires_grad = True
+loss.backward()
+
+# Extract and process gradients
+if image_tensor.grad is not None:
+    # Scale gradients to prevent underflow
+    image_grad = image_tensor.grad * 1000.0
+    image_grad = image_grad.sign()
+
+
+## 3. Using a smaller model that can fit in memory with full precision
+
+A smaller model variant can be used with full precision:
+
+python
+# Use a smaller model with full precision
+model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+    "Qwen/Qwen2.5-VL-1.5B-Instruct",  # Smaller model variant
+    torch_dtype=torch.float32,  # Full precision
+    device_map="auto"
+)
+
+# Enable gradient computation
+model.train()
+
+
+## 4. Implementing a more memory-efficient gradient computation approach
+
+Memory-efficient gradient computation can be achieved with:
+
+python
+# 1. Use gradient checkpointing
+model.gradient_checkpointing_enable()
+
+# 2. Implement selective gradient computation
+def compute_fgsm_gradient(model, image_tensor, inputs, labels):
+    # Free memory
+    torch.cuda.empty_cache()
+    
+    # Only compute gradients for the image
+    for param in model.parameters():
+        param.requires_grad = False
+    
+    image_tensor.requires_grad = True
+    
+    # Forward pass with mixed precision
+    with torch.cuda.amp.autocast():
+        outputs = model(**inputs, labels=labels)
+        loss = outputs.loss
+    
+    # Backward pass with gradient scaling
+    scaler = torch.cuda.amp.GradScaler()
+    scaled_loss = scaler.scale(loss)
+    scaled_loss.backward()
+    
+    return image_tensor.grad.sign()
+
+
+## Implementing ShiftQuant for accurate gradient estimation
+
+ShiftQuant is particularly effective for gradient computation in quantized models:
+
+python
+def shift_quant_gradient(model, image_tensor, inputs, labels):
+    # Store original precision
+    original_dtype = image_tensor.dtype
+    
+    # Convert to higher precision for gradient computation
+    image_tensor = image_tensor.to(torch.float32)
+    image_tensor.requires_grad = True
+    
+    # Forward pass
+    outputs = model(**inputs, labels=labels)
+    loss = outputs.loss
+    
+    # Backward pass
+    loss.backward()
+    
+    # Get full precision gradient
+    full_grad = image_tensor.grad.clone()
+    
+    # Quantize gradient to 8-bit
+    scale = torch.max(torch.abs(full_grad)).item()
+    quant_grad = torch.round(full_grad / scale * 127).to(torch.int8)
+    
+    # Dequantize back to fp32
+    dequant_grad = quant_grad.to(torch.float32) * scale / 127
+    
+    # Compute residual for error feedback
+    residual = full_grad - dequant_grad
+    
+    # Use quantized gradient + residual feedback
+    effective_grad = dequant_grad + residual
+    
+    return effective_grad.sign()
+
+
+## Mixed Precision with FP32 Master Copy
+
+This approach maintains precision while reducing memory:
+
+python
+# Initialize model in mixed precision
+model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+    "Qwen/Qwen2.5-VL-3B-Instruct",
+    torch_dtype=torch.float16,
+    device_map="auto"
+)
+
+# Create FP32 copy of image tensor for gradient computation
+def compute_gradient_with_fp32_master(model, image_tensor, inputs, labels):
+    # Create FP32 master copy
+    master_image = image_tensor.to(torch.float32)
+    master_image.requires_grad = True
+    
+    # Create new inputs with master image
+    master_inputs = {k: v for k, v in inputs.items()}
+    master_inputs['pixel_values'] = master_image
+    
+    # Forward pass in FP16
+    with torch.cuda.amp.autocast():
+        outputs = model(**master_inputs, labels=labels)
+        loss = outputs.loss
+    
+    # Backward pass in FP32
+    loss.backward()
+    
+    # Return sign of gradient
+    return master_image.grad.sign()
+
+
+These implementations provide different ways to achieve true white-box attacks with gradient computation while managing memory 
+constraints. The most practical approach would be to combine gradient checkpointing with mixed precision training and selective 
+gradient computation, focusing only on computing gradients for the image tensor while keeping the model parameters frozen.

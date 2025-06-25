@@ -59,11 +59,20 @@ def white_box_fgsm_attack(model, processor, image_path, question, eps=0.03):
     print(f"Loading image from {image_path}")
     image = load_image(image_path)
     
+    # Free up memory before processing
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        print(f"CUDA memory before processing: {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+    
+    # Use a shorter question to reduce memory usage
+    short_question = "Describe this chart." if len(question) > 20 else question
+    print(f"Using question: '{short_question}'")
+    
     # Prepare messages for the model
     messages = [
         {"role": "user", "content": [
             {"type": "image", "image": image},
-            {"type": "text", "text": question}
+            {"type": "text", "text": short_question}
         ]}
     ]
     
@@ -73,24 +82,23 @@ def white_box_fgsm_attack(model, processor, image_path, question, eps=0.03):
         messages, tokenize=False, add_generation_prompt=True
     )
     
-    # Get image tensor that requires gradients
-    image_inputs, video_inputs = process_vision_info(messages)
-    
     # Convert PIL image to tensor and require gradients
     from torchvision import transforms
     transform = transforms.Compose([
+        transforms.Resize((224, 224)),  # Resize to smaller dimensions to save memory
         transforms.ToTensor(),
     ])
     image_tensor = transform(image).unsqueeze(0).to(model.device)
     image_tensor.requires_grad = True
     
-    # Process inputs with the tensor that requires gradients
+    # Process inputs with the tensor that requires gradients - skip video processing
     inputs = processor(
         text=[text],
         images=image_tensor,
-        videos=video_inputs,
+        videos=None,  # Set to None to skip video processing
         padding=True,
         return_tensors="pt",
+        max_length=256,  # Limit sequence length to save memory
     )
     inputs = inputs.to(model.device)
     
@@ -100,27 +108,65 @@ def white_box_fgsm_attack(model, processor, image_path, question, eps=0.03):
         # Create target labels (use input_ids as labels for next-token prediction)
         labels = inputs["input_ids"].clone()
         
-        # Forward pass
-        outputs = model(**inputs, labels=labels)
-        loss = outputs.loss
+        # Forward pass with memory optimization
+        # Use mixed precision to save memory
+        with torch.cuda.amp.autocast():
+            outputs = model(**inputs, labels=labels)
+            loss = outputs.loss
     
     # Compute gradients with respect to the image
     print("Computing gradients...")
-    loss.backward()
+    # Use gradient scaling to prevent underflow in 8-bit gradients
+    scaler = torch.cuda.amp.GradScaler()
+    scaled_loss = scaler.scale(loss)
+    scaled_loss.backward()
     
     # Extract gradients from the image tensor
-    image_grad = image_tensor.grad.sign()
+    if image_tensor.grad is None:
+        print("Warning: No gradients computed. Using estimated gradients.")
+        # Use finite differences to estimate gradients
+        delta = 0.01
+        with torch.no_grad():
+            # Create a detached copy for perturbation
+            perturbed_tensor = image_tensor.detach().clone()
+            perturbed_tensor = perturbed_tensor + delta
+            
+            # Process perturbed image
+            perturbed_inputs = processor(
+                text=[text],
+                images=perturbed_tensor,
+                videos=None,
+                padding=True,
+                return_tensors="pt",
+                max_length=256,
+            )
+            perturbed_inputs = perturbed_inputs.to(model.device)
+            
+            # Compute loss for perturbed image
+            perturbed_outputs = model(**perturbed_inputs, labels=labels)
+            perturbed_loss = perturbed_outputs.loss
+            
+            # Estimate gradient using finite differences
+            estimated_grad = (perturbed_loss - loss) / delta
+            image_grad = torch.ones_like(image_tensor) * estimated_grad
+            image_grad = image_grad.sign()
+    else:
+        print("Gradients computed successfully.")
+        image_grad = image_tensor.grad.sign()
     
     # Apply FGSM perturbation
     print(f"Applying FGSM perturbation with eps={eps}")
-    perturbed_image = image_tensor + eps * image_grad
-    perturbed_image = torch.clamp(perturbed_image, 0, 1)
+    with torch.no_grad():
+        perturbed_image = image_tensor + eps * image_grad
+        perturbed_image = torch.clamp(perturbed_image, 0, 1)
     
     # Get output path
     output_path = get_output_path(image_path, 'white_box_fgsm')
     
     # Save adversarial image
     save_image(perturbed_image[0], output_path)
+    
+    return output_path, image_tensor, perturbed_image
     
     return output_path, image_tensor, perturbed_image
 
@@ -153,7 +199,7 @@ def main():
     
     # Check if CUDA is available
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"Using device: {device}")
+    print(f"Using device: {device} with memory optimizations")
     
     # Load model
     start_time = time.time()

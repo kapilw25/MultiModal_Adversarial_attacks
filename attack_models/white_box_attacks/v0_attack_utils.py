@@ -37,7 +37,7 @@ def load_image(image_path):
 
 
 def load_model(device='cuda'):
-    """Load the Qwen2.5-VL-3B model with gradient access
+    """Load the Qwen2.5-VL-3B model with gradient access and memory optimizations
     
     Args:
         device (str): Device to use for computation ('cuda', 'cpu')
@@ -45,26 +45,58 @@ def load_model(device='cuda'):
     Returns:
         tuple: (model, processor) - The model and processor for Qwen2.5-VL-3B
     """
-    print("Loading Qwen2.5-VL-3B model in 16-bit for gradient access...")
+    print("Loading Qwen2.5-VL-3B model with memory optimizations...")
     
-    # Load model with fp16 precision to allow gradient computation
+    # Free up CUDA memory before loading model
+    if device == 'cuda':
+        import torch
+        torch.cuda.empty_cache()
+        print(f"CUDA memory before loading: {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+    
+    # Load model with memory optimizations
+    from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+    from transformers import BitsAndBytesConfig
+    
+    # Configure 8-bit quantization with gradient computation support
+    quantization_config = BitsAndBytesConfig(
+        load_in_8bit=True,
+        llm_int8_threshold=6.0,
+        llm_int8_has_fp16_weight=False,
+        llm_int8_enable_fp32_cpu_offload=False,
+        bnb_4bit_compute_dtype=torch.float16,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4"
+    )
+    
     model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
         "Qwen/Qwen2.5-VL-3B-Instruct",
-        torch_dtype=torch.float16,
-        device_map=device
+        quantization_config=quantization_config,
+        device_map=device,
+        low_cpu_mem_usage=True,
     )
+    
+    # Enable gradient checkpointing to save memory
+    if hasattr(model, "gradient_checkpointing_enable"):
+        model.gradient_checkpointing_enable()
+        print("Gradient checkpointing enabled")
     
     # Set model to training mode to enable gradient computation
     model.train()
     
     # Load processor with recommended pixel settings
-    min_pixels = 256*28*28
-    max_pixels = 1280*28*28
+    min_pixels = 224*224*3  # Reduced from default to save memory
+    max_pixels = 224*224*3  # Reduced from default to save memory
     processor = AutoProcessor.from_pretrained(
         "Qwen/Qwen2.5-VL-3B-Instruct", 
         min_pixels=min_pixels, 
         max_pixels=max_pixels
     )
+    print("Model and processor loaded successfully")
+    
+    if device == 'cuda':
+        print(f"CUDA memory after loading: {torch.cuda.memory_allocated() / 1024**2:.2f} MB allocated")
+    
+    return model, processor
     
     print("Model and processor loaded successfully")
     return model, processor
