@@ -44,6 +44,7 @@ regex==2024.5.15
 requests==2.32.2
 rouge==1.0.1
 rouge_score==0.1.2
+scikit-image>=0.20.0
 seaborn==0.13.2
 setuptools==69.5.1
 simplejson==3.19.2

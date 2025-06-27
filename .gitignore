@@ -6,6 +6,10 @@ data/train
 data/test
 fig
 
+# Legacy directories
+data/legacy/
+results/*/legacy/
+
 # __pycache__ files
 __pycache__
 
@@ -17,4 +21,6 @@ __pycache__
 .Python
 build/
 dist/
+
+next_steps.txt
 

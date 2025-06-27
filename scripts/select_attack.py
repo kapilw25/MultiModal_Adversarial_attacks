@@ -22,43 +22,43 @@ def select_attack(engine, task, random_count):
         },
         {
             "name": "PGD Attack",
-            "suffix": "_adv",
-            "img_dir": "data/test_extracted_adv/"
+            "suffix": "_BB_pgd",
+            "img_dir": "data/test_BB_pgd/"
         },
         {
             "name": "FGSM Attack",
-            "suffix": "_adv_fgsm",
-            "img_dir": "data/test_extracted_adv_fgsm/"
+            "suffix": "_BB_fgsm",
+            "img_dir": "data/test_BB_fgsm/"
         },
         {
             "name": "CW-L2 Attack",
-            "suffix": "_adv_cw_l2",
-            "img_dir": "data/test_extracted_adv_cw_l2/"
+            "suffix": "_BB_cw_l2",
+            "img_dir": "data/test_BB_cw_l2/"
         },
         {
             "name": "CW-L0 Attack",
-            "suffix": "_adv_cw_l0",
-            "img_dir": "data/test_extracted_adv_cw_l0/"
+            "suffix": "_BB_cw_l0",
+            "img_dir": "data/test_BB_cw_l0/"
         },
         {
             "name": "CW-L∞ Attack",
-            "suffix": "_adv_cw_linf",
-            "img_dir": "data/test_extracted_adv_cw_linf/"
+            "suffix": "_BB_cw_linf",
+            "img_dir": "data/test_BB_cw_linf/"
         },
         {
             "name": "L-BFGS Attack",
-            "suffix": "_adv_lbfgs",
-            "img_dir": "data/test_extracted_adv_lbfgs/"
+            "suffix": "_BB_lbfgs",
+            "img_dir": "data/test_BB_lbfgs/"
         },
         {
             "name": "JSMA Attack",
-            "suffix": "_adv_jsma",
-            "img_dir": "data/test_extracted_adv_jsma/"
+            "suffix": "_BB_jsma",
+            "img_dir": "data/test_BB_jsma/"
         },
         {
             "name": "DeepFool Attack",
-            "suffix": "_adv_deepfool",
-            "img_dir": "data/test_extracted_adv_deepfool/"
+            "suffix": "_BB_deepfool",
+            "img_dir": "data/test_BB_deepfool/"
         }
     ]
     

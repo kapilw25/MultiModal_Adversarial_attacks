@@ -57,15 +57,12 @@ def load_model(device='cuda'):
     from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
     from transformers import BitsAndBytesConfig
     
-    # Configure 8-bit quantization with gradient computation support
+    # Configure 4-bit quantization with better gradient computation support
     quantization_config = BitsAndBytesConfig(
-        load_in_8bit=True,
-        llm_int8_threshold=6.0,
-        llm_int8_has_fp16_weight=False,
-        llm_int8_enable_fp32_cpu_offload=False,
+        load_in_4bit=True,
         bnb_4bit_compute_dtype=torch.float16,
         bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4"
+        bnb_4bit_quant_type="nf4"  # Normalized float 4-bit quantization
     )
     
     model = Qwen2_5_VLForConditionalGeneration.from_pretrained(

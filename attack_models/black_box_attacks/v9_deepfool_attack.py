@@ -1,209 +1,123 @@
 #!/usr/bin/env python3
 """
-DeepFool Attack Script for Vision-Language Models
+Targeted DeepFool Attack Script for Vision-Language Models
 
 This script applies a DeepFool adversarial attack to images to test the robustness of 
 vision-language models. DeepFool was introduced by Moosavi-Dezfooli et al. in their paper 
 "DeepFool: A Simple and Accurate Method to Fool Deep Neural Networks" and is designed to find
 the minimal perturbation needed to cause misclassification.
 
+This implementation focuses on:
+1. Targeting semantically important regions of the image (text, chart elements, data points)
+2. Keeping perturbations small enough to be relatively imperceptible to humans
+3. Making perturbations effective enough to impact model performance
+
 Usage:
     python v9_deepfool_attack.py [--image_path PATH] [--max_iter ITERATIONS] [--overshoot OVERSHOOT]
+                                [--targeted_regions] [--perceptual_constraint] [--ssim_threshold THRESHOLD]
 
 Example:
-    python v9_deepfool_attack.py --image_path data/test_extracted/chart/image.png --max_iter 50 --overshoot 0.02
+    python v9_deepfool_attack.py --image_path data/test_extracted/chart/20231114102825506748.png --max_iter 50 --overshoot 0.02 --targeted_regions --perceptual_constraint
 """
 
 import os
+import cv2
 import numpy as np
 import argparse
 import torch
-import torch.nn as nn
-from torchvision import transforms
+from art.attacks.evasion import DeepFool
 
 # Import utility functions
 from v0_attack_utils import (
     load_image, create_classifier, save_image, 
-    get_output_path, print_attack_info
+    get_output_path, print_attack_info, preprocess_image_for_attack,
+    calculate_ssim, generate_saliency_map, create_combined_importance_map,
+    apply_targeted_perturbation
 )
 
 
-class DeepFool_Attack:
-    """
-    Implementation of the DeepFool attack.
+def deepfool_attack_targeted(image, classifier, image_path, max_iter=50, overshoot=0.02,
+                            targeted_regions=True, perceptual_constraint=True, ssim_threshold=0.85):
+    """Apply targeted DeepFool attack focusing on semantically important regions"""
+    # Create DeepFool attack
+    attack = DeepFool(
+        classifier=classifier,
+        max_iter=max_iter,
+        epsilon=overshoot,
+        nb_grads=10,  # Number of classes to consider
+        batch_size=1,
+        verbose=True
+    )
     
-    DeepFool works by iteratively finding the closest decision boundary to the input sample
-    and then pushing the sample across that boundary. It approximates the classifier as a
-    linear model at each iteration and moves toward the closest decision boundary.
-    """
-    def __init__(self, model, device='cuda:0', num_classes=1000):
-        self.model = model
-        self.device = device
-        self.num_classes = num_classes
-    
-    def attack(self, image, max_iter=50, overshoot=0.02):
-        """
-        Generate an adversarial example using DeepFool attack
-        
-        Args:
-            image: Original image tensor (1, C, H, W)
-            max_iter: Maximum number of iterations
-            overshoot: Overshoot parameter (typically 0.02)
-            
-        Returns:
-            Adversarial example as a tensor
-        """
-        # Move image to device and make a copy that requires gradient
-        image = image.to(self.device)
-        adv_image = image.clone().detach().requires_grad_(True)
-        
-        # Get original prediction
-        with torch.no_grad():
-            output = self.model(image)
-            original_class = torch.argmax(output, dim=1).item()
-            
-        print(f"Original class: {original_class}")
-        
-        # Initialize variables
-        current_class = original_class
-        iteration = 0
-        total_perturbation = torch.zeros_like(image)
-        
-        # Main attack loop
-        while current_class == original_class and iteration < max_iter:
-            # Forward pass
-            output = self.model(adv_image)
-            
-            # Get current class
-            current_class = torch.argmax(output, dim=1).item()
-            
-            if current_class != original_class:
-                break
-                
-            # Get logits for original class
-            f_original = output[0, original_class]
-            
-            # Initialize variables for finding closest boundary
-            min_distance = float('inf')
-            closest_perturbation = None
-            
-            # For each class (except the original)
-            for k in range(self.num_classes):
-                if k == original_class:
-                    continue
-                    
-                # Zero gradients
-                if adv_image.grad is not None:
-                    adv_image.grad.zero_()
-                
-                # Get logits for class k
-                f_k = output[0, k]
-                
-                # Compute gradient of (f_k - f_original) with respect to the image
-                loss = f_k - f_original
-                loss.backward(retain_graph=True)
-                
-                # Get gradient
-                grad = adv_image.grad.clone()
-                
-                # Compute perturbation to reach the decision boundary
-                # w_k = grad of (f_k - f_original)
-                # f_k(x) - f_original(x) = w_k^T * r
-                # We want to find the smallest r such that f_k(x+r) >= f_original(x+r)
-                # This is given by: r = -[(f_k(x) - f_original(x)) / ||w_k||^2] * w_k
-                
-                # Compute norm of gradient
-                grad_norm = torch.norm(grad) + 1e-10  # Add small constant to avoid division by zero
-                
-                # Compute perturbation
-                perturbation = -loss.item() * grad / (grad_norm ** 2)
-                
-                # Compute distance to decision boundary
-                distance = abs(loss.item()) / grad_norm
-                
-                # Check if this is the closest boundary
-                if distance < min_distance:
-                    min_distance = distance
-                    closest_perturbation = perturbation
-            
-            # Apply the perturbation
-            if closest_perturbation is not None:
-                adv_image = adv_image.detach() + closest_perturbation
-                total_perturbation += closest_perturbation
-                
-                # Ensure pixel values are in valid range [0, 1]
-                adv_image = torch.clamp(adv_image, 0, 1)
-                adv_image.requires_grad_(True)
-            
-            # Print progress every 10 iterations
-            if (iteration + 1) % 10 == 0:
-                print(f"Iteration {iteration + 1}/{max_iter}, Current class: {current_class}, Min distance: {min_distance:.6f}")
-                
-            iteration += 1
-        
-        # Apply overshoot
-        adv_image = image + (1 + overshoot) * total_perturbation
-        adv_image = torch.clamp(adv_image, 0, 1)
-        
-        # Final check
-        with torch.no_grad():
-            output = self.model(adv_image)
-            final_class = torch.argmax(output, dim=1).item()
-        
-        print(f"Final class: {final_class}, Original class: {original_class}")
-        print(f"Attack {'succeeded' if final_class != original_class else 'failed'} after {iteration} iterations")
-        print(f"L2 perturbation norm: {torch.norm(adv_image - image).item():.6f}")
-        
-        return adv_image
-
-
-def deepfool_attack(image, classifier, max_iter=50, overshoot=0.02):
-    """Apply DeepFool attack to the image"""
-    # Preprocess image
-    transform = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-    ])
-    
-    # Convert to tensor and add batch dimension
-    img_tensor = transform(image).unsqueeze(0)
-    
-    # Get device
-    device = next(classifier.model.parameters()).device
-    
-    # Create attack
-    attack = DeepFool_Attack(classifier.model, device)
+    # Preprocess image using utility function
+    img_tensor = preprocess_image_for_attack(image)
     
     # Generate adversarial example
     print(f"Generating adversarial example with max_iter={max_iter}, overshoot={overshoot}")
-    adv_tensor = attack.attack(img_tensor, max_iter, overshoot)
+    adv_image = attack.generate(x=img_tensor)
     
-    # Convert back to numpy array
-    adv_image = adv_tensor.cpu().squeeze(0).permute(1, 2, 0).numpy()
+    # Convert back to uint8 format
+    adv_image = adv_image[0].transpose(1, 2, 0)
     adv_image = np.clip(adv_image, 0, 1) * 255
     adv_image = adv_image.astype(np.uint8)
     
     # Resize back to original dimensions
     adv_image = cv2.resize(adv_image, (image.shape[1], image.shape[0]))
     
+    # Apply targeted region attack if enabled
+    if targeted_regions:
+        print("Generating importance map for targeted perturbation...")
+        importance_mask, importance_map = create_combined_importance_map(image, classifier)
+        
+        # Save importance map for visualization
+        importance_vis = (importance_map * 255).astype(np.uint8)
+        importance_vis = cv2.applyColorMap(importance_vis, cv2.COLORMAP_JET)
+        output_path = get_output_path(image_path, 'deepfool')
+        importance_path = os.path.join(os.path.dirname(output_path), 'importance_map.png')
+        cv2.imwrite(importance_path, importance_vis)
+        print(f"Saved importance map to {importance_path}")
+        
+        # Apply targeted perturbation
+        adv_image = apply_targeted_perturbation(image, adv_image, importance_map)
+    
+    # Apply perceptual constraint if enabled
+    if perceptual_constraint:
+        current_ssim = calculate_ssim(image, adv_image)
+        print(f"Initial SSIM: {current_ssim:.4f}")
+        
+        # If SSIM is below threshold, blend with original image to improve perceptual quality
+        if current_ssim < ssim_threshold:
+            print(f"SSIM below threshold ({ssim_threshold}), applying perceptual constraint...")
+            
+            # Binary search to find optimal blending factor
+            alpha_min, alpha_max = 0.0, 1.0
+            best_adv_image = adv_image.copy()
+            best_ssim = current_ssim
+            
+            for _ in range(10):  # 10 binary search steps
+                alpha = (alpha_min + alpha_max) / 2
+                blended_image = cv2.addWeighted(image, 1 - alpha, adv_image, alpha, 0)
+                blend_ssim = calculate_ssim(image, blended_image)
+                
+                if blend_ssim >= ssim_threshold:
+                    best_adv_image = blended_image
+                    best_ssim = blend_ssim
+                    alpha_max = alpha
+                else:
+                    alpha_min = alpha
+            
+            # Use a slightly stronger perturbation to ensure it's effective
+            # but still maintains reasonable visual quality
+            alpha = min(alpha_max + 0.1, 0.9)  # Add a margin to ensure perturbation is effective
+            adv_image = cv2.addWeighted(image, 1 - alpha, adv_image, alpha, 0)
+            final_ssim = calculate_ssim(image, adv_image)
+            print(f"Final SSIM after perceptual constraint: {final_ssim:.4f}")
+    
     return adv_image
 
 
-def print_deepfool_info():
-    """Print information about the DeepFool attack"""
-    print("\nDeepFool Attack Information:")
-    print("- Designed to find the minimal perturbation needed to cause misclassification")
-    print("- Works by iteratively finding the closest decision boundary")
-    print("- Approximates the classifier as a linear model at each iteration")
-    print("- Typically produces smaller perturbations than FGSM (2-10x smaller)")
-    print("- Untargeted attack (pushes sample across nearest decision boundary)")
-    print("- Optimized for L2 norm (Euclidean distance)")
-    print("- Useful for measuring model robustness")
-
-
 def main():
-    parser = argparse.ArgumentParser(description="Generate adversarial examples using DeepFool attack")
+    parser = argparse.ArgumentParser(description="Generate adversarial examples using targeted DeepFool attack")
     parser.add_argument("--image_path", type=str, 
                         default="data/test_extracted/chart/20231114102825506748.png",
                         help="Path to the input image")
@@ -211,6 +125,12 @@ def main():
                         help="Maximum number of iterations (default: 50)")
     parser.add_argument("--overshoot", type=float, default=0.02,
                         help="Overshoot parameter (default: 0.02)")
+    parser.add_argument("--targeted_regions", action="store_true",
+                        help="Apply perturbation only to important regions")
+    parser.add_argument("--perceptual_constraint", action="store_true",
+                        help="Apply perceptual similarity constraint")
+    parser.add_argument("--ssim_threshold", type=float, default=0.85,
+                        help="SSIM threshold for perceptual constraint (default: 0.85)")
     args = parser.parse_args()
     
     # Check if CUDA is available
@@ -225,10 +145,13 @@ def main():
     print("Creating classifier...")
     classifier = create_classifier(device)
     
-    # Apply DeepFool attack
-    adv_image = deepfool_attack(image, classifier, args.max_iter, args.overshoot)
+    # Apply targeted DeepFool attack
+    adv_image = deepfool_attack_targeted(
+        image, classifier, args.image_path, args.max_iter, args.overshoot,
+        args.targeted_regions, args.perceptual_constraint, args.ssim_threshold
+    )
     
-    # Get output path
+    # Get output path using utility function
     output_path = get_output_path(args.image_path, 'deepfool')
     
     # Save adversarial image
@@ -236,9 +159,14 @@ def main():
     
     # Print attack information
     print_attack_info(output_path, image, adv_image, 'deepfool')
-    print_deepfool_info()
+    
+    # Print additional DeepFool-specific information
+    perturbation = np.abs(image.astype(np.float32) - adv_image.astype(np.float32))
+    print(f"Max perturbation: {np.max(perturbation)}")
+    print(f"Mean perturbation: {np.mean(perturbation)}")
+    print(f"SSIM: {calculate_ssim(image, adv_image):.4f}")
+    print(f"L2 perturbation norm: {np.linalg.norm(perturbation)}")
 
 
 if __name__ == "__main__":
-    import cv2  # Import here to avoid circular import with v0_attack_utils
     main()

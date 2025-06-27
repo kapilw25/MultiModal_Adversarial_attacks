@@ -1,219 +1,133 @@
 #!/usr/bin/env python3
 """
-L-BFGS Attack Script for Vision-Language Models
+Targeted ElasticNet Attack Script for Vision-Language Models (Replacement for L-BFGS)
 
-This script applies an L-BFGS adversarial attack to images to test the robustness of 
-vision-language models. The L-BFGS attack was one of the first methods for generating 
-adversarial examples, introduced by Szegedy et al. in their paper "Intriguing properties 
-of neural networks".
+This script applies an ElasticNet adversarial attack to images
+to test the robustness of vision-language models. The ElasticNet attack is similar to L-BFGS
+in that it's an optimization-based attack, but uses a different optimization approach.
+
+This implementation focuses on:
+1. Targeting semantically important regions of the image (text, chart elements, data points)
+2. Keeping perturbations small enough to be relatively imperceptible to humans
+3. Making perturbations effective enough to impact model performance
 
 Usage:
-    python v7_lbfgs_attack.py [--image_path PATH] [--target_class CLASS] [--c_init C_INIT] [--max_iter ITERATIONS]
+    python v7_lbfgs_attack.py [--image_path PATH] [--max_iter ITERATIONS] [--confidence CONF]
+                             [--targeted_regions] [--perceptual_constraint] [--ssim_threshold THRESHOLD]
 
 Example:
-    python v7_lbfgs_attack.py --image_path data/test_extracted/chart/image.png --target_class 20 --c_init 0.1 --max_iter 10
+    python v7_lbfgs_attack.py --image_path data/test_extracted/chart/20231114102825506748.png --max_iter 100 --confidence 0.1 --targeted_regions --perceptual_constraint
 """
 
 import os
+import cv2
 import numpy as np
 import argparse
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from torchvision import transforms
+from art.attacks.evasion import ElasticNet
 
 # Import utility functions
 from v0_attack_utils import (
     load_image, create_classifier, save_image, 
-    get_output_path, print_attack_info
+    get_output_path, print_attack_info, preprocess_image_for_attack,
+    calculate_ssim, generate_saliency_map, create_combined_importance_map,
+    apply_targeted_perturbation
 )
 
 
-class LBFGS_Attack:
-    """
-    Implementation of the L-BFGS attack.
+def elastic_net_attack_targeted(image, classifier, image_path, max_iter=100, confidence=0.1, decision_rule='L1',
+                               targeted_regions=True, perceptual_constraint=True, ssim_threshold=0.85):
+    """Apply targeted ElasticNet attack focusing on semantically important regions"""
+    # Preprocess image using utility function
+    img_tensor = preprocess_image_for_attack(image)
     
-    The L-BFGS attack formulates the problem as:
-    minimize c * ||x' - x||_2^2 + loss(x', target_class)
-    subject to x' ∈ [0, 1]^n
+    # Get the original prediction
+    original_pred = np.argmax(classifier.predict(img_tensor)[0])
     
-    Where:
-    - x is the original input
-    - x' is the adversarial example
-    - loss is the loss function (typically cross-entropy)
-    - c is a constant that balances the two objectives
-    """
-    def __init__(self, model, device='cuda:0'):
-        self.model = model
-        self.device = device
-        self.loss_fn = nn.CrossEntropyLoss()
+    # Target is any class other than the original (for untargeted attack)
+    target = (original_pred + 1) % classifier.nb_classes
     
-    def attack(self, image, target_class, c_init=0.1, max_iter=10, binary_search_steps=5):
-        """
-        Generate an adversarial example using L-BFGS attack
-        
-        Args:
-            image: Original image tensor (1, C, H, W)
-            target_class: Target class for the adversarial example
-            c_init: Initial value of the constant c
-            max_iter: Maximum number of iterations for L-BFGS
-            binary_search_steps: Number of binary search steps to find optimal c
-        
-        Returns:
-            Adversarial example as a tensor
-        """
-        # Move image to device
-        image = image.to(self.device)
-        
-        # Get original prediction
-        with torch.no_grad():
-            original_output = self.model(image)
-            original_class = torch.argmax(original_output, dim=1).item()
-        
-        print(f"Original class: {original_class}, Target class: {target_class}")
-        
-        # If target is the same as original, choose a different target
-        if target_class == original_class:
-            target_class = (target_class + 1) % 1000
-            print(f"Target class is the same as original, changing to: {target_class}")
-        
-        # Create target tensor
-        target = torch.tensor([target_class], device=self.device)
-        
-        # Binary search for the optimal c value
-        c_lower = 0
-        c_upper = 1e10
-        c = c_init
-        
-        best_adv_image = None
-        best_l2_dist = float('inf')
-        
-        for binary_step in range(binary_search_steps):
-            print(f"Binary search step {binary_step+1}/{binary_search_steps}, c = {c}")
-            
-            # Create a copy of the image that requires gradient
-            adv_image = image.clone().detach().requires_grad_(True)
-            
-            # Use L-BFGS optimizer
-            optimizer = optim.LBFGS([adv_image], lr=1, max_iter=max_iter)
-            
-            # Define closure function for L-BFGS
-            def closure():
-                optimizer.zero_grad()
-                
-                # Calculate loss
-                output = self.model(adv_image)
-                l2_dist = torch.norm(adv_image - image, p=2)
-                ce_loss = self.loss_fn(output, target)
-                total_loss = c * l2_dist + ce_loss
-                
-                # Backward pass
-                total_loss.backward()
-                
-                return total_loss
-            
-            # Run optimization
-            optimizer.step(closure)
-            
-            # Check if attack was successful
-            with torch.no_grad():
-                output = self.model(adv_image)
-                adv_class = torch.argmax(output, dim=1).item()
-                l2_dist = torch.norm(adv_image - image, p=2).item()
-            
-            print(f"  L2 distance: {l2_dist:.4f}, Predicted class: {adv_class}")
-            
-            # Update best adversarial example if this one is better
-            if adv_class == target_class and l2_dist < best_l2_dist:
-                best_adv_image = adv_image.clone().detach()
-                best_l2_dist = l2_dist
-            
-            # Update c using binary search
-            if adv_class == target_class:
-                # Attack succeeded, try to reduce distortion
-                c_upper = c
-                c = (c_lower + c_upper) / 2
-            else:
-                # Attack failed, increase c to prioritize target class
-                c_lower = c
-                c = (c_lower + c_upper) / 2 if c_upper < 1e10 else c * 10
-        
-        # If attack failed, return the last adversarial example
-        if best_adv_image is None:
-            best_adv_image = adv_image.detach()
-        
-        # Ensure pixel values are in valid range [0, 1]
-        best_adv_image = torch.clamp(best_adv_image, 0, 1)
-        
-        return best_adv_image
-
-
-def lbfgs_attack(image, classifier, target_class=None, c_init=0.1, max_iter=10):
-    """Apply L-BFGS attack to the image"""
-    # Preprocess image
-    transform = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-    ])
-    
-    # Convert to tensor and add batch dimension
-    img_tensor = transform(image).unsqueeze(0)
-    
-    # Get device
-    device = next(classifier.model.parameters()).device
-    
-    # If target class is not specified, use a random class
-    if target_class is None:
-        # Get original prediction
-        with torch.no_grad():
-            output = classifier.model(img_tensor.to(device))
-            original_class = torch.argmax(output, dim=1).item()
-        
-        # Choose a random class different from the original
-        target_class = np.random.randint(0, 1000)
-        while target_class == original_class:
-            target_class = np.random.randint(0, 1000)
-    
-    # Create attack
-    attack = LBFGS_Attack(classifier.model, device)
+    # Create ElasticNet attack
+    attack = ElasticNet(
+        classifier=classifier,
+        confidence=confidence,
+        targeted=True,
+        max_iter=max_iter,
+        beta=0.01,  # Trade-off between L1 and L2 norms
+        decision_rule=decision_rule,
+        verbose=True
+    )
     
     # Generate adversarial example
-    print(f"Generating adversarial example with target_class={target_class}, c_init={c_init}, max_iter={max_iter}")
-    adv_tensor = attack.attack(img_tensor, target_class, c_init, max_iter)
+    print(f"Generating adversarial example with target_class={target}, confidence={confidence}, max_iter={max_iter}")
+    print(f"Original class: {original_pred}, Target class: {target}")
     
-    # Convert back to numpy array
-    adv_image = adv_tensor.cpu().squeeze(0).permute(1, 2, 0).numpy()
+    # Create one-hot encoded target
+    target_one_hot = np.zeros((1, classifier.nb_classes))
+    target_one_hot[0, target] = 1
+    
+    adv_image = attack.generate(x=img_tensor, y=target_one_hot)
+    
+    # Convert back to uint8 format
+    adv_image = adv_image[0].transpose(1, 2, 0)
     adv_image = np.clip(adv_image, 0, 1) * 255
     adv_image = adv_image.astype(np.uint8)
     
     # Resize back to original dimensions
-    adv_image = np.zeros_like(image) if adv_image is None else cv2.resize(adv_image, (image.shape[1], image.shape[0]))
+    adv_image = cv2.resize(adv_image, (image.shape[1], image.shape[0]))
+    
+    # Apply targeted region attack if enabled
+    if targeted_regions:
+        print("Generating importance map for targeted perturbation...")
+        importance_mask, importance_map = create_combined_importance_map(image, classifier)
+        
+        # Save importance map for visualization
+        importance_vis = (importance_map * 255).astype(np.uint8)
+        importance_vis = cv2.applyColorMap(importance_vis, cv2.COLORMAP_JET)
+        output_path = get_output_path(image_path, 'lbfgs')
+        importance_path = os.path.join(os.path.dirname(output_path), 'importance_map.png')
+        cv2.imwrite(importance_path, importance_vis)
+        print(f"Saved importance map to {importance_path}")
+        
+        # Apply targeted perturbation
+        adv_image = apply_targeted_perturbation(image, adv_image, importance_map)
+    
+    # Apply perceptual constraint if enabled
+    if perceptual_constraint:
+        current_ssim = calculate_ssim(image, adv_image)
+        print(f"Initial SSIM: {current_ssim:.4f}")
+        
+        # If SSIM is below threshold, use a much stronger blending with original image
+        if current_ssim < ssim_threshold:
+            print(f"SSIM below threshold ({ssim_threshold}), applying stronger perceptual constraint...")
+            
+            # Use a very small alpha to ensure high SSIM
+            alpha = 0.05  # Only 5% of the adversarial perturbation
+            adv_image = cv2.addWeighted(image, 1 - alpha, adv_image, alpha, 0)
+            final_ssim = calculate_ssim(image, adv_image)
+            print(f"Final SSIM after perceptual constraint: {final_ssim:.4f}")
     
     return adv_image
 
 
-def print_lbfgs_info():
-    """Print information about the L-BFGS attack"""
-    print("\nL-BFGS Attack Information:")
-    print("- One of the first methods for generating adversarial examples")
-    print("- Optimizes for minimal L2 distance while achieving target classification")
-    print("- Uses box-constrained L-BFGS optimization with line search")
-    print("- Typically produces visually imperceptible perturbations")
-    print("- More computationally intensive than gradient-based methods like FGSM")
-
-
 def main():
-    parser = argparse.ArgumentParser(description="Generate adversarial examples using L-BFGS attack")
+    parser = argparse.ArgumentParser(description="Generate adversarial examples using targeted ElasticNet attack (replacement for L-BFGS)")
     parser.add_argument("--image_path", type=str, 
                         default="data/test_extracted/chart/20231114102825506748.png",
                         help="Path to the input image")
-    parser.add_argument("--target_class", type=int, default=None,
-                        help="Target class for the adversarial example (default: random)")
-    parser.add_argument("--c_init", type=float, default=0.1,
-                        help="Initial value of the constant c (default: 0.1)")
-    parser.add_argument("--max_iter", type=int, default=10,
-                        help="Maximum number of iterations for L-BFGS (default: 10)")
+    parser.add_argument("--max_iter", type=int, default=100,
+                        help="Maximum number of iterations (default: 100)")
+    parser.add_argument("--confidence", type=float, default=0.1,
+                        help="Confidence parameter for attack (higher values produce stronger attacks)")
+    parser.add_argument("--decision_rule", type=str, default="L1",
+                        choices=["L1", "L2"],
+                        help="Decision rule for the attack (default: L1)")
+    parser.add_argument("--targeted_regions", action="store_true",
+                        help="Apply perturbation only to important regions")
+    parser.add_argument("--perceptual_constraint", action="store_true",
+                        help="Apply perceptual similarity constraint")
+    parser.add_argument("--ssim_threshold", type=float, default=0.85,
+                        help="SSIM threshold for perceptual constraint (default: 0.85)")
     args = parser.parse_args()
     
     # Check if CUDA is available
@@ -228,10 +142,13 @@ def main():
     print("Creating classifier...")
     classifier = create_classifier(device)
     
-    # Apply L-BFGS attack
-    adv_image = lbfgs_attack(image, classifier, args.target_class, args.c_init, args.max_iter)
+    # Apply targeted ElasticNet attack
+    adv_image = elastic_net_attack_targeted(
+        image, classifier, args.image_path, args.max_iter, args.confidence, args.decision_rule,
+        args.targeted_regions, args.perceptual_constraint, args.ssim_threshold
+    )
     
-    # Get output path
+    # Get output path using utility function
     output_path = get_output_path(args.image_path, 'lbfgs')
     
     # Save adversarial image
@@ -239,9 +156,14 @@ def main():
     
     # Print attack information
     print_attack_info(output_path, image, adv_image, 'lbfgs')
-    print_lbfgs_info()
+    
+    # Print additional attack-specific information
+    perturbation = np.abs(image.astype(np.float32) - adv_image.astype(np.float32))
+    print(f"Max perturbation: {np.max(perturbation)}")
+    print(f"Mean perturbation: {np.mean(perturbation)}")
+    print(f"SSIM: {calculate_ssim(image, adv_image):.4f}")
+    print(f"L2 norm of perturbation: {np.linalg.norm(perturbation)}")
 
 
 if __name__ == "__main__":
-    import cv2  # Import here to avoid circular import with v0_attack_utils
     main()

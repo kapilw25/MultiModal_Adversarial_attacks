@@ -1,307 +1,171 @@
 #!/usr/bin/env python3
 """
-Jacobian-based Saliency Map Attack (JSMA) Script for Vision-Language Models
+Imperceptible Jacobian-based Saliency Map Attack (JSMA) Script for Vision-Language Models
 
-This script applies a JSMA adversarial attack to images to test the robustness of 
-vision-language models. JSMA was introduced by Papernot et al. in their paper 
-"The Limitations of Deep Learning in Adversarial Settings" and is optimized for the L0 
-distance metric, aiming to modify the fewest possible pixels.
+This script applies a modified JSMA adversarial attack to images
+to test the robustness of vision-language models. The JSMA attack is described in the paper
+"The Limitations of Deep Learning in Adversarial Settings" by Papernot et al.
+
+This implementation focuses on:
+1. Creating truly imperceptible perturbations by limiting both the number and magnitude of pixel changes
+2. Targeting semantically important regions of the image (text, chart elements, data points)
+3. Using perceptual constraints to ensure the attack remains invisible to human observers
+4. Maintaining effectiveness against vision-language models
 
 Usage:
-    python v8_jsma_attack.py [--image_path PATH] [--target_class CLASS] [--max_iter ITERATIONS] [--theta THETA] [--use_logits]
+    python v8_jsma_attack.py [--image_path PATH] [--max_iter ITERATIONS] [--theta THETA]
+                            [--targeted_regions] [--perceptual_constraint] [--ssim_threshold THRESHOLD]
+                            [--max_pixel_change MAX_CHANGE]
 
 Example:
-    python v8_jsma_attack.py --image_path data/test_extracted/chart/image.png --target_class 20 --max_iter 100 --theta 1.0
+    python v8_jsma_attack.py --image_path data/test_extracted/chart/20231114102825506748.png --max_iter 20 --theta 0.1 --max_pixel_change 10 --targeted_regions --perceptual_constraint
 """
 
 import os
+import cv2
 import numpy as np
 import argparse
 import torch
-import torch.nn as nn
-from torchvision import transforms
+from art.attacks.evasion import SaliencyMapMethod
 
 # Import utility functions
 from v0_attack_utils import (
     load_image, create_classifier, save_image, 
-    get_output_path, print_attack_info
+    get_output_path, print_attack_info, preprocess_image_for_attack,
+    calculate_ssim, generate_saliency_map, create_combined_importance_map,
+    apply_targeted_perturbation
 )
 
 
-class JSMA_Attack:
-    """
-    Implementation of the Jacobian-based Saliency Map Attack (JSMA).
+def jsma_attack_imperceptible(image, classifier, image_path, theta=0.1, gamma=0.1, max_iter=20,
+                             max_pixel_change=10, targeted_regions=True, perceptual_constraint=True, 
+                             ssim_threshold=0.95):
+    """Apply imperceptible JSMA attack focusing on semantically important regions"""
+    # Preprocess image using utility function
+    img_tensor = preprocess_image_for_attack(image)
     
-    JSMA is a greedy algorithm that iteratively selects and modifies pixels that have 
-    the highest impact on the classification outcome. It uses the gradient information 
-    to construct a "saliency map" that quantifies how influential each pixel is for 
-    achieving the target classification.
-    """
-    def __init__(self, model, device='cuda:0', use_logits=True):
-        self.model = model
-        self.device = device
-        self.use_logits = use_logits  # Whether to use logits (Z) or softmax outputs (F)
+    # Get the original prediction
+    original_pred = np.argmax(classifier.predict(img_tensor)[0])
     
-    def compute_jacobian(self, image, target_class, num_classes=1000):
-        """
-        Compute the Jacobian matrix of the model's output with respect to the input image.
-        
-        Args:
-            image: Input image tensor (1, C, H, W)
-            target_class: Target class index
-            num_classes: Number of output classes
-            
-        Returns:
-            target_grad: Gradients for target class
-            other_grad: Sum of gradients for all other classes
-        """
-        image.requires_grad_(True)
-        
-        # Forward pass
-        output = self.model(image)
-        
-        # For target class
-        if self.use_logits:
-            # Use logits (Z) - JSMA-Z variant
-            output[0, target_class].backward(retain_graph=True)
-        else:
-            # Use softmax outputs (F) - JSMA-F variant
-            softmax_output = torch.nn.functional.softmax(output, dim=1)
-            softmax_output[0, target_class].backward(retain_graph=True)
-        
-        # Store target gradients
-        target_grad = image.grad.clone()
-        
-        # Reset gradients
-        image.grad.zero_()
-        
-        # For all other classes (combined)
-        if self.use_logits:
-            # Create a mask for all classes except target
-            mask = torch.ones_like(output)
-            mask[0, target_class] = 0
-            masked_output = output * mask
-            masked_output.sum().backward()
-        else:
-            # For softmax, we need to handle differently
-            softmax_output = torch.nn.functional.softmax(output, dim=1)
-            mask = torch.ones_like(softmax_output)
-            mask[0, target_class] = 0
-            masked_output = softmax_output * mask
-            masked_output.sum().backward()
-        
-        # Store other gradients
-        other_grad = image.grad.clone()
-        
-        # Reset gradients and detach
-        image.grad.zero_()
-        image.requires_grad_(False)
-        
-        return target_grad, other_grad
+    # Target is any class other than the original (for untargeted attack)
+    target = (original_pred + 1) % classifier.nb_classes
     
-    def compute_saliency_scores(self, target_grad, other_grad):
-        """
-        Compute saliency scores for each pixel.
-        
-        Args:
-            target_grad: Gradients for target class
-            other_grad: Sum of gradients for all other classes
-            
-        Returns:
-            Saliency scores for each pixel
-        """
-        # Flatten gradients
-        target_grad_flat = target_grad.flatten()
-        other_grad_flat = other_grad.flatten()
-        
-        # Compute saliency scores
-        # Higher score means more influential for classification
-        saliency = torch.zeros_like(target_grad_flat)
-        
-        # Condition: target_grad > 0 and other_grad < 0
-        mask = (target_grad_flat > 0) & (other_grad_flat < 0)
-        saliency[mask] = target_grad_flat[mask] * (-other_grad_flat[mask])
-        
-        return saliency
-    
-    def attack(self, image, target_class, max_iter=100, theta=1.0):
-        """
-        Generate an adversarial example using JSMA attack
-        
-        Args:
-            image: Original image tensor (1, C, H, W)
-            target_class: Target class for the adversarial example
-            max_iter: Maximum number of iterations (pixel modifications)
-            theta: Maximum distortion per pixel (0-1 range)
-            
-        Returns:
-            Adversarial example as a tensor
-        """
-        # Move image to device
-        image = image.to(self.device)
-        
-        # Get original prediction
-        with torch.no_grad():
-            original_output = self.model(image)
-            original_class = torch.argmax(original_output, dim=1).item()
-        
-        print(f"Original class: {original_class}, Target class: {target_class}")
-        
-        # If target is the same as original, choose a different target
-        if target_class == original_class:
-            target_class = (target_class + 1) % 1000
-            print(f"Target class is the same as original, changing to: {target_class}")
-        
-        # Get image dimensions
-        _, channels, height, width = image.shape
-        
-        # Create a copy of the image that we'll modify
-        adv_image = image.clone()
-        
-        # Track modified pixels
-        modified_pixels = set()
-        
-        # Main attack loop
-        for iteration in range(max_iter):
-            # Check if we've already succeeded
-            with torch.no_grad():
-                output = self.model(adv_image)
-                current_class = torch.argmax(output, dim=1).item()
-                
-            if current_class == target_class:
-                print(f"Attack succeeded after {iteration} iterations!")
-                break
-            
-            # Compute Jacobian
-            target_grad, other_grad = self.compute_jacobian(adv_image, target_class)
-            
-            # Compute saliency scores
-            saliency = self.compute_saliency_scores(target_grad, other_grad)
-            
-            # Find the most influential pixel
-            if torch.max(saliency) == 0:
-                print(f"No valid pixels found at iteration {iteration}")
-                break
-                
-            # Get top pixels (we'll modify one at a time for memory efficiency)
-            _, indices = torch.topk(saliency, k=10)
-            
-            # Try each pixel until we find one that hasn't been modified
-            modified = False
-            for idx in indices:
-                idx = idx.item()
-                
-                # Convert flat index to 3D indices
-                c = idx % channels
-                h = (idx // channels) % height
-                w = idx // (channels * height)
-                
-                # Skip if this pixel has already been modified
-                if (c, h, w) in modified_pixels:
-                    continue
-                
-                # Modify the pixel
-                adv_image[0, c, h, w] = torch.clamp(adv_image[0, c, h, w] + theta, 0, 1)
-                
-                # Add to modified pixels set
-                modified_pixels.add((c, h, w))
-                modified = True
-                break
-            
-            # If we couldn't find any unmodified pixels in the top k, break
-            if not modified:
-                print(f"No unmodified pixels found in top candidates at iteration {iteration}")
-                break
-            
-            # Print progress every 10 iterations
-            if (iteration + 1) % 10 == 0:
-                print(f"Iteration {iteration + 1}/{max_iter}, Modified pixels: {len(modified_pixels)}")
-        
-        # Final check
-        with torch.no_grad():
-            output = self.model(adv_image)
-            final_class = torch.argmax(output, dim=1).item()
-        
-        print(f"Final class: {final_class}, Target class: {target_class}")
-        print(f"Total modified pixels: {len(modified_pixels)}")
-        
-        return adv_image
-
-
-def jsma_attack(image, classifier, target_class=None, max_iter=100, theta=1.0, use_logits=True):
-    """Apply JSMA attack to the image"""
-    # Preprocess image
-    transform = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-    ])
-    
-    # Convert to tensor and add batch dimension
-    img_tensor = transform(image).unsqueeze(0)
-    
-    # Get device
-    device = next(classifier.model.parameters()).device
-    
-    # If target class is not specified, use a random class
-    if target_class is None:
-        # Get original prediction
-        with torch.no_grad():
-            output = classifier.model(img_tensor.to(device))
-            original_class = torch.argmax(output, dim=1).item()
-        
-        # Choose a random class different from the original
-        target_class = np.random.randint(0, 1000)
-        while target_class == original_class:
-            target_class = np.random.randint(0, 1000)
-    
-    # Create attack
-    attack = JSMA_Attack(classifier.model, device, use_logits=use_logits)
+    # Create JSMA attack with reduced theta (perturbation magnitude)
+    attack = SaliencyMapMethod(
+        classifier=classifier,
+        theta=theta,  # Reduced perturbation magnitude
+        gamma=gamma,
+        batch_size=1,
+        verbose=True
+    )
     
     # Generate adversarial example
-    print(f"Generating adversarial example with target_class={target_class}, max_iter={max_iter}, theta={theta}")
-    adv_tensor = attack.attack(img_tensor, target_class, max_iter, theta)
+    print(f"Generating adversarial example with target_class={target}, max_iter={max_iter}, theta={theta}")
+    print(f"Original class: {original_pred}, Target class: {target}")
     
-    # Convert back to numpy array
-    adv_image = adv_tensor.cpu().squeeze(0).permute(1, 2, 0).numpy()
+    # Create one-hot encoded target
+    target_one_hot = np.zeros((1, classifier.nb_classes))
+    target_one_hot[0, target] = 1
+    
+    adv_image = attack.generate(x=img_tensor, y=target_one_hot, max_iter=max_iter)
+    
+    # Convert back to uint8 format
+    adv_image = adv_image[0].transpose(1, 2, 0)
     adv_image = np.clip(adv_image, 0, 1) * 255
     adv_image = adv_image.astype(np.uint8)
     
     # Resize back to original dimensions
     adv_image = cv2.resize(adv_image, (image.shape[1], image.shape[0]))
     
+    # Apply targeted region attack if enabled
+    if targeted_regions:
+        print("Generating importance map for targeted perturbation...")
+        importance_mask, importance_map = create_combined_importance_map(image, classifier)
+        
+        # Save importance map for visualization
+        importance_vis = (importance_map * 255).astype(np.uint8)
+        importance_vis = cv2.applyColorMap(importance_vis, cv2.COLORMAP_JET)
+        output_path = get_output_path(image_path, 'jsma')
+        importance_path = os.path.join(os.path.dirname(output_path), 'importance_map.png')
+        cv2.imwrite(importance_path, importance_vis)
+        print(f"Saved importance map to {importance_path}")
+        
+        # Apply targeted perturbation
+        adv_image = apply_targeted_perturbation(image, adv_image, importance_map)
+    
+    # Apply additional constraint on maximum pixel change
+    perturbation = adv_image.astype(np.float32) - image.astype(np.float32)
+    # Clip perturbation to max_pixel_change
+    clipped_perturbation = np.clip(perturbation, -max_pixel_change, max_pixel_change)
+    adv_image = np.clip(image.astype(np.float32) + clipped_perturbation, 0, 255).astype(np.uint8)
+    
+    # Calculate initial SSIM
+    current_ssim = calculate_ssim(image, adv_image)
+    print(f"Initial SSIM after clipping: {current_ssim:.4f}")
+    
+    # Apply perceptual constraint if enabled
+    if perceptual_constraint:
+        # If SSIM is below threshold, blend with original image to improve perceptual quality
+        if current_ssim < ssim_threshold:
+            print(f"SSIM below threshold ({ssim_threshold}), applying perceptual constraint...")
+            
+            # Find optimal alpha that maintains effectiveness while ensuring imperceptibility
+            # Start with a small alpha and gradually increase until we find a good balance
+            best_alpha = 0.05  # Start with a very small perturbation
+            best_ssim = 0.0
+            best_adv_image = image.copy()
+            
+            # Try different alpha values to find the best balance
+            for alpha_percent in range(5, 31, 5):  # Try 5%, 10%, 15%, 20%, 25%, 30%
+                alpha = alpha_percent / 100.0
+                blended_image = cv2.addWeighted(image, 1 - alpha, adv_image, alpha, 0)
+                blend_ssim = calculate_ssim(image, blended_image)
+                
+                # If this alpha gives us a good SSIM, update our best
+                if blend_ssim >= ssim_threshold and alpha > best_alpha:
+                    best_alpha = alpha
+                    best_ssim = blend_ssim
+                    best_adv_image = blended_image.copy()
+            
+            # If we found a good alpha, use it
+            if best_ssim >= ssim_threshold:
+                adv_image = best_adv_image
+                print(f"Found optimal alpha: {best_alpha:.4f} with SSIM: {best_ssim:.4f}")
+            else:
+                # If we couldn't find a good alpha, use a very small one to ensure imperceptibility
+                alpha = 0.05  # Only 5% of the adversarial perturbation
+                adv_image = cv2.addWeighted(image, 1 - alpha, adv_image, alpha, 0)
+                final_ssim = calculate_ssim(image, adv_image)
+                print(f"Using minimal alpha: {alpha:.4f} with SSIM: {final_ssim:.4f}")
+    
+    # Calculate final perturbation metrics
+    perturbation = np.abs(image.astype(np.float32) - adv_image.astype(np.float32))
+    print(f"Final perturbation - Max: {np.max(perturbation):.2f}, Mean: {np.mean(perturbation):.4f}")
+    changed_pixels = np.sum(perturbation > 0.5)  # Count pixels with change > 0.5
+    print(f"Number of changed pixels: {changed_pixels} ({changed_pixels/(image.shape[0]*image.shape[1]*image.shape[2])*100:.2f}%)")
+    
     return adv_image
 
 
-def print_jsma_info(use_logits=True):
-    """Print information about the JSMA attack"""
-    variant = "JSMA-Z" if use_logits else "JSMA-F"
-    
-    print(f"\n{variant} Attack Information:")
-    print("- Optimized for the L0 distance metric (minimizing the number of modified pixels)")
-    print("- Uses a saliency map to identify the most influential pixels for classification")
-    print("- Greedy algorithm that iteratively modifies pixels to achieve target classification")
-    print("- Typically produces sparse but potentially visible perturbations")
-    print("- Computationally expensive due to Jacobian matrix calculation")
-    if use_logits:
-        print("- Uses logits (Z) - output before softmax - to calculate gradients")
-    else:
-        print("- Uses softmax outputs (F) to calculate gradients (useful for defensively distilled networks)")
-
-
 def main():
-    parser = argparse.ArgumentParser(description="Generate adversarial examples using JSMA attack")
+    parser = argparse.ArgumentParser(description="Generate imperceptible adversarial examples using JSMA attack")
     parser.add_argument("--image_path", type=str, 
                         default="data/test_extracted/chart/20231114102825506748.png",
                         help="Path to the input image")
-    parser.add_argument("--target_class", type=int, default=None,
-                        help="Target class for the adversarial example (default: random)")
-    parser.add_argument("--max_iter", type=int, default=100,
-                        help="Maximum number of iterations (pixel modifications) (default: 100)")
-    parser.add_argument("--theta", type=float, default=1.0,
-                        help="Maximum distortion per pixel (0-1 range) (default: 1.0)")
-    parser.add_argument("--use_logits", action="store_true", default=True,
-                        help="Use logits (Z) instead of softmax outputs (F) for gradient calculation")
+    parser.add_argument("--max_iter", type=int, default=20,
+                        help="Maximum number of iterations (default: 20)")
+    parser.add_argument("--theta", type=float, default=0.1,
+                        help="Maximum percentage of perturbed features (default: 0.1)")
+    parser.add_argument("--gamma", type=float, default=0.1,
+                        help="Step size (default: 0.1)")
+    parser.add_argument("--max_pixel_change", type=int, default=10,
+                        help="Maximum allowed change per pixel (default: 10)")
+    parser.add_argument("--targeted_regions", action="store_true",
+                        help="Apply perturbation only to important regions")
+    parser.add_argument("--perceptual_constraint", action="store_true",
+                        help="Apply perceptual similarity constraint")
+    parser.add_argument("--ssim_threshold", type=float, default=0.98,
+                        help="SSIM threshold for perceptual constraint (default: 0.98)")
     args = parser.parse_args()
     
     # Check if CUDA is available
@@ -316,10 +180,13 @@ def main():
     print("Creating classifier...")
     classifier = create_classifier(device)
     
-    # Apply JSMA attack
-    adv_image = jsma_attack(image, classifier, args.target_class, args.max_iter, args.theta, args.use_logits)
+    # Apply imperceptible JSMA attack
+    adv_image = jsma_attack_imperceptible(
+        image, classifier, args.image_path, args.theta, args.gamma, args.max_iter,
+        args.max_pixel_change, args.targeted_regions, args.perceptual_constraint, args.ssim_threshold
+    )
     
-    # Get output path
+    # Get output path using utility function
     output_path = get_output_path(args.image_path, 'jsma')
     
     # Save adversarial image
@@ -327,9 +194,15 @@ def main():
     
     # Print attack information
     print_attack_info(output_path, image, adv_image, 'jsma')
-    print_jsma_info(args.use_logits)
+    
+    # Print additional JSMA-specific information
+    perturbation = np.abs(image.astype(np.float32) - adv_image.astype(np.float32))
+    print(f"Max perturbation: {np.max(perturbation)}")
+    print(f"Mean perturbation: {np.mean(perturbation)}")
+    print(f"SSIM: {calculate_ssim(image, adv_image):.4f}")
+    changed_pixels = np.sum(np.any(perturbation > 0.5, axis=2))
+    print(f"Total modified pixels: {changed_pixels}")
 
 
 if __name__ == "__main__":
-    import cv2  # Import here to avoid circular import with v0_attack_utils
     main()

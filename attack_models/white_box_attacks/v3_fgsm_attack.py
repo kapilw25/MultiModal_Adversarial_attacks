@@ -26,7 +26,7 @@ Usage:
 
 Example:
     # Standard attack
-    python v3_fgsm_attack.py --image_path data/test_extracted/chart/image.png --eps 0.03 --question "Describe this chart in detail."
+    python v3_fgsm_attack.py --image_path mage_path data/test_extracted/chart/20231114102825506748.png  --eps 0.03 --question "Describe this chart in detail."
 """
 
 import os
@@ -82,16 +82,15 @@ def white_box_fgsm_attack(model, processor, image_path, question, eps=0.03):
         messages, tokenize=False, add_generation_prompt=True
     )
     
-    # Convert PIL image to tensor and require gradients
+    # Convert PIL image to tensor
     from torchvision import transforms
     transform = transforms.Compose([
         transforms.Resize((224, 224)),  # Resize to smaller dimensions to save memory
         transforms.ToTensor(),
     ])
     image_tensor = transform(image).unsqueeze(0).to(model.device)
-    image_tensor.requires_grad = True
     
-    # Process inputs with the tensor that requires gradients - skip video processing
+    # Process inputs with the tensor
     inputs = processor(
         text=[text],
         images=image_tensor,
@@ -100,73 +99,94 @@ def white_box_fgsm_attack(model, processor, image_path, question, eps=0.03):
         return_tensors="pt",
         max_length=256,  # Limit sequence length to save memory
     )
-    inputs = inputs.to(model.device)
+    inputs = {k: v.to(model.device) for k, v in inputs.items()}
     
-    # Forward pass to compute loss
-    print("Computing forward pass and loss...")
-    with torch.enable_grad():
-        # Create target labels (use input_ids as labels for next-token prediction)
-        labels = inputs["input_ids"].clone()
-        
-        # Forward pass with memory optimization
-        # Use mixed precision to save memory
+    # Create target labels (use input_ids as labels for next-token prediction)
+    labels = inputs["input_ids"].clone()
+    
+    # Implement ShiftQuant for gradient estimation
+    print("Using ShiftQuant for gradient estimation...")
+    
+    # Store original image tensor
+    original_tensor = image_tensor.clone()
+    
+    # Define delta for finite differences
+    delta = 0.005
+    
+    # Initialize gradient tensor
+    grad = torch.zeros_like(image_tensor)
+    
+    # Use finite differences to estimate gradients
+    print("Computing gradients using finite differences...")
+    
+    # Compute base loss
+    with torch.no_grad():
         with torch.cuda.amp.autocast():
-            outputs = model(**inputs, labels=labels)
-            loss = outputs.loss
+            base_outputs = model(**inputs, labels=labels)
+            base_loss = base_outputs.loss.item()
     
-    # Compute gradients with respect to the image
-    print("Computing gradients...")
-    # Use gradient scaling to prevent underflow in 8-bit gradients
-    scaler = torch.cuda.amp.GradScaler()
-    scaled_loss = scaler.scale(loss)
-    scaled_loss.backward()
-    
-    # Extract gradients from the image tensor
-    if image_tensor.grad is None:
-        print("Warning: No gradients computed. Using estimated gradients.")
-        # Use finite differences to estimate gradients
-        delta = 0.01
-        with torch.no_grad():
-            # Create a detached copy for perturbation
-            perturbed_tensor = image_tensor.detach().clone()
-            perturbed_tensor = perturbed_tensor + delta
+    # Estimate gradients for each channel separately to save memory
+    for c in range(image_tensor.shape[1]):  # For each channel
+        print(f"Processing channel {c+1}/{image_tensor.shape[1]}...")
+        
+        # Process each spatial location in batches to save memory
+        batch_size = 100  # Process 100 pixels at a time
+        height, width = image_tensor.shape[2], image_tensor.shape[3]
+        total_pixels = height * width
+        
+        for batch_start in range(0, total_pixels, batch_size):
+            batch_end = min(batch_start + batch_size, total_pixels)
             
-            # Process perturbed image
-            perturbed_inputs = processor(
-                text=[text],
-                images=perturbed_tensor,
-                videos=None,
-                padding=True,
-                return_tensors="pt",
-                max_length=256,
-            )
-            perturbed_inputs = perturbed_inputs.to(model.device)
-            
-            # Compute loss for perturbed image
-            perturbed_outputs = model(**perturbed_inputs, labels=labels)
-            perturbed_loss = perturbed_outputs.loss
-            
-            # Estimate gradient using finite differences
-            estimated_grad = (perturbed_loss - loss) / delta
-            image_grad = torch.ones_like(image_tensor) * estimated_grad
-            image_grad = image_grad.sign()
-    else:
-        print("Gradients computed successfully.")
-        image_grad = image_tensor.grad.sign()
+            # Create perturbed copies for this batch
+            for i in range(batch_start, batch_end):
+                h, w = i // width, i % width
+                
+                # Create perturbed copy
+                perturbed = image_tensor.clone()
+                perturbed[0, c, h, w] += delta
+                
+                # Ensure values stay in valid range
+                perturbed = torch.clamp(perturbed, 0, 1)
+                
+                # Process perturbed inputs
+                perturbed_inputs = processor(
+                    text=[text],
+                    images=perturbed,
+                    videos=None,
+                    padding=True,
+                    return_tensors="pt",
+                    max_length=256,
+                )
+                perturbed_inputs = {k: v.to(model.device) for k, v in perturbed_inputs.items()}
+                
+                # Compute loss for perturbed inputs
+                with torch.no_grad():
+                    with torch.cuda.amp.autocast():
+                        perturbed_outputs = model(**perturbed_inputs, labels=labels)
+                        perturbed_loss = perturbed_outputs.loss.item()
+                
+                # Estimate gradient using finite differences
+                grad[0, c, h, w] = (perturbed_loss - base_loss) / delta
     
     # Apply FGSM perturbation
     print(f"Applying FGSM perturbation with eps={eps}")
     with torch.no_grad():
-        perturbed_image = image_tensor + eps * image_grad
+        # Use sign of gradient for FGSM
+        signed_grad = grad.sign()
+        
+        # Apply perturbation
+        perturbed_image = image_tensor + eps * signed_grad
+        
+        # Ensure values stay in valid range [0, 1]
         perturbed_image = torch.clamp(perturbed_image, 0, 1)
     
     # Get output path
     output_path = get_output_path(image_path, 'white_box_fgsm')
     
     # Save adversarial image
+    from torchvision.utils import save_image
     save_image(perturbed_image[0], output_path)
-    
-    return output_path, image_tensor, perturbed_image
+    print(f"Saved adversarial image to {output_path}")
     
     return output_path, image_tensor, perturbed_image
 

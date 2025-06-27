@@ -199,21 +199,21 @@ def evaluator(path):
             bad_results.append(result)
     
     # Determine file type based on filename
-    if "_adv_cw_l2" in path:
+    if "_BB_cw_l2" in path:
         file_type = "CW-L2 Adversarial"
-    elif "_adv_cw_l0" in path:
+    elif "_BB_cw_l0" in path:
         file_type = "CW-L0 Adversarial"
-    elif "_adv_cw_linf" in path:
+    elif "_BB_cw_linf" in path:
         file_type = "CW-L∞ Adversarial"
-    elif "_adv_fgsm" in path:
+    elif "_BB_fgsm" in path:
         file_type = "FGSM Adversarial"
-    elif "_adv_lbfgs" in path:
+    elif "_BB_lbfgs" in path:
         file_type = "L-BFGS Adversarial"
-    elif "_adv_jsma" in path:
+    elif "_BB_jsma" in path:
         file_type = "JSMA Adversarial"
-    elif "_adv_deepfool" in path:
+    elif "_BB_deepfool" in path:
         file_type = "DeepFool Adversarial"
-    elif "_adv" in path:
+    elif "_BB_pgd" in path:
         file_type = "PGD Adversarial"
     else:
         file_type = "Original"
@@ -297,14 +297,14 @@ def evaluate_all_files(engine, task="chart", random_count=17):
             
             # Check for all attack types
             attack_types = {
-                "PGD": next((f for f in results.keys() if "_adv" in f and "_fgsm" not in f and "_cw" not in f and "_lbfgs" not in f and "_jsma" not in f and "_deepfool" not in f), None),
-                "FGSM": next((f for f in results.keys() if "_adv_fgsm" in f), None),
-                "CW-L2": next((f for f in results.keys() if "_adv_cw_l2" in f), None),
-                "CW-L0": next((f for f in results.keys() if "_adv_cw_l0" in f), None),
-                "CW-L∞": next((f for f in results.keys() if "_adv_cw_linf" in f), None),
-                "L-BFGS": next((f for f in results.keys() if "_adv_lbfgs" in f), None),
-                "JSMA": next((f for f in results.keys() if "_adv_jsma" in f), None),
-                "DeepFool": next((f for f in results.keys() if "_adv_deepfool" in f), None)
+                "PGD": next((f for f in results.keys() if "_BB_pgd" in f), None),
+                "FGSM": next((f for f in results.keys() if "_BB_fgsm" in f), None),
+                "CW-L2": next((f for f in results.keys() if "_BB_cw_l2" in f), None),
+                "CW-L0": next((f for f in results.keys() if "_BB_cw_l0" in f), None),
+                "CW-L∞": next((f for f in results.keys() if "_BB_cw_linf" in f), None),
+                "L-BFGS": next((f for f in results.keys() if "_BB_lbfgs" in f), None),
+                "JSMA": next((f for f in results.keys() if "_BB_jsma" in f), None),
+                "DeepFool": next((f for f in results.keys() if "_BB_deepfool" in f), None)
             }
             
             for attack_name, attack_file in attack_types.items():

@@ -1,6 +1,102 @@
-# Evaluating Nano Vision-Language Models' (VLMs) Robustness Against Cyber Security Attacks: White-Box (Finetuning) and Black-Box (Inference) Scenarios
+# Evaluating Nano Vision-Language Models' (VLMs) Robustness Against Cyber Security Attacks
 
 This repository contains tools for evaluating small (4-bit, 3 Billion parameter) vision-language models (VLMs) under various multi-modal adversarial attacks, focusing on their robustness and performance degradation.
+
+# Black Box Attack Workflow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      BLACK BOX ATTACK WORKFLOW                      │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────┐
+│ STEP 1: GENERATE ADVERSARIAL│
+│         EXAMPLES           │
+└───────────────┬─────────────┘
+                │
+                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ attack_models/black_box_attacks/v3_fgsm_attack.py                   │
+│                                                                     │
+│ ┌───────────────┐    ┌───────────────┐    ┌───────────────────────┐ │
+│ │ Load Original │ → │ Apply FGSM     │ → │ Save Adversarial      │ │
+│ │ Image         │    │ Attack        │    │ Image                 │ │
+│ └───────────────┘    └───────────────┘    └───────────────────────┘ │
+│                                                                     │
+│ Parameters:                                                         │
+│ --image_path: Original image                                        │
+│ --eps: Perturbation magnitude                                       │
+│ --targeted: Whether to perform targeted attack                      │
+│ --target_class: Target class (for targeted attacks)                 │
+└─────────────────────────────────────────────────────────────────────┘
+                │
+                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ OUTPUT: data/test_extracted_adv_fgsm/chart/20231114102825506748.png │
+└─────────────────────────────┬───────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ STEP 2: EVALUATE MODEL ON   │
+│         ADVERSARIAL IMAGES  │
+└───────────────┬─────────────┘
+                │
+                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ scripts/eval_model.py                                               │
+│                                                                     │
+│ ┌───────────────┐    ┌───────────────┐    ┌───────────────────────┐ │
+│ │ Select Model  │ → │ Load Images    │ → │ Generate Predictions   │ │
+│ │ (Qwen25_VL_3B)│    │ (Adversarial) │    │ for Each Image        │ │
+│ └───────────────┘    └───────────────┘    └───────────────────────┘ │
+│                                                                     │
+│ Model Loading Path:                                                 │
+│ scripts/eval_model.py                                               │
+│    ↓                                                                │
+│ scripts/local_llm_tools.py                                          │
+│    ↓                                                                │
+│ local_model/model_classes.py → create_model()                       │
+│    ↓                                                                │
+│ local_model/qwen_model.py → QwenVLModelWrapper                      │
+└─────────────────────────────────────────────────────────────────────┘
+                │
+                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ OUTPUT: results/Qwen25_VL_3B/eval_Qwen25_VL_3B_chart_17.json        │
+└─────────────────────────────┬───────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ STEP 3: CALCULATE ACCURACY  │
+│         METRICS            │
+└───────────────┬─────────────┘
+                │
+                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ scripts/eval_vqa.py                                                 │
+│                                                                     │
+│ ┌───────────────┐    ┌───────────────┐    ┌───────────────────────┐ │
+│ │ Load Results  │ → │ Calculate      │ → │ Display Accuracy       │ │
+│ │ JSON Files    │    │ Accuracy      │    │ Comparison            │ │
+│ └───────────────┘    └───────────────┘    └───────────────────────┘ │
+│                                                                     │
+│ Compares:                                                           │
+│ - Original image accuracy (baseline)                                │
+│ - Adversarial image accuracy                                        │
+│ - Accuracy change (degradation/improvement)                         │
+└─────────────────────────────────────────────────────────────────────┘
+                │
+                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ FINAL OUTPUT: Accuracy metrics showing model robustness             │
+│               against FGSM attack                                   │
+│                                                                     │
+│ For Qwen25_VL_3B with FGSM:                                         │
+│ - Original accuracy: 82.35%                                         │
+│ - Adversarial accuracy: 41.18%                                      │
+│ - Change: -41.18% (Degradation)                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ## Overview
 

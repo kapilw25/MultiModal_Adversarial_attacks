@@ -74,6 +74,10 @@ def run_evaluation(engine, send_chat_request_azure, task, random_count, output_f
             
             res_list = []
             try:
+                # Open file in write mode initially to clear any existing content
+                with open(output_file, 'w') as fout:
+                    pass  # Just create/clear the file
+                
                 for data in tqdm(human_select):
                     img_path = img_dir + data['image']
                     

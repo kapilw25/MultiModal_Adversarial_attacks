@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FGSM Attack Script for Vision-Language Models
+Targeted FGSM Attack Script for Vision-Language Models
 
 This script applies a Fast Gradient Sign Method (FGSM) adversarial attack to images
 to test the robustness of vision-language models. FGSM was introduced by Goodfellow et al.
@@ -10,112 +10,60 @@ The FGSM attack is defined mathematically as:
 - For untargeted attacks: x' = x + ε · sign(∇ₓJ(θ, x, y))
 - For targeted attacks:   x' = x - ε · sign(∇ₓJ(θ, x, t))
 
-Where:
-- x is the original input image
-- x' is the adversarial example
-- ε is the perturbation magnitude (controls how much each pixel can change)
-- J is the loss function
-- θ represents the model parameters
-- y is the true label
-- t is the target label
-- ∇ₓJ represents the gradient of the loss with respect to the input x
-- sign() is the sign function that returns -1, 0, or 1 depending on the sign of its input
+This implementation focuses on:
+1. Targeting semantically important regions of the image (text, chart elements, data points)
+2. Keeping perturbations small enough to be relatively imperceptible to humans
+3. Making perturbations effective enough to impact model performance
 
 Usage:
     python v3_fgsm_attack.py [--image_path PATH] [--eps EPSILON] [--targeted] [--target_class CLASS]
+                            [--targeted_regions] [--perceptual_constraint] [--ssim_threshold THRESHOLD]
 
 Example:
-    # Untargeted attack
-    python v3_fgsm_attack.py --image_path data/test_extracted/chart/image.png --eps 0.03
-    
-    # Targeted attack
-    python v3_fgsm_attack.py --image_path data/test_extracted/chart/image.png --eps 0.03 --targeted --target_class 20
+    python v3_fgsm_attack.py --image_path data/test_extracted/chart/20231114102825506748.png --eps 0.03 --targeted_regions --perceptual_constraint
 """
 
 import os
+import cv2
 import numpy as np
 import argparse
 import torch
-from torchvision import transforms
+from art.attacks.evasion import FastGradientMethod
 
 # Import utility functions
 from v0_attack_utils import (
     load_image, create_classifier, save_image, 
-    get_output_path, print_attack_info, preprocess_image_for_attack
+    get_output_path, print_attack_info, preprocess_image_for_attack,
+    calculate_ssim, generate_saliency_map, create_combined_importance_map,
+    apply_targeted_perturbation
 )
-from art.attacks.evasion import FastGradientMethod
 
 
-def fgsm_attack(image, classifier, eps=8/255, targeted=False, target_class=None):
-    """Apply FGSM attack to the image
-    
-    The FGSM attack is defined as:
-    - For untargeted attacks: x' = x + ε · sign(∇ₓJ(θ, x, y))
-    - For targeted attacks:   x' = x - ε · sign(∇ₓJ(θ, x, t))
-    
-    Where:
-    - x is the original input image
-    - x' is the adversarial example
-    - ε is the perturbation magnitude
-    - J is the loss function
-    - θ represents the model parameters
-    - y is the true label
-    - t is the target label
-    
-    Args:
-        image: Original image to attack
-        classifier: Model to attack
-        eps: Epsilon parameter controlling perturbation magnitude
-        targeted: Whether to perform a targeted attack
-        target_class: Target class for targeted attack (ignored if targeted=False)
-    
-    Returns:
-        Adversarial image
-    """
-    # Preprocess image
-    transform = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-    ])
-    
-    # Convert to tensor and add batch dimension
-    img_tensor = transform(image).unsqueeze(0).numpy()
-    
-    # For targeted attacks, we need to specify the target class
-    if targeted and target_class is None:
-        # Get original prediction
-        preds = classifier.predict(img_tensor)
-        original_class = np.argmax(preds, axis=1)[0]
-        
-        # Choose a random class different from the original
-        target_class = np.random.randint(0, 1000)
-        while target_class == original_class:
-            target_class = np.random.randint(0, 1000)
-        
-        print(f"Original class: {original_class}, randomly selected target class: {target_class}")
-    
+def fgsm_attack_targeted(image, classifier, image_path, eps=0.03, targeted=False, target_class=None,
+                         targeted_regions=True, perceptual_constraint=True, ssim_threshold=0.85):
+    """Apply targeted FGSM attack focusing on semantically important regions"""
     # Create FGSM attack
     attack = FastGradientMethod(
         estimator=classifier,
-        norm=np.inf,  # L∞ norm as specified in the paper
+        norm=np.inf,
         eps=eps,
         targeted=targeted,
         batch_size=1,
         minimal=False
     )
     
-    # Generate adversarial example
-    attack_type = "targeted" if targeted else "untargeted"
-    print(f"Generating {attack_type} adversarial example with eps={eps}")
+    # Preprocess image using utility function
+    img_tensor = preprocess_image_for_attack(image)
     
-    if targeted:
-        # For targeted attacks, we need to provide the target class
-        target = np.zeros((1, 1000))
+    # Generate adversarial example
+    print(f"Generating adversarial example with eps={eps}, targeted={targeted}")
+    
+    if targeted and target_class is not None:
+        # For targeted attack, create one-hot encoded target
+        target = np.zeros((1, classifier.nb_classes))
         target[0, target_class] = 1
         adv_image = attack.generate(x=img_tensor, y=target)
     else:
-        # For untargeted attacks, we don't need to provide a target
         adv_image = attack.generate(x=img_tensor)
     
     # Convert back to uint8 format
@@ -126,41 +74,75 @@ def fgsm_attack(image, classifier, eps=8/255, targeted=False, target_class=None)
     # Resize back to original dimensions
     adv_image = cv2.resize(adv_image, (image.shape[1], image.shape[0]))
     
+    # Apply targeted region attack if enabled
+    if targeted_regions:
+        print("Generating importance map for targeted perturbation...")
+        importance_mask, importance_map = create_combined_importance_map(image, classifier)
+        
+        # Save importance map for visualization
+        importance_vis = (importance_map * 255).astype(np.uint8)
+        importance_vis = cv2.applyColorMap(importance_vis, cv2.COLORMAP_JET)
+        output_path = get_output_path(image_path, 'fgsm')
+        importance_path = os.path.join(os.path.dirname(output_path), 'importance_map.png')
+        cv2.imwrite(importance_path, importance_vis)
+        print(f"Saved importance map to {importance_path}")
+        
+        # Apply targeted perturbation
+        adv_image = apply_targeted_perturbation(image, adv_image, importance_map)
+    
+    # Apply perceptual constraint if enabled
+    if perceptual_constraint:
+        current_ssim = calculate_ssim(image, adv_image)
+        print(f"Initial SSIM: {current_ssim:.4f}")
+        
+        # If SSIM is below threshold, blend with original image to improve perceptual quality
+        if current_ssim < ssim_threshold:
+            print(f"SSIM below threshold ({ssim_threshold}), applying perceptual constraint...")
+            
+            # Binary search to find optimal blending factor
+            alpha_min, alpha_max = 0.0, 1.0
+            best_adv_image = adv_image.copy()
+            best_ssim = current_ssim
+            
+            for _ in range(10):  # 10 binary search steps
+                alpha = (alpha_min + alpha_max) / 2
+                blended_image = cv2.addWeighted(image, 1 - alpha, adv_image, alpha, 0)
+                blend_ssim = calculate_ssim(image, blended_image)
+                
+                if blend_ssim >= ssim_threshold:
+                    best_adv_image = blended_image
+                    best_ssim = blend_ssim
+                    alpha_max = alpha
+                else:
+                    alpha_min = alpha
+            
+            # Use a slightly stronger perturbation to ensure it's effective
+            # but still maintains reasonable visual quality
+            alpha = min(alpha_max + 0.1, 0.9)  # Add a margin to ensure perturbation is effective
+            adv_image = cv2.addWeighted(image, 1 - alpha, adv_image, alpha, 0)
+            final_ssim = calculate_ssim(image, adv_image)
+            print(f"Final SSIM after perceptual constraint: {final_ssim:.4f}")
+    
     return adv_image
 
 
-def print_fgsm_info(targeted=False):
-    """Print information about the FGSM attack"""
-    print("\nFGSM Attack Information:")
-    print("- Fast Gradient Sign Method (FGSM) is a one-step attack optimized for the L∞ distance metric")
-    print("- Mathematical formulation:")
-    if targeted:
-        print("  x' = x - ε · sign(∇ₓJ(θ, x, t))  # Targeted attack")
-    else:
-        print("  x' = x + ε · sign(∇ₓJ(θ, x, y))  # Untargeted attack")
-    print("- Designed primarily for speed rather than producing minimal perturbations")
-    print("- Uses a single step in the direction of the gradient sign")
-    
-    print("\nComparison with PGD attack:")
-    print("- FGSM: Single-step attack (faster but less effective)")
-    print("- PGD: Multi-step attack (slower but more effective)")
-    print("- PGD can be viewed as an iterative version of FGSM with smaller step sizes")
-    print("- PGD formula: xₜ₊₁' = Proj_ε(xₜ' + α · sign(∇ₓJ(θ, xₜ', y)))")
-    print("- PGD explores the loss landscape more thoroughly, finding better adversarial examples")
-    print("- FGSM is more suitable for fast adversarial training, while PGD is better for evaluation")
-
-
 def main():
-    parser = argparse.ArgumentParser(description="Generate adversarial examples using FGSM attack")
+    parser = argparse.ArgumentParser(description="Generate adversarial examples using targeted FGSM attack")
     parser.add_argument("--image_path", type=str, 
                         default="data/test_extracted/chart/20231114102825506748.png",
                         help="Path to the input image")
-    parser.add_argument("--eps", type=float, default=8/255,
-                        help="Perturbation magnitude (default: 8/255)")
+    parser.add_argument("--eps", type=float, default=0.03,
+                        help="Maximum perturbation (default: 0.03)")
     parser.add_argument("--targeted", action="store_true",
-                        help="Perform targeted attack instead of untargeted")
+                        help="Use targeted attack instead of untargeted")
     parser.add_argument("--target_class", type=int, default=None,
-                        help="Target class for targeted attack (default: random)")
+                        help="Target class for targeted attack (default: None)")
+    parser.add_argument("--targeted_regions", action="store_true",
+                        help="Apply perturbation only to important regions")
+    parser.add_argument("--perceptual_constraint", action="store_true",
+                        help="Apply perceptual similarity constraint")
+    parser.add_argument("--ssim_threshold", type=float, default=0.85,
+                        help="SSIM threshold for perceptual constraint (default: 0.85)")
     args = parser.parse_args()
     
     # Check if CUDA is available
@@ -175,10 +157,13 @@ def main():
     print("Creating classifier...")
     classifier = create_classifier(device)
     
-    # Apply FGSM attack
-    adv_image = fgsm_attack(image, classifier, args.eps, args.targeted, args.target_class)
+    # Apply targeted FGSM attack
+    adv_image = fgsm_attack_targeted(
+        image, classifier, args.image_path, args.eps, args.targeted, args.target_class,
+        args.targeted_regions, args.perceptual_constraint, args.ssim_threshold
+    )
     
-    # Get output path
+    # Get output path using utility function
     output_path = get_output_path(args.image_path, 'fgsm')
     
     # Save adversarial image
@@ -186,9 +171,13 @@ def main():
     
     # Print attack information
     print_attack_info(output_path, image, adv_image, 'fgsm')
-    print_fgsm_info(args.targeted)
+    
+    # Print additional FGSM-specific information
+    perturbation = np.abs(image.astype(np.float32) - adv_image.astype(np.float32))
+    print(f"Max perturbation: {np.max(perturbation)}")
+    print(f"Mean perturbation: {np.mean(perturbation)}")
+    print(f"SSIM: {calculate_ssim(image, adv_image):.4f}")
 
 
 if __name__ == "__main__":
-    import cv2  # Import here to avoid circular import with v0_attack_utils
     main()
