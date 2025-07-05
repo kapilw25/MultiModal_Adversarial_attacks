@@ -21,6 +21,7 @@ idna==3.7
 Jinja2==3.1.4
 joblib==1.4.2
 kiwisolver==1.4.5
+lpips>=0.1.4
 MarkupSafe==2.1.5
 matplotlib==3.8.0
 nltk==3.8.1
@@ -64,6 +65,8 @@ tzdata==2024.1
 urllib3==2.2.1
 wcwidth==0.2.13
 wheel==0.43.0
+# CLIP for semantic similarity in adversarial attacks
+git+https://github.com/openai/CLIP.git
 # PDF extraction dependencies
 pymupdf
 camelot-py[cv]

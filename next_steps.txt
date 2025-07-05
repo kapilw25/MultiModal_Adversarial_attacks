@@ -1,5 +1,21 @@
 # Next Steps for Balancing Imperceptibility and Effectiveness in Adversarial Attacks
 
+1.2 Black-box [Square Attack, HopSkipJump Attack, Threshold Attack, 
+Pixel Attack, Simple Black-box Adversarial, Spatial Transformation, 
+Query-efficient Black-box, Zeroth Order Optimisation (ZOO), 
+Decision-based/Boundary Attack, Geometric Decision-based Attack (GeoDA)]
+
+Square Attack (Andriushchenko et al., 2020)
+HopSkipJump Attack (Chen et al., 2019)
+Threshold Attack (Vargas et al., 2019)
+Pixel Attack (Vargas et al., 2019, Su et al., 2019)
+Simple Black-box Adversarial (SimBA) (Guo et al., 2019)
+Spatial Transformation (Engstrom et al., 2017)
+Query-efficient Black-box (Ilyas et al., 2017)
+Zeroth Order Optimisation (ZOO) (Chen et al., 2017)
+Decision-based/Boundary Attack (Brendel et al., 2018)
+Geometric Decision-based Attack (GeoDA) (Rahmati et al., 2020)
+
 ## Finding the Optimal Balance
 
 Our experiments have revealed a fundamental trade-off between creating adversarial perturbations that are imperceptible to humans and ensuring they're effective at degrading VLM performance. Here are five strategies to find the optimal balance:

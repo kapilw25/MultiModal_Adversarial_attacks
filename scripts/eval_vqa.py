@@ -215,6 +215,8 @@ def evaluator(path):
         file_type = "DeepFool Adversarial"
     elif "_BB_pgd" in path:
         file_type = "PGD Adversarial"
+    elif "_BB_square" in path:
+        file_type = "Square Adversarial"
     else:
         file_type = "Original"
     
@@ -304,7 +306,8 @@ def evaluate_all_files(engine, task="chart", random_count=17):
                 "CW-L∞": next((f for f in results.keys() if "_BB_cw_linf" in f), None),
                 "L-BFGS": next((f for f in results.keys() if "_BB_lbfgs" in f), None),
                 "JSMA": next((f for f in results.keys() if "_BB_jsma" in f), None),
-                "DeepFool": next((f for f in results.keys() if "_BB_deepfool" in f), None)
+                "DeepFool": next((f for f in results.keys() if "_BB_deepfool" in f), None),
+                "Square": next((f for f in results.keys() if "_BB_square" in f), None)
             }
             
             for attack_name, attack_file in attack_types.items():

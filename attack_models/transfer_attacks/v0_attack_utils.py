@@ -26,6 +26,19 @@ from torchvision import transforms, models
 from art.estimators.classification import PyTorchClassifier
 from skimage.metrics import structural_similarity as ssim
 
+# Global mapping of attack types to directory suffixes
+ATTACK_DIR_MAP = {
+    'pgd': 'pgd',
+    'fgsm': 'fgsm',
+    'cw_l2': 'cw_l2',
+    'cw_l0': 'cw_l0',
+    'cw_linf': 'cw_linf',
+    'lbfgs': 'lbfgs',
+    'jsma': 'jsma',
+    'deepfool': 'deepfool',
+    'square': 'square'
+}
+
 
 def load_image(image_path):
     """Load and preprocess an image for the model
@@ -160,19 +173,8 @@ def get_output_path(input_path, attack_type):
     input_dir = os.path.dirname(input_path)
     filename = os.path.basename(input_path)
     
-    # Map attack type to directory suffix
-    attack_dir_map = {
-        'pgd': 'pgd',
-        'fgsm': 'fgsm',
-        'cw_l2': 'cw_l2',
-        'cw_l0': 'cw_l0',
-        'cw_linf': 'cw_linf',
-        'lbfgs': 'lbfgs',
-        'jsma': 'jsma',
-        'deepfool': 'deepfool'
-    }
-    
-    dir_suffix = attack_dir_map.get(attack_type, attack_type)
+    # Use global attack directory mapping
+    dir_suffix = ATTACK_DIR_MAP.get(attack_type, attack_type)
     output_dir = input_dir.replace('test_extracted', f'test_BB_{dir_suffix}')
     output_path = os.path.join(output_dir, filename)
     
@@ -193,18 +195,8 @@ def print_attack_info(output_path, original_image, adv_image, attack_type):
     print(f"Max perturbation: {np.max(perturbation)}")
     print(f"Mean perturbation: {np.mean(perturbation)}")
     
-    # Get directory suffix based on attack type
-    attack_dir_map = {
-        'pgd': 'pgd',
-        'fgsm': 'fgsm',
-        'cw_l2': 'cw_l2',
-        'cw_l0': 'cw_l0',
-        'cw_linf': 'cw_linf',
-        'lbfgs': 'lbfgs',
-        'jsma': 'jsma',
-        'deepfool': 'deepfool'
-    }
-    dir_suffix = attack_dir_map.get(attack_type, attack_type)
+    # Use global attack directory mapping
+    dir_suffix = ATTACK_DIR_MAP.get(attack_type, attack_type)
     
     print("\nTo use this adversarial image in evaluation:")
     print(f"1. The image is saved at: {output_path}")

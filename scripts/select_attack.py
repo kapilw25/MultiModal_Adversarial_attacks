@@ -59,6 +59,11 @@ def select_attack(engine, task, random_count):
             "name": "DeepFool Attack",
             "suffix": "_BB_deepfool",
             "img_dir": "data/test_BB_deepfool/"
+        },
+        {
+            "name": "Square Attack",
+            "suffix": "_BB_square",
+            "img_dir": "data/test_BB_square/"
         }
     ]
     
