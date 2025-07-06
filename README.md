@@ -40,8 +40,6 @@ attack_models/
 │ --norm: Norm type (inf or 2)                                        │
 │ --max_iter: Maximum iterations                                      │
 │ --ssim_threshold: Structural similarity threshold                   │
-│ --lpips_threshold: Perceptual similarity threshold                  │
-│ --clip_threshold: Semantic similarity threshold                     │
 └─────────────────────────────────────────────────────────────────────┘
                 │
                 ▼
@@ -125,7 +123,7 @@ This evaluation framework includes:
 
 The repository implements true black-box attacks that don't require any gradient information from the target model:
 
-- **Square Attack**: A score-based black-box attack that perturbs square-shaped regions of the image to maximize the loss. Enhanced with perceptual constraints (SSIM, LPIPS, CLIP) to maintain visual quality.
+- **Square Attack**: A score-based black-box attack that perturbs square-shaped regions of the image to maximize the loss. Enhanced with perceptual constraints (SSIM) to maintain visual quality while still degrading model performance.
 
 ### Future Black-Box Attack Implementations
 
@@ -196,7 +194,7 @@ python eval_vqa.py
 
 | Attack Type | Attack | Script | Approach | Parameters | Output Directory |
 |-------------|--------|--------|----------|------------|-----------------|
-| **True Black-Box** | Square | `v10_square_attack.py` | Score-based with perceptual constraints | `--eps`, `--norm`, `--max_iter`, `--ssim_threshold`, `--lpips_threshold`, `--clip_threshold` | `test_BB_square/` |
+| **True Black-Box** | Square | `v10_square_attack.py` | Score-based with perceptual constraints | `--eps`, `--norm`, `--max_iter`, `--ssim_threshold` | `test_BB_square/` |
 
 ## Workflow and Usage
 
@@ -205,7 +203,7 @@ python eval_vqa.py
 1. **Generate adversarial images** using the Square Attack:
    ```bash
    # True Black-Box Attack
-   python attack_models/true_black_box_attacks/v10_square_attack.py --image_path data/test_extracted/chart/image.png --eps 0.05 --norm inf --max_iter 100 --ssim_threshold 0.95 --lpips_threshold 0.05 --clip_threshold 0.9
+   python attack_models/true_black_box_attacks/v10_square_attack.py --image_path data/test_extracted/chart/image.png --eps 0.15 --norm inf --max_iter 200 --p_init 0.3 --ssim_threshold 0.85
    ```
 
 2. **Run evaluation** on original and adversarial images:
@@ -245,29 +243,42 @@ Multi-modal-Self-instruct/
 
 ## Adversarial Robustness Results
 
-Testing shows interesting differences in model robustness against the Square Attack:
+Testing shows interesting differences in model robustness against various attacks:
 
-### Results for Square Attack
+### Results for Different Attacks on Qwen25_VL_3B
 
-#### Qwen25_VL_3B
-| Attack | Accuracy | Change | Effect |
-|--------|----------|--------|--------|
-| Original | 82.35% | 0.00% | Baseline |
-| Square | 76.47% | -5.88% | Degradation |
+| Attack Type | Original Accuracy | Attack Accuracy | Change | Effect |
+|-------------|-------------------|-----------------|--------|--------|
+| Original | 82.35% | 82.35% | 0.00% | Baseline |
+| PGD | 82.35% | 70.59% | -11.76% | Degradation |
+| FGSM | 82.35% | 35.29% | -47.06% | Degradation |
+| CW-L2 | 82.35% | 35.29% | -47.06% | Degradation |
+| CW-L0 | 82.35% | 47.06% | -35.29% | Degradation |
+| CW-L∞ | 82.35% | 29.41% | -52.94% | Degradation |
+| L-BFGS | 82.35% | 35.29% | -47.06% | Degradation |
+| JSMA | 82.35% | 82.35% | 0.00% | No Change |
+| DeepFool | 82.35% | 47.06% | -35.29% | Degradation |
+| Square | 82.35% | 76.47% | -5.88% | Degradation |
 
 ### Key Insights
 
-- **Perceptual Constraints Matter**: The Square Attack's enhanced perceptual constraints (SSIM, LPIPS, CLIP) help maintain visual quality while still creating adversarial examples, resulting in less performance degradation but better visual quality.
+- **SSIM Threshold Impact**: Our experiments show that targeting a specific SSIM value (0.85) creates more effective adversarial examples than simply meeting a minimum threshold. With SSIM=0.85, the Square Attack achieved a 5.88% performance degradation, while with SSIM=0.99, there was no degradation.
 
-- **Minimal Performance Impact**: The Square Attack causes only a minor degradation in Qwen25_VL_3B's performance (-5.88%), suggesting that perceptually constrained black-box attacks may be less effective but produce more visually imperceptible perturbations.
+- **Visual Quality vs. Attack Effectiveness**: There's a clear trade-off between visual quality and attack effectiveness. Lower SSIM values (more visible perturbations) generally lead to greater performance degradation.
+
+- **Numerical Calculation Errors**: The Square Attack with SSIM=0.85 primarily affected the model's ability to perform numerical calculations on chart data, with significant errors in computing averages, sums, differences, and ratios.
+
+- **Attack Comparison**: While the Square Attack (5.88% degradation) is less effective than gradient-based attacks like CW-L∞ (52.94% degradation), it's still able to cause meaningful performance degradation without requiring any access to model gradients.
+
+- **Perceptual Constraints**: Using exact SSIM targeting rather than minimum thresholds allows for more precise control over the visual quality vs. effectiveness trade-off in adversarial examples.
 
 ## Recent Progress and Future Work
 
 ### Recent Improvements
-- Implemented the Square Attack with enhanced perceptual constraints using SSIM, LPIPS, and CLIP similarity metrics
-- Refactored utility functions to make them more modular and reusable across different attack implementations
-- Enhanced evaluation scripts to support the new attack organization
-- Added detailed documentation for the attack method with mathematical formulations
+- Modified the Square Attack implementation to target exact SSIM values rather than just meeting minimum thresholds
+- Implemented binary search with increased precision (20 steps) to achieve SSIM values very close to the target
+- Removed safety margin adjustments to prevent over-constraining the adversarial examples
+- Simplified the implementation by focusing on a single perceptual metric (SSIM) for better control
 
 ### Future Directions
 - Implement additional true black-box attacks (HopSkipJump, Threshold Attack, Pixel Attack, etc.)
@@ -275,3 +286,4 @@ Testing shows interesting differences in model robustness against the Square Att
 - Evaluate finetuned models under adversarial conditions to measure robustness improvements
 - Compare effectiveness of adversarial training techniques in improving VLM robustness
 - Explore multi-modal adversarial attacks that target both vision and language components
+- Investigate the relationship between SSIM values and model performance degradation across different attack types
