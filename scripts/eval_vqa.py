@@ -217,6 +217,22 @@ def evaluator(path):
         file_type = "PGD Adversarial"
     elif "_BB_square" in path:
         file_type = "Square Adversarial"
+    elif "_BB_hop_skip_jump" in path:
+        file_type = "HopSkipJump Adversarial"
+    elif "_BB_pixel" in path:
+        file_type = "Pixel Adversarial"
+    elif "_BB_simba" in path:
+        file_type = "SimBA Adversarial"
+    elif "_BB_spatial" in path:
+        file_type = "Spatial Transformation Adversarial"
+    elif "_BB_query_efficient_bb" in path:
+        file_type = "Query-Efficient Black-box Adversarial"
+    elif "_BB_zoo" in path:
+        file_type = "ZOO Adversarial"
+    elif "_BB_boundary" in path:
+        file_type = "Boundary Adversarial"
+    elif "_BB_geoda" in path:
+        file_type = "GeoDA Adversarial"
     else:
         file_type = "Original"
     
@@ -285,8 +301,14 @@ def evaluate_all_files(engine, task="chart", random_count=17):
     
     # Print comparison if we have multiple results
     if len(results) > 1:
-        # If we have original and adversarial results, calculate the differences
-        orig_file = next((f for f in results.keys() if "_adv" not in f), None)
+        # Find the original file (the one without any attack suffix)
+        # This is more reliable than checking for "_adv" which might not be present
+        orig_file = next((f for f in results.keys() if all(attack not in f for attack in 
+                                                          ["_BB_pgd", "_BB_fgsm", "_BB_cw_l2", "_BB_cw_l0", 
+                                                           "_BB_cw_linf", "_BB_lbfgs", "_BB_jsma", "_BB_deepfool", 
+                                                           "_BB_square", "_BB_hop_skip_jump", "_BB_pixel", "_BB_simba",
+                                                           "_BB_spatial", "_BB_query_efficient_bb", "_BB_zoo",
+                                                           "_BB_boundary", "_BB_geoda"])), None)
         
         if orig_file:
             orig_acc = results[orig_file]
@@ -307,7 +329,15 @@ def evaluate_all_files(engine, task="chart", random_count=17):
                 "L-BFGS": next((f for f in results.keys() if "_BB_lbfgs" in f), None),
                 "JSMA": next((f for f in results.keys() if "_BB_jsma" in f), None),
                 "DeepFool": next((f for f in results.keys() if "_BB_deepfool" in f), None),
-                "Square": next((f for f in results.keys() if "_BB_square" in f), None)
+                "Square": next((f for f in results.keys() if "_BB_square" in f), None),
+                "HopSkipJump": next((f for f in results.keys() if "_BB_hop_skip_jump" in f), None),
+                "Pixel": next((f for f in results.keys() if "_BB_pixel" in f), None),
+                "SimBA": next((f for f in results.keys() if "_BB_simba" in f), None),
+                "Spatial": next((f for f in results.keys() if "_BB_spatial" in f), None),
+                "Query-Efficient BB": next((f for f in results.keys() if "_BB_query_efficient_bb" in f), None),
+                "ZOO": next((f for f in results.keys() if "_BB_zoo" in f), None),
+                "Boundary": next((f for f in results.keys() if "_BB_boundary" in f), None),
+                "GeoDA": next((f for f in results.keys() if "_BB_geoda" in f), None)
             }
             
             for attack_name, attack_file in attack_types.items():

@@ -64,6 +64,46 @@ def select_attack(engine, task, random_count):
             "name": "Square Attack",
             "suffix": "_BB_square",
             "img_dir": "data/test_BB_square/"
+        },
+        {
+            "name": "HopSkipJump Attack",
+            "suffix": "_BB_hop_skip_jump",
+            "img_dir": "data/test_BB_hop_skip_jump/"
+        },
+        {
+            "name": "Pixel Attack",
+            "suffix": "_BB_pixel",
+            "img_dir": "data/test_BB_pixel/"
+        },
+        {
+            "name": "SimBA Attack",
+            "suffix": "_BB_simba",
+            "img_dir": "data/test_BB_simba/"
+        },
+        {
+            "name": "Spatial Transformation Attack",
+            "suffix": "_BB_spatial",
+            "img_dir": "data/test_BB_spatial/"
+        },
+        {
+            "name": "Query-Efficient Black-box Attack",
+            "suffix": "_BB_query_efficient_bb",
+            "img_dir": "data/test_BB_query_efficient_bb/"
+        },
+        {
+            "name": "ZOO Attack",
+            "suffix": "_BB_zoo",
+            "img_dir": "data/test_BB_zoo/"
+        },
+        {
+            "name": "Boundary Attack",
+            "suffix": "_BB_boundary",
+            "img_dir": "data/test_BB_boundary/"
+        },
+        {
+            "name": "GeoDA Attack",
+            "suffix": "_BB_geoda",
+            "img_dir": "data/test_BB_geoda/"
         }
     ]
     

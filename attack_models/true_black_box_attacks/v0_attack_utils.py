@@ -40,7 +40,15 @@ ATTACK_DIR_MAP = {
     'lbfgs': 'lbfgs',
     'jsma': 'jsma',
     'deepfool': 'deepfool',
-    'square': 'square'
+    'square': 'square',
+    'hop_skip_jump': 'hop_skip_jump',
+    'pixel': 'pixel',
+    'simba': 'simba',
+    'spatial': 'spatial',
+    'query_efficient_bb': 'query_efficient_bb',
+    'zoo': 'zoo',
+    'boundary': 'boundary',
+    'geoda': 'geoda'
 }
 
 
@@ -86,6 +94,52 @@ def create_classifier(device='cuda:0'):
     # Create ART classifier
     classifier = PyTorchClassifier(
         model=model,
+        clip_values=(0.0, 1.0),
+        loss=torch.nn.CrossEntropyLoss(),
+        input_shape=(3, 224, 224),
+        nb_classes=1000,
+        preprocessing=(mean, std),
+        device_type=device
+    )
+    
+    return classifier
+
+
+def create_classifier_with_probs(device='cuda:0'):
+    """Create a PyTorch classifier for the attack that returns probabilities
+    
+    Args:
+        device (str): Device to use for computation ('cuda:0', 'cpu', etc.)
+        
+    Returns:
+        PyTorchClassifier: ART classifier wrapper around a PyTorch model
+    """
+    # Use a pre-trained ResNet model as a substitute model for the attack
+    # This is because we don't have direct access to the VLM's vision encoder
+    model = models.resnet50(pretrained=True)
+    model.to(device).eval()
+    
+    # Add softmax layer to ensure probabilities are returned
+    class ModelWithSoftmax(torch.nn.Module):
+        def __init__(self, model):
+            super(ModelWithSoftmax, self).__init__()
+            self.model = model
+            self.softmax = torch.nn.Softmax(dim=1)
+            
+        def forward(self, x):
+            x = self.model(x)
+            return self.softmax(x)
+    
+    model_with_softmax = ModelWithSoftmax(model)
+    model_with_softmax.to(device).eval()
+    
+    # Define preprocessing
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+    
+    # Create ART classifier
+    classifier = PyTorchClassifier(
+        model=model_with_softmax,
         clip_values=(0.0, 1.0),
         loss=torch.nn.CrossEntropyLoss(),
         input_shape=(3, 224, 224),
