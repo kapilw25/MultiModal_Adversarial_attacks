@@ -23,104 +23,73 @@ data = {
 
 df = pd.DataFrame(data)
 
-# Sort by Attack Accuracy for better visualization
-df_sorted = df.sort_values('Attack Accuracy')
+# Create separate dataframes for transfer and black-box attacks
+df_transfer = df[df['Attack Type'] == 'Transfer'].sort_values('Attack Accuracy')
+df_blackbox = df[df['Attack Type'] == 'Black-Box'].sort_values('Attack Accuracy')
+df_original = df[df['Attack Type'] == '-']
 
-# Set up the figure with a larger size
-plt.figure(figsize=(14, 8))
+# Set up the figure with a larger size for separated attack types
+plt.figure(figsize=(18, 10))
 
-# Plot 1: Attack Accuracy Comparison
+# Plot 1: Attack Accuracy Comparison - Separated by Attack Type
 plt.subplot(1, 2, 1)
-sns.barplot(x='Attack Accuracy', y='Attack Name', data=df_sorted, hue='Attack Name', palette='viridis', legend=False)
-plt.title('Attack Accuracy Comparison', fontsize=14)
-plt.xlabel('Accuracy (%)', fontsize=12)
-plt.ylabel('Attack Name', fontsize=12)
+
+# Define color palettes for different attack types
+transfer_palette = sns.color_palette("Blues_d", len(df_transfer))
+blackbox_palette = sns.color_palette("Greens_d", len(df_blackbox))
+original_palette = ['gray']
+
+# Plot transfer attacks
+sns.barplot(x='Attack Accuracy', y='Attack Name', data=df_transfer, 
+            palette=transfer_palette, label='Transfer Attacks')
+
+# Plot black-box attacks
+sns.barplot(x='Attack Accuracy', y='Attack Name', data=df_blackbox, 
+            palette=blackbox_palette, label='Black-Box Attacks')
+
+# Plot original baseline
+sns.barplot(x='Attack Accuracy', y='Attack Name', data=df_original, 
+            color='lightgray', label='Original')
+
+plt.title('Attack Accuracy by Type', fontsize=16)
+plt.xlabel('Accuracy (%)', fontsize=14)
+plt.ylabel('Attack Name', fontsize=14)
 plt.axvline(x=82.35, color='red', linestyle='--', label='Original Accuracy')
-plt.legend()
+plt.legend(loc='lower right')
 plt.grid(axis='x', linestyle='--', alpha=0.7)
 
 # Plot 2: Accuracy Change by Attack Type
 plt.subplot(1, 2, 2)
-# Create a categorical color map
-colors = {'Transfer': 'blue', 'Black-Box': 'green', '-': 'gray'}
-attack_colors = [colors[t] for t in df['Attack Type']]
 
 # Sort by Change for better visualization
-df_change_sorted = df.sort_values('Change')
-sns.barplot(x='Change', y='Attack Name', data=df_change_sorted, hue='Attack Name', palette='RdYlGn', legend=False)
-plt.title('Accuracy Change by Attack', fontsize=14)
-plt.xlabel('Change in Accuracy (%)', fontsize=12)
-plt.ylabel('Attack Name', fontsize=12)
+df_transfer_change = df_transfer.sort_values('Change')
+df_blackbox_change = df_blackbox.sort_values('Change')
+
+# Create a custom color map based on change values
+transfer_cmap = plt.cm.RdYlGn(np.linspace(0.15, 0.75, len(df_transfer_change)))
+blackbox_cmap = plt.cm.RdYlGn(np.linspace(0.15, 0.85, len(df_blackbox_change)))
+
+# Plot transfer attacks change
+ax1 = plt.barh(df_transfer_change['Attack Name'], df_transfer_change['Change'], 
+              color=transfer_cmap, alpha=0.8, label='Transfer Attacks')
+
+# Plot black-box attacks change
+ax2 = plt.barh(df_blackbox_change['Attack Name'], df_blackbox_change['Change'], 
+              color=blackbox_cmap, alpha=0.8, label='Black-Box Attacks')
+
+# Plot original baseline
+plt.barh(df_original['Attack Name'], df_original['Change'], 
+        color='lightgray', label='Original')
+
+plt.title('Accuracy Change by Attack Type', fontsize=16)
+plt.xlabel('Change in Accuracy (%)', fontsize=14)
+plt.ylabel('Attack Name', fontsize=14)
 plt.axvline(x=0, color='black', linestyle='--')
 plt.grid(axis='x', linestyle='--', alpha=0.7)
+plt.legend(loc='lower right')
 
 plt.tight_layout()
-plt.savefig(os.path.join(output_dir, 'attack_accuracy_comparison.png'), dpi=300, bbox_inches='tight')
-print(f"Saved plot 1 to {os.path.join(output_dir, 'attack_accuracy_comparison.png')}")
+plt.savefig(os.path.join(output_dir, 'attack_accuracy_comparison_separated.png'), dpi=300, bbox_inches='tight')
+print(f"Saved separated plot to {os.path.join(output_dir, 'attack_accuracy_comparison_separated.png')}")
 
-# Plot 3: Comparison between Transfer-based and Black-box attacks
-plt.figure(figsize=(12, 6))
-
-# Group by attack type and calculate mean accuracy
-attack_type_avg = df[df['Attack Name'] != 'Original'].groupby('Attack Type')['Attack Accuracy'].mean().reset_index()
-attack_type_std = df[df['Attack Name'] != 'Original'].groupby('Attack Type')['Attack Accuracy'].std().reset_index()
-
-# Create a bar plot with error bars
-sns.barplot(x='Attack Type', y='Attack Accuracy', data=attack_type_avg, hue='Attack Type', palette='Set2', legend=False)
-plt.errorbar(x=range(len(attack_type_avg)), 
-             y=attack_type_avg['Attack Accuracy'], 
-             yerr=attack_type_std['Attack Accuracy'],
-             fmt='none', color='black', capsize=5)
-
-plt.title('Average Accuracy by Attack Type', fontsize=14)
-plt.xlabel('Attack Type', fontsize=12)
-plt.ylabel('Average Accuracy (%)', fontsize=12)
-plt.axhline(y=82.35, color='red', linestyle='--', label='Original Accuracy')
-plt.legend()
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-
-plt.tight_layout()
-plt.savefig(os.path.join(output_dir, 'average_accuracy_by_attack_type.png'), dpi=300, bbox_inches='tight')
-print(f"Saved plot 2 to {os.path.join(output_dir, 'average_accuracy_by_attack_type.png')}")
-
-# Plot 4: Distribution of accuracy changes
-plt.figure(figsize=(10, 6))
-sns.histplot(data=df[df['Attack Name'] != 'Original'], x='Change', bins=10, kde=True)
-plt.title('Distribution of Accuracy Changes', fontsize=14)
-plt.xlabel('Change in Accuracy (%)', fontsize=12)
-plt.ylabel('Count', fontsize=12)
-plt.axvline(x=0, color='red', linestyle='--', label='No Change')
-plt.legend()
-plt.grid(linestyle='--', alpha=0.7)
-
-plt.tight_layout()
-plt.savefig(os.path.join(output_dir, 'distribution_of_accuracy_changes.png'), dpi=300, bbox_inches='tight')
-print(f"Saved plot 3 to {os.path.join(output_dir, 'distribution_of_accuracy_changes.png')}")
-
-# Plot 5: Grouped bar chart comparing Transfer vs Black-Box attacks
-plt.figure(figsize=(16, 10))
-
-# Create a new column for categorizing attacks
-df['Effectiveness'] = pd.cut(
-    df['Change'],
-    bins=[-60, -40, -20, -0.001, 10],
-    labels=['High Degradation', 'Moderate Degradation', 'Low Degradation', 'Improvement']
-)
-
-# Count attacks in each category by type
-effectiveness_by_type = pd.crosstab(df['Effectiveness'], df['Attack Type'])
-effectiveness_by_type = effectiveness_by_type.reindex(['High Degradation', 'Moderate Degradation', 'Low Degradation', 'Improvement'])
-
-# Plot the grouped bar chart
-effectiveness_by_type.plot(kind='bar', figsize=(12, 6), color=['blue', 'green'])
-plt.title('Attack Effectiveness by Type', fontsize=14)
-plt.xlabel('Effectiveness Category', fontsize=12)
-plt.ylabel('Number of Attacks', fontsize=12)
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.legend(title='Attack Type')
-
-plt.tight_layout()
-plt.savefig(os.path.join(output_dir, 'attack_effectiveness_by_type.png'), dpi=300, bbox_inches='tight')
-print(f"Saved plot 4 to {os.path.join(output_dir, 'attack_effectiveness_by_type.png')}")
-
-print("All plots have been saved successfully!")
+print("Plot has been saved successfully!")

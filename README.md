@@ -185,23 +185,25 @@ python scripts/eval_vqa.py
 
 ### Accuracy Impact on Qwen25_VL_3B
 
-![Attack Accuracy Comparison](readme_files/attack_accuracy_comparison.png)
+![Attack Accuracy Comparison by Type](readme_files/attack_accuracy_comparison_separated.png)
 
-**Attack Accuracy Comparison:**
+**Attack Accuracy Comparison by Type:**
 
-Left Plot - Attack Accuracy Comparison:
-- Shows a horizontal bar chart ranking all attacks by their accuracy percentage
-- CW-L∞ and Pixel attacks have the lowest accuracy (~29.41%), indicating they're the most effective at degrading model performance
-- GeoDA uniquely shows the highest accuracy (88.24%), even higher than the original baseline (82.35%)
+Left Plot - Attack Accuracy by Type:
+- Shows a horizontal bar chart with attacks separated by type (Transfer in blue, Black-Box in green)
+- CW-L∞ (Transfer) and Pixel (Black-Box) attacks have the lowest accuracy (~29.41%), indicating they're the most effective at degrading model performance
+- GeoDA (Black-Box) uniquely shows the highest accuracy (88.24%), even higher than the original baseline (82.35%)
 - A vertical red dashed line marks the original accuracy (82.35%) for reference
-- JSMA attack shows the same accuracy as the original, indicating no effect
+- JSMA (Transfer) attack shows the same accuracy as the original, indicating no effect
+- Transfer attacks generally show more consistent degradation than Black-Box attacks, which have wider variance
 
-Right Plot - Accuracy Change by Attack:
-- Shows the percentage change in accuracy for each attack compared to the baseline
+Right Plot - Accuracy Change by Attack Type:
+- Shows the percentage change in accuracy for each attack compared to the baseline, separated by attack type
 - Uses a red-yellow-green color scheme where red indicates negative impact (degradation) and green indicates positive impact (improvement)
-- CW-L∞ and Pixel attacks show the largest negative change (-52.94%)
-- GeoDA is the only attack showing a positive change (+5.88%)
-- Square and Query-Efficient BB attacks show minimal degradation (-5.88%)
+- CW-L∞ (Transfer) and Pixel (Black-Box) attacks show the largest negative change (-52.94%)
+- GeoDA (Black-Box) is the only attack showing a positive change (+5.88%)
+- Square and Query-Efficient BB attacks (both Black-Box) show minimal degradation (-5.88%)
+- Black-Box attacks show both the best (GeoDA) and worst (Pixel) performance impacts
 
 | Attack Name | Attack Type | Original Accuracy | Attack Accuracy | Change | Effect |
 |-------------|-------------|-------------------|-----------------|--------|--------|
