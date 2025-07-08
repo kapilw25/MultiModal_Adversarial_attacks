@@ -12,17 +12,6 @@ Located in `local_model/`, this module handles model loading, quantization, and 
 - `qwen_model.py`: QwenVLModelWrapper for Qwen2.5-VL-3B-Instruct
 - Future models: GuardReasoner-VL-Eco-3B, NQLSG-Qwen2-VL-2B-v2-Base
 
-The model loading path follows:
-```
-scripts/eval_model.py
-   ↓
-scripts/local_llm_tools.py
-   ↓
-local_model/model_classes.py → create_model()
-   ↓
-local_model/qwen_model.py → QwenVLModelWrapper
-```
-
 ### 2. Transfer Attacks
 Located in `attack_models/transfer_attacks/`, these attacks typically require access to model gradients but are implemented here using surrogate models:
 - `v2_pgd_attack.py`: Projected Gradient Descent attack
@@ -53,75 +42,49 @@ Located in `scripts/`, this module handles model evaluation and result analysis:
 ## Attack Workflow
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                   ADVERSARIAL ATTACK WORKFLOW                       │
-└─────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                    ADVERSARIAL ATTACK WORKFLOW                                                                                    │
+└───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-┌─────────────────────────────┐
-│ STEP 1: GENERATE ADVERSARIAL│
-│         EXAMPLES           │
-└───────────────┬─────────────┘
-                │
-                ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│ attack_models/[attack_type]/[attack_script].py                      │
-│                                                                     │
-│ ┌───────────────┐    ┌───────────────┐    ┌───────────────────────┐ │
-│ │ Load Original │ → │ Apply Attack   │ → │ Apply Perceptual      │ │
-│ │ Image         │    │ Algorithm     │    │ Constraints           │ │
-│ └───────────────┘    └───────────────┘    └───────────────────────┘ │
-└─────────────────────────────┬───────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│ OUTPUT: data/test_BB_[attack]/chart/[image_name].png                │
-└─────────────────────────────┬───────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│ STEP 2: EVALUATE MODEL ON   │
-│         ADVERSARIAL IMAGES  │
-└───────────────┬─────────────┘
-                │
-                ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│ scripts/eval_model.py                                               │
-│                                                                     │
-│ ┌───────────────┐    ┌───────────────┐    ┌───────────────────────┐ │
-│ │ Select Model  │ → │ Load Images    │ → │ Generate Predictions   │ │
-│ │ (Qwen25_VL_3B)│    │ (Adversarial) │    │ for Each Image        │ │
-│ └───────────────┘    └───────────────┘    └───────────────────────┘ │
-│                                                                     │
-│ Model Loading Path:                                                 │
-│ scripts/eval_model.py                                               │
-│    ↓                                                                │
-│ scripts/local_llm_tools.py                                          │
-│    ↓                                                                │
-│ local_model/model_classes.py → create_model()                       │
-│    ↓                                                                │
-│ local_model/qwen_model.py → QwenVLModelWrapper                      │
-└─────────────────────────────┬───────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│ OUTPUT: results/Qwen25_VL_3B/eval_Qwen25_VL_3B_chart_17_BB_[attack].json │
-└─────────────────────────────┬───────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│ STEP 3: CALCULATE ACCURACY  │
-│         METRICS            │
-└───────────────┬─────────────┘
-                │
-                ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│ scripts/eval_vqa.py                                                 │
-│                                                                     │
-│ ┌───────────────┐    ┌───────────────┐    ┌───────────────────────┐ │
-│ │ Load Results  │ → │ Calculate      │ → │ Display Accuracy       │ │
-│ │ JSON Files    │    │ Accuracy      │    │ Comparison            │ │
-│ └───────────────┘    └───────────────┘    └───────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────┐          ┌────────────────────────────┐          ┌────────────────────────────┐          ┌────────────────────────────┐
+│  STEP 1: GENERATE          │          │  STEP 2: INITIALIZE        │          │  STEP 3: EVALUATE          │          │  STEP 4: CALCULATE         │
+│  ADVERSARIAL EXAMPLES      │ ──────► │  VLM INFERENCE ENGINE      │ ──────► │  MODEL ON ADV IMAGES       │ ──────► │  ACCURACY METRICS          │
+└────────────┬───────────────┘          └────────────┬───────────────┘          └────────────┬───────────────┘          └────────────┬───────────────┘
+             │                                       │                                       │                                       │
+             ▼                                       ▼                                       ▼                                       ▼
+┌────────────────────────────┐          ┌────────────────────────────┐          ┌────────────────────────────┐          ┌────────────────────────────┐
+│ attack_models/[attack_type]│          │ local_model/               │          │ scripts/eval_model.py      │          │ scripts/eval_vqa.py        │
+│ /[attack_script].py        │          │                            │          │                            │          │                            │
+│                            │          │                            │          │                            │          │                            │
+│ ┌──────────┐               │          │ ┌──────────┐               │          │ ┌──────────┐               │          │ ┌──────────┐               │
+│ │Load      │               │          │ │Load      │               │          │ │Select    │               │          │ │Load      │               │
+│ │Original  │               │          │ │Model     │               │          │ │Model     │               │          │ │Results   │               │
+│ │Image     │               │          │ │Weights   │               │          │ │          │               │          │ │JSON Files│               │
+│ └────┬─────┘               │          │ └────┬─────┘               │          │ └────┬─────┘               │          │ └────┬─────┘               │
+│      │                     │          │      │                     │          │      │                     │          │      │                     │
+│      ▼                     │          │      ▼                     │          │      ▼                     │          │      ▼                     │
+│ ┌──────────┐               │          │ ┌──────────┐               │          │ ┌──────────┐               │          │ ┌──────────┐               │
+│ │Apply     │               │          │ │Apply     │               │          │ │Load      │               │          │ │Calculate │               │
+│ │Attack    │               │          │ │4-bit     │               │          │ │Images    │               │          │ │Accuracy  │               │
+│ │Algorithm │               │          │ │Quantize  │               │          │ │(Adv)    │               │          │ │          │               │
+│ └────┬─────┘               │          │ └────┬─────┘               │          │ └────┬─────┘               │          │ └────┬─────┘               │
+│      │                     │          │      │                     │          │      │                     │          │      │                     │
+│      ▼                     │          │      ▼                     │          │      ▼                     │          │      ▼                     │
+│ ┌──────────┐               │          │ ┌──────────┐               │          │ ┌──────────┐               │          │ ┌──────────┐               │
+│ │Apply     │               │          │ │Initialize│               │          │ │Generate  │               │          │ │Display   │               │
+│ │Perceptual│               │          │ │Inference │               │          │ │Prediction│               │          │ │Accuracy  │               │
+│ │Constraint│               │          │ │Pipeline  │               │          │ │          │               │          │ │Comparison│               │
+│ └──────────┘               │          │ └──────────┘               │          │ └──────────┘               │          │ └──────────┘               │
+└────────────────────────────┘          └────────────────────────────┘          └────────────────────────────┘          └────────────────────────────┘
+        │                                        │                                        │                                        │
+        ▼                                        ▼                                        ▼                                        ▼
+┌────────────────────────────┐          ┌────────────────────────────┐          ┌────────────────────────────┐
+│ OUTPUT:                    │          │ Model Loading Path:        │          │ OUTPUT:                    │
+│ data/test_BB_[attack]/     │          │ model_classes.py →         │          │ results/Qwen25_VL_3B/      │
+│ chart/[image_name].png     │          │ create_model() →           │          │ eval_Qwen25_VL_3B_chart_   │
+│                            │          │ qwen_model.py →            │          │ 17_BB_[attack].json        │
+│                            │          │ QwenVLModelWrapper         │          │                            │
+└────────────────────────────┘          └────────────────────────────┘          └────────────────────────────┘
 ```
 
 ## Execution Commands
