@@ -7,10 +7,27 @@ This repository contains tools for evaluating small (4-bit, 3 Billion parameter)
 The evaluation framework consists of four main modules:
 
 ### 1. VLM Inference Engine
-Located in `local_model/`, this module handles model loading, quantization, and inference:
-- `model_classes.py`: Factory pattern for creating model instances
-- `qwen_model.py`: QwenVLModelWrapper for Qwen2.5-VL-3B-Instruct
+Located in `local_model/`, this module handles model loading, quantization, and inference using a modular, plug-and-play architecture:
+
+- `base_model.py`: Defines the abstract base class `BaseVLModel` that all VLM implementations must inherit from
+- `model_classes.py`: Implements the factory pattern for creating model instances
+- `qwen_model.py`: Contains `QwenVLModelWrapper` for Qwen2.5-VL-3B-Instruct
 - Future models: GuardReasoner-VL-Eco-3B, NQLSG-Qwen2-VL-2B-v2-Base
+
+#### Modular Design for Adding New VLMs
+
+The VLM Inference Engine uses a clean, modular architecture that makes it easy to add new vision-language models:
+
+1. **Abstract Base Class**: `BaseVLModel` in `base_model.py` defines a standard interface that all models must implement
+2. **Factory Pattern**: `model_classes.py` provides a simple factory function that creates the appropriate model instance
+3. **Model Implementation**: Each model has its own implementation file (e.g., `qwen_model.py`) that inherits from `BaseVLModel`
+
+To add a new VLM (e.g., Gemma-3-4b-it):
+1. Create a new file (e.g., `gemma_model.py`) with a class that inherits from `BaseVLModel`
+2. Add a new condition in the `create_model` function in `model_classes.py`
+3. Update the `get_model` function in `local_llm_tools.py` to support the new engine
+
+This design ensures that new models can be added with minimal changes to the existing codebase.
 
 ### 2. Transfer Attacks
 Located in `attack_models/transfer_attacks/`, these attacks typically require access to model gradients but are implemented here using surrogate models:

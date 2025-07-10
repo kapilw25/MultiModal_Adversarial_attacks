@@ -3,12 +3,13 @@ import gc
 import time
 from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor, BitsAndBytesConfig
 from qwen_vl_utils import process_vision_info
+from .base_model import BaseVLModel
 
-class QwenVLModelWrapper:
+class QwenVLModelWrapper(BaseVLModel):
     """Wrapper class for the Qwen2.5-VL-3B-Instruct model with 4-bit quantization"""
     
     def __init__(self, model_name="Qwen2.5-VL-3B-Instruct_4bit"):
-        self.model_name = model_name
+        super().__init__(model_name)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         # Initial memory cleanup
