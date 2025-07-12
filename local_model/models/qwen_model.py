@@ -1,51 +1,43 @@
 import torch
-import gc
-import time
-from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor, BitsAndBytesConfig
+from transformers import Qwen2_5_VLForConditionalGeneration
 from qwen_vl_utils import process_vision_info
-from .base_model import BaseVLModel
+from local_model.base_model import BaseVLModel
+from local_model.model_utils import (
+    cleanup_memory, 
+    get_device, 
+    get_quantization_config, 
+    load_model_with_timing,
+    time_inference,
+    get_processor_with_pixel_settings,
+    model_cleanup
+)
 
 class QwenVLModelWrapper(BaseVLModel):
     """Wrapper class for the Qwen2.5-VL-3B-Instruct model with 4-bit quantization"""
     
     def __init__(self, model_name="Qwen2.5-VL-3B-Instruct_4bit"):
         super().__init__(model_name)
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = get_device()
         
         # Initial memory cleanup
-        torch.cuda.empty_cache()
-        gc.collect()
+        cleanup_memory()
         
         # Configure 4-bit quantization
         print(f"Setting up 4-bit quantization for {model_name}...")
-        self.quantization_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.float16,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_type="nf4"
-        )
+        self.quantization_config = get_quantization_config()
         
         # Load model with quantization
-        print(f"Loading {model_name}...")
-        start_time = time.time()
-        self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            "Qwen/Qwen2.5-VL-3B-Instruct",
-            quantization_config=self.quantization_config,
-            device_map="auto"
+        model_path = "Qwen/Qwen2.5-VL-3B-Instruct"
+        self.model = load_model_with_timing(
+            Qwen2_5_VLForConditionalGeneration,
+            model_path,
+            self.quantization_config
         )
-        load_time = time.time() - start_time
-        print(f"Model loaded in {load_time:.2f} seconds")
         
         # Load processor with recommended pixel settings
-        min_pixels = 256*28*28
-        max_pixels = 1280*28*28
-        self.processor = AutoProcessor.from_pretrained(
-            "Qwen/Qwen2.5-VL-3B-Instruct", 
-            min_pixels=min_pixels, 
-            max_pixels=max_pixels
-        )
-        print(f"Processor loaded successfully")
+        self.processor = get_processor_with_pixel_settings(model_path)
     
+    @time_inference
     def predict(self, image_path, question):
         """Process an image and question to generate an answer"""
         try:
@@ -82,7 +74,6 @@ class QwenVLModelWrapper(BaseVLModel):
             
             # Generate response
             print(f"Generating response with {self.model_name}...")
-            start_time = time.time()
             with torch.inference_mode():
                 generated_ids = self.model.generate(
                     **inputs, 
@@ -91,8 +82,6 @@ class QwenVLModelWrapper(BaseVLModel):
                     temperature=0.7,
                     top_p=0.9,
                 )
-            inference_time = time.time() - start_time
-            print(f"Response generated in {inference_time:.2f} seconds")
             
             # Process output
             print("Processing output...")
@@ -115,7 +104,5 @@ class QwenVLModelWrapper(BaseVLModel):
     
     def cleanup(self):
         """Clean up GPU resources"""
-        del self.model
-        torch.cuda.empty_cache()
-        gc.collect()
+        model_cleanup(self.model)
         print(f"{self.model_name} resources cleaned up")

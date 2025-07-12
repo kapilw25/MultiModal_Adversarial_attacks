@@ -30,6 +30,9 @@ def get_model(engine="Qwen25_VL_3B"):
         if engine == "Qwen25_VL_3B":
             model_name = "Qwen2.5-VL-3B-Instruct_4bit"
             _model_instance = create_model(model_name)
+        elif engine == "Gemma3_VL_4B":
+            model_name = "Gemma-3-4b-it_4bit"
+            _model_instance = create_model(model_name)
         else:
             raise ValueError(f"Unsupported engine: {engine}")
     

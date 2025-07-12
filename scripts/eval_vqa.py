@@ -252,10 +252,11 @@ def select_engine():
     print("\nSelect the engine to evaluate:")
     print("  [1] OpenAI GPT-4o")
     print("  [2] Qwen25_VL_3B")
-    print("  [3] ALL")
+    print("  [3] Gemma3_VL_4B")
+    print("  [4] ALL")
     
     while True:
-        choice = input("\nEnter your choice (1, 2, or 3): ")
+        choice = input("\nEnter your choice (1, 2, 3, or 4): ")
         if choice == '1':
             engine = 'gpt4o'
             print(f"Selected: {engine}")
@@ -265,10 +266,14 @@ def select_engine():
             print(f"Selected: {engine}")
             return [engine]
         elif choice == '3':
+            engine = 'Gemma3_VL_4B'
+            print(f"Selected: {engine}")
+            return [engine]
+        elif choice == '4':
             print("Selected: ALL engines")
-            return ['gpt4o', 'Qwen25_VL_3B']
+            return ['gpt4o', 'Qwen25_VL_3B', 'Gemma3_VL_4B']
         else:
-            print("Invalid choice. Please enter 1, 2, or 3.")
+            print("Invalid choice. Please enter 1, 2, 3, or 4.")
 
 
 def evaluate_all_files(engine, task="chart", random_count=17):
@@ -360,6 +365,71 @@ def evaluate_all_files(engine, task="chart", random_count=17):
             print(tabulate.tabulate(change_data, 
                           headers=["Attack Type", f"{engine} Original", f"{engine} Attack", "Change", "Effect"], 
                           tablefmt="grid"))
+            
+            # Save results to JSON file for database storage
+            save_results_to_json(engine, change_data)
+
+
+def save_results_to_json(engine, change_data):
+    """Save evaluation results to a JSON file for database storage"""
+    # Skip if there's no data
+    if not change_data:
+        return
+    
+    # Create results directory if it doesn't exist
+    os.makedirs("results", exist_ok=True)
+    
+    # Path to the JSON file
+    json_path = "results/robustness_temp.json"
+    
+    # Initialize the data structure if the file doesn't exist
+    if not os.path.exists(json_path):
+        data = {
+            "models": {},
+            "metadata": {
+                "task_name": "chart",
+                "timestamp": "2025-07-11T04:00:00Z",
+                "version": "1.0"
+            }
+        }
+    else:
+        # Load existing data
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+    
+    # Initialize model data if not present
+    if engine not in data["models"]:
+        data["models"][engine] = {}
+    
+    # Process each row of change data
+    for row in change_data:
+        attack_type = row[0]
+        original_accuracy = float(row[1].strip('%'))
+        attack_accuracy = float(row[2].strip('%'))
+        
+        # Parse change value
+        change_str = row[3]
+        if change_str.startswith('+'):
+            change = float(change_str.strip('+%'))
+        elif change_str.startswith('-'):
+            change = -float(change_str.strip('-%'))
+        else:
+            change = 0.0
+        
+        effect = row[4]
+        
+        # Store in the data structure
+        data["models"][engine][attack_type] = {
+            "accuracy": attack_accuracy,
+            "change": change,
+            "effect": effect
+        }
+    
+    # Save to file
+    with open(json_path, 'w') as f:
+        json.dump(data, f, indent=2)
+    
+    print(f"Results saved to {json_path}")
 
 
 if __name__ == "__main__":

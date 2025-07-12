@@ -28,10 +28,11 @@ def select_engine():
     print("\nSelect the engine to use:")
     print("  [1] OpenAI GPT-4o")
     print("  [2] Qwen25_VL_3B")
-    print("  [3] ALL")
+    print("  [3] Gemma3_VL_4B")
+    print("  [4] ALL")
     
     while True:
-        choice = input("\nEnter your choice (1, 2, or 3): ")
+        choice = input("\nEnter your choice (1, 2, 3, or 4): ")
         if choice == '1':
             print("Selected: OpenAI GPT-4o")
             # Import for OpenAI GPT-4o
@@ -43,13 +44,20 @@ def select_engine():
             from local_llm_tools import send_chat_request_azure
             return [('Qwen25_VL_3B', send_chat_request_azure)]
         elif choice == '3':
+            print("Selected: Gemma3_VL_4B")
+            # Import for Gemma3_VL_4B
+            from local_llm_tools import send_chat_request_azure
+            return [('Gemma3_VL_4B', send_chat_request_azure)]
+        elif choice == '4':
             print("Selected: ALL engines")
             # Import both modules
             from llm_tools import send_chat_request_azure as gpt4o_send_chat
-            from local_llm_tools import send_chat_request_azure as qwen_send_chat
-            return [('gpt4o', gpt4o_send_chat), ('Qwen25_VL_3B', qwen_send_chat)]
+            from local_llm_tools import send_chat_request_azure as local_send_chat
+            return [('gpt4o', gpt4o_send_chat), 
+                    ('Qwen25_VL_3B', local_send_chat),
+                    ('Gemma3_VL_4B', local_send_chat)]
         else:
-            print("Invalid choice. Please enter 1, 2, or 3.")
+            print("Invalid choice. Please enter 1, 2, 3, or 4.")
 
 
 def run_evaluation(engine, send_chat_request_azure, task, random_count, output_file, img_dir, attack_name):
