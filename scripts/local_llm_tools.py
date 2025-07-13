@@ -1,7 +1,7 @@
 """
-Local LLM tools for using Qwen2.5-VL-3B-Instruct model instead of OpenAI API.
+Local LLM tools for using vision-language models instead of OpenAI API.
 This module provides a drop-in replacement for send_chat_request_azure function
-that works with the local Qwen2.5-VL model.
+that works with local VLM models.
 """
 
 import os
@@ -33,6 +33,9 @@ def get_model(engine="Qwen25_VL_3B"):
         elif engine == "Gemma3_VL_4B":
             model_name = "Gemma-3-4b-it_4bit"
             _model_instance = create_model(model_name)
+        elif engine == "PaliGemma_VL_3B":
+            model_name = "PaliGemma-3B-mix-224_4bit"
+            _model_instance = create_model(model_name)
         else:
             raise ValueError(f"Unsupported engine: {engine}")
     
@@ -50,11 +53,11 @@ def send_chat_request(
         sample_n=1,
 ):
     """
-    Send a chat request to the local Qwen2.5-VL model.
+    Send a chat request to the local vision-language model.
     
     Args:
         message_text: List of message dictionaries with role and content
-        engine: Model engine to use (default: "Qwen25_VL_3B")
+        engine: Model engine to use (default: "Qwen25_VL_3B", also supports "Gemma3_VL_4B", "PaliGemma_VL_3B")
         temp: Temperature for sampling (default: 0.2)
         logit_bias: Logit bias dictionary (not used for local model)
         max_new_token: Maximum number of new tokens to generate (default: 4096)

@@ -29,10 +29,11 @@ def select_engine():
     print("  [1] OpenAI GPT-4o")
     print("  [2] Qwen25_VL_3B")
     print("  [3] Gemma3_VL_4B")
-    print("  [4] ALL")
+    print("  [4] PaliGemma_VL_3B")
+    print("  [5] ALL")
     
     while True:
-        choice = input("\nEnter your choice (1, 2, 3, or 4): ")
+        choice = input("\nEnter your choice (1-5): ")
         if choice == '1':
             print("Selected: OpenAI GPT-4o")
             # Import for OpenAI GPT-4o
@@ -49,15 +50,28 @@ def select_engine():
             from local_llm_tools import send_chat_request_azure
             return [('Gemma3_VL_4B', send_chat_request_azure)]
         elif choice == '4':
+            print("Selected: PaliGemma_VL_3B")
+            # Import for PaliGemma_VL_3B
+            from local_llm_tools import send_chat_request_azure
+            return [('PaliGemma_VL_3B', send_chat_request_azure)]
+        elif choice == '5':
             print("Selected: ALL engines")
             # Import both modules
             from llm_tools import send_chat_request_azure as gpt4o_send_chat
             from local_llm_tools import send_chat_request_azure as local_send_chat
             return [('gpt4o', gpt4o_send_chat), 
                     ('Qwen25_VL_3B', local_send_chat),
-                    ('Gemma3_VL_4B', local_send_chat)]
+                    ('Gemma3_VL_4B', local_send_chat),
+                    ('PaliGemma_VL_3B', local_send_chat)]
         else:
-            print("Invalid choice. Please enter 1, 2, 3, or 4.")
+            print("Invalid choice. Please enter a number between 1 and 5.")
+
+
+def ensure_model_directories(engine):
+    """Ensure that the model's results directory exists"""
+    model_dir = f'results/{engine}'
+    os.makedirs(model_dir, exist_ok=True)
+    print(f"Ensured directory exists: {model_dir}")
 
 
 def run_evaluation(engine, send_chat_request_azure, task, random_count, output_file, img_dir, attack_name):
@@ -66,11 +80,14 @@ def run_evaluation(engine, send_chat_request_azure, task, random_count, output_f
     print(f"Output file: {output_file}")
     print(f"Image directory: {img_dir}")
     
-    # Define input file path
-    file_path = f'results/{engine}/eval_{task}.json'
+    # Ensure model directory exists
+    ensure_model_directories(engine)
+    
+    # Define input file path - use centralized ground truth file
+    ground_truth_file = f'results/ground_truth/eval_{task}.json'
     
     try:
-        with open(file_path) as f:
+        with open(ground_truth_file) as f:
             eval_data = []
             for line in f:
                 eval_data.append(json.loads(line))
@@ -152,13 +169,23 @@ def run_evaluation(engine, send_chat_request_azure, task, random_count, output_f
                 print(f"Partial results saved to {output_file}")
                 
     except FileNotFoundError:
-        print(f"Error: Input file {file_path} not found.")
-        print(f"Make sure the file exists at {os.path.abspath(file_path)}")
+        print(f"Error: Ground truth file not found at {ground_truth_file}")
+        print(f"Make sure the file exists at {os.path.abspath(ground_truth_file)}")
         print("Directory structure should be:")
-        print(f"  results/{engine}/eval_{task}.json")
+        print(f"  results/ground_truth/eval_{task}.json")
 
 
 if __name__ == '__main__':
+    # Ensure ground truth directory exists
+    os.makedirs('results/ground_truth', exist_ok=True)
+    
+    # Check if ground truth file exists
+    ground_truth_file = 'results/ground_truth/eval_chart.json'
+    if not os.path.exists(ground_truth_file):
+        print(f"Error: Ground truth file not found at {ground_truth_file}")
+        print("Please make sure this file exists before running the evaluation.")
+        sys.exit(1)
+    
     # Select engine(s) and get the appropriate send_chat_request_azure function(s)
     engine_configs = select_engine()
     
