@@ -13,10 +13,15 @@
 | GLM Edge | - | - | [glm-edge-v-2b](https://huggingface.co/THUDM/glm-edge-v-2b) ✅ | - | - | [glm-edge-v-5b](https://huggingface.co/THUDM/glm-edge-v-5b) ❌ (dtype issues) | - |
 | Moondream | - | [moondream-2b](https://huggingface.co/moondream/moondream-2b-2025-04-14-4bit) | - | - | - | - | - |
 | Microsoft | - | - | - | [Phi-3.5-vision](https://huggingface.co/microsoft/Phi-3.5-vision-instruct) | - | - | - |
-| LLaVA Hybrid | [Zhang199/TinyLLaVA-Qwen2-0.5B-SigLIP](https://huggingface.co/Zhang199/TinyLLaVA-Qwen2-0.5B-SigLIP), [jiajunlong/TinyLLaVA-0.89B](https://huggingface.co/jiajunlong/TinyLLaVA-0.89B) | [Intel/llava-gemma-2b](https://huggingface.co/Intel/llava-gemma-2b) | [tinyllava/TinyLLaVA-Gemma-SigLIP-2.4B](https://huggingface.co/tinyllava/TinyLLaVA-Gemma-SigLIP-2.4B), [Zhang199/TinyLLaVA-Qwen2.5-3B-SigLIP](https://huggingface.co/Zhang199/TinyLLaVA-Qwen2.5-3B-SigLIP) | [tinyllava/TinyLLaVA-Phi-2-SigLIP-3.1B](https://huggingface.co/tinyllava/TinyLLaVA-Phi-2-SigLIP-3.1B) | - | - | - |
+| LLaVA Hybrid | [Zhang199/TinyLLaVA-Qwen2-0.5B-SigLIP](https://huggingface.co/Zhang199/TinyLLaVA-Qwen2-0.5B-SigLIP) ❌ (custom arch), [jiajunlong/TinyLLaVA-0.89B](https://huggingface.co/jiajunlong/TinyLLaVA-0.89B) ❌ (custom arch) | [Intel/llava-gemma-2b](https://huggingface.co/Intel/llava-gemma-2b) | [tinyllava/TinyLLaVA-Gemma-SigLIP-2.4B](https://huggingface.co/tinyllava/TinyLLaVA-Gemma-SigLIP-2.4B) ❌ (custom arch), [Zhang199/TinyLLaVA-Qwen2.5-3B-SigLIP](https://huggingface.co/Zhang199/TinyLLaVA-Qwen2.5-3B-SigLIP) ❌ (custom arch) | [tinyllava/TinyLLaVA-Phi-2-SigLIP-3.1B](https://huggingface.co/tinyllava/TinyLLaVA-Phi-2-SigLIP-3.1B) ❌ (custom arch) | - | - | - |
 | InternVL | [InternVL3-1B](https://huggingface.co/OpenGVLab/InternVL3-1B) ✅ | [InternVL3-2B](https://huggingface.co/OpenGVLab/InternVL3-2B) ✅ | - | - | [InternVL2_5-4B](https://huggingface.co/OpenGVLab/InternVL2_5-4B) ✅ | - | - |
 
 ## Legend
 - ✅ = Implemented and working in our framework
 - ❌ = Not feasible on 8GB GPU (with reason)
+- ❌ (custom arch) = Model uses custom architecture not compatible with standard Transformers library
 - Empty cell = No model available in this size category for this family
+
+### TinyLLaVA Models
+- OpenELMForCausalLM lacks 'generate' and '_prepare_generation_config' methods; AttributeError when model.language_model.generate() is called.
+- `RuntimeError` : tensor size mismatch (256 vs 729) when processing images through vision_tower due to incompatible embedding dimensions.
