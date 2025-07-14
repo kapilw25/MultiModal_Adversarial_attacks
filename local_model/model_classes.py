@@ -13,6 +13,9 @@ from local_model.models.Paligemma_3B import PaliGemmaModelWrapper
 from local_model.models.DeepSeek1_1pt3B import DeepSeekVL1pt3BModelWrapper
 from local_model.models.DeepSeek1_7B import DeepSeekVL7BModelWrapper
 from local_model.models.SmolVLM2_pt25B_pt5B_2pt2B import SmolVLM2ModelWrapper
+from local_model.models.GLMEdge_2B import GLMEdgeModelWrapper
+from local_model.models.InternVL3_1B_2B import InternVL3ModelWrapper
+from local_model.models.InternVL25_4B import InternVL2_5_4BModelWrapper
 
 # Factory function to create model instances
 def create_model(model_name):
@@ -39,5 +42,16 @@ def create_model(model_name):
         return SmolVLM2ModelWrapper(model_name)
     elif "SmolVLM2-2.2B" in model_name:
         return SmolVLM2ModelWrapper(model_name)
+    # GLM Edge model
+    elif model_name == "GLM-Edge-V-2B":
+        return GLMEdgeModelWrapper(model_name)
+    # InternVL3 models
+    elif model_name == "InternVL3-1B":
+        return InternVL3ModelWrapper(model_name)
+    elif model_name == "InternVL3-2B":
+        return InternVL3ModelWrapper(model_name)
+    # InternVL2.5 model
+    elif model_name == "InternVL2.5-4B":
+        return InternVL2_5_4BModelWrapper(model_name)
     else:
         raise ValueError(f"Unsupported model: {model_name}")

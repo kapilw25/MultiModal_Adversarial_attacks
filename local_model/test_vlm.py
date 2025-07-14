@@ -105,7 +105,11 @@ def select_model():
     print("  [8] SmolVLM2-256M-Video-Instruct")
     print("  [9] SmolVLM2-500M-Video-Instruct")
     print("  [10] SmolVLM2-2.2B-Instruct")
-    print("  [11] ALL")
+    print("  [11] GLM-Edge-V-2B")
+    print("  [12] InternVL3-1B")
+    print("  [13] InternVL3-2B")
+    print("  [14] InternVL2.5-4B")
+    print("  [15] ALL")
     
     model_map = {
         '1': "Qwen2.5-VL-3B-Instruct_4bit",
@@ -118,19 +122,23 @@ def select_model():
         '8': "SmolVLM2-256M-Video-Instruct",
         '9': "SmolVLM2-500M-Video-Instruct",
         '10': "SmolVLM2-2.2B-Instruct",
+        '11': "GLM-Edge-V-2B",
+        '12': "InternVL3-1B",
+        '13': "InternVL3-2B",
+        '14': "InternVL2.5-4B",
     }
     
     while True:
-        choice = input("\nEnter your choice (1-11): ")
+        choice = input("\nEnter your choice (1-15): ")
         if choice in model_map:
             model_name = model_map[choice]
             print(f"Selected: {model_name}")
             return [model_name]
-        elif choice == '11':
+        elif choice == '15':
             print("Selected: ALL models")
             return list(model_map.values())
         else:
-            print("Invalid choice. Please enter a number between 1 and 11.")
+            print("Invalid choice. Please enter a number between 1 and 15.")
 
 def test_model(model_name):
     """Test a specific model with the hardcoded image and question"""

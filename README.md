@@ -48,6 +48,25 @@ The VLM Inference Engine uses a clean, modular architecture that makes it easy t
 
 This design ensures that new models can be added with minimal changes to the existing codebase.
 
+## VLM Performance Comparison
+
+| Model | Size | GPU Memory | Loading Time | Inference Time | Quantization Strategy | Response Quality |
+|-------|------|------------|--------------|----------------|----------------------|------------------|
+| Qwen2.5-VL-3B | 3B | 2.3 GB | 23.31s | 4.73s ⬆️ | float16, NF4 | Complete, accurate ✅ |
+| Qwen2.5-VL-7B | 7B | 5.7 GB ⬆️ | 46.34s ⬆️ | 2.19s | float16, NF4 | Complete, accurate ✅ |
+| Qwen2-VL-2B | 2B | 1.5 GB | 12.98s | 2.67s | float16, NF4 | Complete, detailed ✅ |
+| Gemma-3-4b-it | 4B | 3.1 GB | 26.07s | 4.14s ⬆️ | bfloat16, NF4 | Complete, concise ✅ |
+| PaliGemma-3B | 3B | 2.2 GB | 28.00s | 0.50s ⬇️ | bfloat16, NF4 | Brief, minimal ❌ |
+| DeepSeek-VL-1.3B | 1.3B | 1.6 GB | 10.40s ⬇️ | 2.54s | Optimized 4-bit | Complete, accurate ✅ |
+| DeepSeek-VL-7B | 7B | 4.8 GB ⬆️ | 39.84s | 3.39s | Extreme 4-bit | Incomplete response ❌ |
+| SmolVLM2-256M | 256M | 1.0 GB ⬇️ | 2.89s ⬇️ | 1.64s | float32 | Incomplete response ❌ |
+| SmolVLM2-500M | 500M | 1.9 GB | 5.24s ⬇️ | 1.30s ⬇️ | float32 | Brief, accurate ✅ |
+| SmolVLM2-2.2B | 2.2B | 1.4 GB | 21.55s | 2.53s | float16, 4-bit | Repetitive content ❌ |
+| GLM-Edge-V-2B | 2B | 3.7 GB | 1.80s ⬇️ | 26.12s ⬆️ | bfloat16 | Brief, accurate ✅ |
+| InternVL3-1B | 1B | 1.7 GB | 171.97s ⬆️ | 3.50s | bfloat16, NF4 | Good, minor errors ⚠️ |
+| InternVL3-2B | 2B | 2.1 GB | 375.84s ⬆️ | 5.07s | bfloat16, NF4 | Complete, accurate ✅ |
+| InternVL2.5-4B | 4B | 3.3 GB | 657.13s ⬆️ | 3.76s | bfloat16, NF4 | Incomplete, inaccurate ❌ |
+
 ### 2. Transfer Attacks
 Located in `attack_models/transfer_attacks/`, these attacks typically require access to model gradients but are implemented here using surrogate models:
 - `v2_pgd_attack.py`: Projected Gradient Descent attack
