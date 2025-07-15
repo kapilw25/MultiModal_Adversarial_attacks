@@ -16,6 +16,8 @@ from local_model.models.SmolVLM2_pt25B_pt5B_2pt2B import SmolVLM2ModelWrapper
 from local_model.models.GLMEdge_2B import GLMEdgeModelWrapper
 from local_model.models.InternVL3_1B_2B import InternVL3ModelWrapper
 from local_model.models.InternVL25_4B import InternVL2_5_4BModelWrapper
+from local_model.models.Florence2_pt23B_pt77B import Florence2ModelWrapper
+from local_model.models.Moondream2_2B import Moondream2ModelWrapper
 
 # Factory function to create model instances
 def create_model(model_name):
@@ -53,5 +55,13 @@ def create_model(model_name):
     # InternVL2.5 model
     elif model_name == "InternVL2.5-4B":
         return InternVL2_5_4BModelWrapper(model_name)
+    # Florence-2 models
+    elif model_name == "Florence-2-base":
+        return Florence2ModelWrapper(model_name)
+    elif model_name == "Florence-2-large":
+        return Florence2ModelWrapper(model_name)
+    # Moondream2 model
+    elif model_name == "Moondream2-2B":
+        return Moondream2ModelWrapper(model_name)
     else:
         raise ValueError(f"Unsupported model: {model_name}")

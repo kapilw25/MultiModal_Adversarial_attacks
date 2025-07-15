@@ -62,6 +62,9 @@ This design ensures that new models can be added with minimal changes to the exi
 | SmolVLM2-256M | 256M | 1.0 GB ⬇️ | 2.89s ⬇️ | 1.64s | float32 | Incomplete response ❌ |
 | SmolVLM2-500M | 500M | 1.9 GB | 5.24s ⬇️ | 1.30s ⬇️ | float32 | Brief, accurate ✅ |
 | SmolVLM2-2.2B | 2.2B | 1.4 GB | 21.55s | 2.53s | float16, 4-bit | Repetitive content ❌ |
+| Florence-2-base | 0.23B | 0.52 GB ⬇️ | 32.20s | 0.76s ⬇️ | float16 | Complete, accurate ✅ |
+| Florence-2-large | 0.77B | 1.58 GB | 153.20s ⬆️ | 0.86s ⬇️ | float16 | Complete, detailed ✅ |
+| Moondream2-2B | 1.93B | 3.68 GB | 2.00s ⬇️ | 2.75s | float16 | Concise, accurate ✅ |
 | GLM-Edge-V-2B | 2B | 3.7 GB | 1.80s ⬇️ | 26.12s ⬆️ | bfloat16 | Brief, accurate ✅ |
 | InternVL3-1B | 1B | 1.7 GB | 171.97s ⬆️ | 3.50s | bfloat16, NF4 | Good, minor errors ⚠️ |
 | InternVL3-2B | 2B | 2.1 GB | 375.84s ⬆️ | 5.07s | bfloat16, NF4 | Complete, accurate ✅ |
