@@ -33,6 +33,30 @@
 - UDOP is designed for document understanding with structured OCR data, not chart analysis
 - Testing shows it only returns single-word answers like "presentation" for chart questions
 
+### Gemma 3n E2B Detailed Analysis
+### Google Gemma 3n E2B Model
+- Model requires >7.6GB VRAM during loading despite MatFormer architecture claiming 2B effective parameters
+
+**Attempted Optimization Techniques:**
+- 4-bit quantization (BitsAndBytes NF4)
+- 8-bit quantization fallback
+- CPU offloading with multiple GPU memory limits (6GB, 7GB, 7.25GB)
+- Aggressive context reduction (64 tokens)
+- Improved KV cache estimation
+- Parameter skipping and PLE caching
+
+**Memory Optimization Results:**
+
+| GPU Strategy | Memory Status | Meta Tensors | KV Cache | Result |
+|--------------|---------------|--------------|----------|---------|
+| Aggressive (7.25GB) | ❌ KV Cache OOM | 712 | 3.75GB needed, 3.34GB available | ❌ Memory failure |
+| Balanced (7GB) | ❌ KV Cache OOM | 760 | 3.75GB needed, 3.57GB available | ❌ Memory failure |
+| Conservative (6GB) | ✅ Perfect memory | 952 | 0.15GB needed, 1.05GB available | ❌ Meta tensor failure |
+
+**Root Cause:** Fundamental incompatibility between Gemma 3n's MatFormer architecture and Transformers library's CPU offloading implementation. Meta tensor materialization fails during inference regardless of memory availability.
+
+**Conclusion:** ❌ Not feasible on 8GB GPU due to software limitations, not hardware constraints.
+
 ### TinyLLaVA Models
 - OpenELMForCausalLM lacks 'generate' and '_prepare_generation_config' methods; AttributeError when model.language_model.generate() is called.
 - `RuntimeError` : tensor size mismatch (256 vs 729) when processing images through vision_tower due to incompatible embedding dimensions.
@@ -41,6 +65,3 @@
 - Model loads successfully on GPU but fails during image processing with `TypeError: unsupported operand type(s) for //: 'int' and 'NoneType'` due to missing patch_size attribute
 - Generates `ValueError: Image features and image tokens do not match: tokens: 1, features 1179648` when attempting inference, indicating incompatibility between image processing pipeline and model architecture
 
-### Google Gemma 3n E2B Model
-- Model requires >7.6GB VRAM during loading despite MatFormer architecture claiming 2B effective parameters
-- All optimization strategies failed: 4-bit quantization, 8-bit quantization, pure bfloat16, and gradient checkpointing all resulted in CUDA OOM errors
