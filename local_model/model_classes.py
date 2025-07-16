@@ -18,6 +18,7 @@ from local_model.models.InternVL3_1B_2B import InternVL3ModelWrapper
 from local_model.models.InternVL25_4B import InternVL2_5_4BModelWrapper
 from local_model.models.Florence2_pt23B_pt77B import Florence2ModelWrapper
 from local_model.models.Moondream2_2B import Moondream2ModelWrapper
+from local_model.models.Phi3pt5_vision_4B import Phi35VisionModelWrapper
 
 # Factory function to create model instances
 def create_model(model_name):
@@ -63,5 +64,8 @@ def create_model(model_name):
     # Moondream2 model
     elif model_name == "Moondream2-2B":
         return Moondream2ModelWrapper(model_name)
+    # Phi-3.5-vision model
+    elif model_name == "Phi-3.5-vision-instruct-4bit":
+        return Phi35VisionModelWrapper(model_name)
     else:
         raise ValueError(f"Unsupported model: {model_name}")

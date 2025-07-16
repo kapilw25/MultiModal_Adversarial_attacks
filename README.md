@@ -18,6 +18,7 @@ Located in `local_model/`, this module handles model loading, quantization, and 
   - `Paligemma_3B.py`: Google's Paligemma model
   - `DeepSeek1_1pt3B.py`, `DeepSeek1_7B.py`: DeepSeek VL models
   - `SmolVLM2_pt25B_pt5B_2pt2B.py`: Unified implementation for SmolVLM2 models (256M, 500M, 2.2B)
+  - `Phi3pt5_vision_4B.py`: Microsoft's Phi-3.5-vision-instruct model
 
 #### 4-bit Quantization for Nano VLMs
 
@@ -69,6 +70,7 @@ This design ensures that new models can be added with minimal changes to the exi
 | InternVL3-1B | 1B | 1.7 GB | 171.97s ⬆️ | 3.50s | bfloat16, NF4 | Good, minor errors ⚠️ |
 | InternVL3-2B | 2B | 2.1 GB | 375.84s ⬆️ | 5.07s | bfloat16, NF4 | Complete, accurate ✅ |
 | InternVL2.5-4B | 4B | 3.3 GB | 657.13s ⬆️ | 3.76s | bfloat16, NF4 | Incomplete, inaccurate ❌ |
+| Phi-3.5-vision-instruct | 4.15B | 2.3 GB | 8.14s ⬇️ | 64.03s ⬆️ | bfloat16, NF4 | Complete, accurate ✅ |
 
 ### 2. Transfer Attacks
 Located in `attack_models/transfer_attacks/`, these attacks typically require access to model gradients but are implemented here using surrogate models:
