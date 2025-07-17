@@ -25,51 +25,62 @@ def local_image_to_data_url(image_path):
 
 def select_engine():
     """Interactive function to select the engine to use"""
+    # Import the list_available_models function from local_llm_tools
+    from local_llm_tools import list_available_models
+    
+    # Get all available local models
+    local_models = list_available_models()
+    
+    # Create the menu options
     print("\nSelect the engine to use:")
     print("  [1] OpenAI GPT-4o")
-    print("  [2] Qwen25_VL_3B")
-    print("  [3] Gemma3_VL_4B")
-    print("  [4] PaliGemma_VL_3B")
-    print("  [5] ALL")
+    
+    # Add all local models to the menu
+    for i, model in enumerate(local_models):
+        print(f"  [{i+2}] {model}")
+    
+    # Add ALL option
+    all_option = len(local_models) + 2
+    print(f"  [{all_option}] ALL")
     
     while True:
-        choice = input("\nEnter your choice (1-5): ")
-        if choice == '1':
-            print("Selected: OpenAI GPT-4o")
-            # Import for OpenAI GPT-4o
-            from llm_tools import send_chat_request_azure
-            return [('gpt4o', send_chat_request_azure)]
-        elif choice == '2':
-            print("Selected: Qwen25_VL_3B")
-            # Import for Qwen25_VL_3B
-            from local_llm_tools import send_chat_request_azure
-            return [('Qwen25_VL_3B', send_chat_request_azure)]
-        elif choice == '3':
-            print("Selected: Gemma3_VL_4B")
-            # Import for Gemma3_VL_4B
-            from local_llm_tools import send_chat_request_azure
-            return [('Gemma3_VL_4B', send_chat_request_azure)]
-        elif choice == '4':
-            print("Selected: PaliGemma_VL_3B")
-            # Import for PaliGemma_VL_3B
-            from local_llm_tools import send_chat_request_azure
-            return [('PaliGemma_VL_3B', send_chat_request_azure)]
-        elif choice == '5':
-            print("Selected: ALL engines")
-            # Import both modules
-            from llm_tools import send_chat_request_azure as gpt4o_send_chat
-            from local_llm_tools import send_chat_request_azure as local_send_chat
-            return [('gpt4o', gpt4o_send_chat), 
-                    ('Qwen25_VL_3B', local_send_chat),
-                    ('Gemma3_VL_4B', local_send_chat),
-                    ('PaliGemma_VL_3B', local_send_chat)]
-        else:
-            print("Invalid choice. Please enter a number between 1 and 5.")
+        choice = input(f"\nEnter your choice (1-{all_option}): ")
+        
+        try:
+            choice_num = int(choice)
+            
+            if choice_num == 1:
+                print("Selected: OpenAI GPT-4o")
+                # Import for OpenAI GPT-4o
+                from llm_tools import send_chat_request_azure
+                return [('gpt4o', send_chat_request_azure)]
+            elif 2 <= choice_num <= len(local_models) + 1:
+                # Selected a local model
+                model_name = local_models[choice_num - 2]
+                print(f"Selected: {model_name}")
+                from local_llm_tools import send_chat_request_azure
+                return [(model_name, send_chat_request_azure)]
+            elif choice_num == all_option:
+                print("Selected: ALL engines")
+                # Import both modules
+                from llm_tools import send_chat_request_azure as gpt4o_send_chat
+                from local_llm_tools import send_chat_request_azure as local_send_chat
+                
+                # Create a list with GPT-4o and all local models
+                engines = [('gpt4o', gpt4o_send_chat)]
+                for model in local_models:
+                    engines.append((model, local_send_chat))
+                
+                return engines
+            else:
+                print(f"Invalid choice. Please enter a number between 1 and {all_option}.")
+        except ValueError:
+            print("Please enter a valid number.")
 
 
 def ensure_model_directories(engine):
     """Ensure that the model's results directory exists"""
-    model_dir = f'results/{engine}'
+    model_dir = f'results/models/{engine}'
     os.makedirs(model_dir, exist_ok=True)
     print(f"Ensured directory exists: {model_dir}")
 

@@ -18,7 +18,7 @@ plt.style.use('seaborn-v0_8-whitegrid')
 sns.set_context("paper", font_scale=1.2)
 
 # Create output directory if it doesn't exist
-output_dir = os.path.join(os.path.dirname(__file__), "plots")
+output_dir = os.path.join(os.path.dirname(__file__), "plots2")
 os.makedirs(output_dir, exist_ok=True)
 
 # Define the data
@@ -197,7 +197,6 @@ plt.grid(True, alpha=0.3)
 plt.legend(title="Model Family", bbox_to_anchor=(1.05, 1), loc='upper left')
 plt.tight_layout()
 plt.savefig(os.path.join(output_dir, "size_vs_memory.png"), dpi=300, bbox_inches="tight")
-plt.savefig(os.path.join(output_dir, "size_vs_memory.pdf"), bbox_inches="tight")
 
 # 2. Size vs. Loading Time with Family Color Coding
 plt.figure(figsize=(12, 8))
@@ -235,7 +234,6 @@ plt.tight_layout()
 # Set y-axis limit to exclude extreme outliers for better visualization
 plt.ylim(0, df["Loading_Time_s"].quantile(0.9) * 1.5)
 plt.savefig(os.path.join(output_dir, "size_vs_loading_time.png"), dpi=300, bbox_inches="tight")
-plt.savefig(os.path.join(output_dir, "size_vs_loading_time.pdf"), bbox_inches="tight")
 
 # 3. Size vs. Inference Time with Quality Markers
 plt.figure(figsize=(12, 8))
@@ -287,7 +285,6 @@ plt.legend(handles=quality_handles, title="Response Quality", bbox_to_anchor=(1.
 plt.tight_layout()
 plt.ylim(0, df["Inference_Time_s"].quantile(0.9) * 1.5)
 plt.savefig(os.path.join(output_dir, "size_vs_inference_time.png"), dpi=300, bbox_inches="tight")
-plt.savefig(os.path.join(output_dir, "size_vs_inference_time.pdf"), bbox_inches="tight")
 
 # 4. Grouped Bar Chart by Size Category
 plt.figure(figsize=(14, 10))
@@ -337,7 +334,6 @@ for i, (metric, title) in enumerate(zip(metrics, titles)):
 
 plt.tight_layout()
 plt.savefig(os.path.join(output_dir, "metrics_by_size_category.png"), dpi=300, bbox_inches="tight")
-plt.savefig(os.path.join(output_dir, "metrics_by_size_category.pdf"), bbox_inches="tight")
 
 # 5. Heatmap of Performance Metrics
 plt.figure(figsize=(16, 12))
@@ -377,7 +373,6 @@ sns.heatmap(heatmap_data, annot=True, cmap=cmap, linewidths=0.5, fmt=".2f", vmin
 plt.title("VLM Performance Metrics (Higher is Better)", fontsize=16)
 plt.tight_layout()
 plt.savefig(os.path.join(output_dir, "performance_heatmap.png"), dpi=300, bbox_inches="tight")
-plt.savefig(os.path.join(output_dir, "performance_heatmap.pdf"), bbox_inches="tight")
 
 # 6. Bubble Chart: Size vs Memory vs Inference Time
 plt.figure(figsize=(14, 10))
@@ -430,7 +425,6 @@ plt.legend(handles=size_handles, labels=size_labels, title="Response Quality",
 
 plt.tight_layout()
 plt.savefig(os.path.join(output_dir, "size_memory_quality_bubble.png"), dpi=300, bbox_inches="tight")
-plt.savefig(os.path.join(output_dir, "size_memory_quality_bubble.pdf"), bbox_inches="tight")
 
 # 7. Radar Chart for Top Models
 plt.figure(figsize=(14, 12))
@@ -502,7 +496,6 @@ plt.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
 plt.title("Top Model Performance Comparison", size=16)
 plt.tight_layout()
 plt.savefig(os.path.join(output_dir, "top_models_radar.png"), dpi=300, bbox_inches="tight")
-plt.savefig(os.path.join(output_dir, "top_models_radar.pdf"), bbox_inches="tight")
 
 # 8. Efficiency Score Calculation and Visualization
 # Calculate efficiency score: (Quality / (Size * Memory * Loading Time * Inference Time))^(1/4)
@@ -537,7 +530,6 @@ plt.grid(axis='y', alpha=0.3)
 plt.legend(handles=patches, title="Model Family", bbox_to_anchor=(1.05, 1), loc='upper left')
 plt.tight_layout()
 plt.savefig(os.path.join(output_dir, "efficiency_score.png"), dpi=300, bbox_inches="tight")
-plt.savefig(os.path.join(output_dir, "efficiency_score.pdf"), bbox_inches="tight")
 
-print(f"Generated 8 visualization plots in {output_dir}")
+print(f"Generated 8 PNG visualization plots in {output_dir}")
 print("Analysis complete!")

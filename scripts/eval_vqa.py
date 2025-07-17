@@ -249,37 +249,53 @@ def evaluator(path):
 
 def select_engine():
     """Interactive function to select the engine to evaluate"""
+    # Import the list_available_models function from local_llm_tools
+    from local_llm_tools import list_available_models
+    
+    # Get all available local models
+    local_models = list_available_models()
+    
+    # Create the menu options
     print("\nSelect the engine to evaluate:")
     print("  [1] OpenAI GPT-4o")
-    print("  [2] Qwen25_VL_3B")
-    print("  [3] Gemma3_VL_4B")
-    print("  [4] ALL")
+    
+    # Add all local models to the menu
+    for i, model in enumerate(local_models):
+        print(f"  [{i+2}] {model}")
+    
+    # Add ALL option
+    all_option = len(local_models) + 2
+    print(f"  [{all_option}] ALL")
     
     while True:
-        choice = input("\nEnter your choice (1, 2, 3, or 4): ")
-        if choice == '1':
-            engine = 'gpt4o'
-            print(f"Selected: {engine}")
-            return [engine]
-        elif choice == '2':
-            engine = 'Qwen25_VL_3B'
-            print(f"Selected: {engine}")
-            return [engine]
-        elif choice == '3':
-            engine = 'Gemma3_VL_4B'
-            print(f"Selected: {engine}")
-            return [engine]
-        elif choice == '4':
-            print("Selected: ALL engines")
-            return ['gpt4o', 'Qwen25_VL_3B', 'Gemma3_VL_4B']
-        else:
-            print("Invalid choice. Please enter 1, 2, 3, or 4.")
+        choice = input(f"\nEnter your choice (1-{all_option}): ")
+        
+        try:
+            choice_num = int(choice)
+            
+            if choice_num == 1:
+                engine = 'gpt4o'
+                print(f"Selected: {engine}")
+                return [engine]
+            elif 2 <= choice_num <= len(local_models) + 1:
+                # Selected a local model
+                engine = local_models[choice_num - 2]
+                print(f"Selected: {engine}")
+                return [engine]
+            elif choice_num == all_option:
+                print("Selected: ALL engines")
+                engines = ['gpt4o'] + local_models
+                return engines
+            else:
+                print(f"Invalid choice. Please enter a number between 1 and {all_option}.")
+        except ValueError:
+            print("Please enter a valid number.")
 
 
 def evaluate_all_files(engine, task="chart", random_count=17):
     """Evaluate all files for a given engine and task"""
     # Base directory for results
-    dir_path = f'results/{engine}'
+    dir_path = f'results/models/{engine}'
     
     # Pattern for finding all relevant files
     pattern = f'eval_{engine}_{task}_{random_count}*.json'

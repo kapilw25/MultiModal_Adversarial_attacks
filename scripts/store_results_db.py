@@ -11,6 +11,7 @@ import sqlite3
 import pandas as pd
 import json
 from datetime import datetime
+import re
 
 # Define the database path
 DB_PATH = "results/robustness.db"
@@ -21,36 +22,55 @@ def ensure_db_directory():
     """Ensure the directory for the database exists."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
-def create_database():
-    """Create the database schema with a scalable structure."""
+def create_database(model_columns):
+    """
+    Create the database schema with a scalable structure.
+    
+    Args:
+        model_columns (list): List of column name tuples (model_name_accuracy, model_name_change)
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Create the main table with attack_type as rows and model data as columns
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS attack_comparison (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        task_name TEXT DEFAULT 'chart',
-        attack_type TEXT NOT NULL,
-        gpt4o_accuracy REAL NOT NULL,
-        gpt4o_change REAL NOT NULL,
-        qwen_accuracy REAL NOT NULL,
-        qwen_change REAL NOT NULL,
-        gemma_accuracy REAL NOT NULL,
-        gemma_change REAL NOT NULL,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    ''')
+    # Check if table exists
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='attack_comparison'")
+    table_exists = cursor.fetchone() is not None
     
-    # Create an index on attack_type for faster lookups
-    cursor.execute('''
-    CREATE INDEX IF NOT EXISTS idx_attack_type ON attack_comparison(attack_type)
-    ''')
-    
-    # Create an index on task_name for future scalability
-    cursor.execute('''
-    CREATE INDEX IF NOT EXISTS idx_task_name ON attack_comparison(task_name)
-    ''')
+    if table_exists:
+        # Get existing columns
+        cursor.execute("PRAGMA table_info(attack_comparison)")
+        existing_columns = [col[1] for col in cursor.fetchall()]
+        
+        # Add any missing columns
+        for col_name, col_type in model_columns:
+            if col_name not in existing_columns:
+                cursor.execute(f"ALTER TABLE attack_comparison ADD COLUMN {col_name} {col_type}")
+                print(f"Added column {col_name} to existing table")
+    else:
+        # Create the base columns
+        columns = [
+            "id INTEGER PRIMARY KEY AUTOINCREMENT",
+            "task_name TEXT DEFAULT 'chart'",
+            "attack_type TEXT NOT NULL",
+            "timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+        ]
+        
+        # Add model-specific columns
+        for col_name, col_type in model_columns:
+            columns.append(f"{col_name} {col_type}")
+        
+        # Create the table
+        cursor.execute(f'''
+        CREATE TABLE attack_comparison (
+            {', '.join(columns)}
+        )
+        ''')
+        
+        # Create indexes
+        cursor.execute('CREATE INDEX idx_attack_type ON attack_comparison(attack_type)')
+        cursor.execute('CREATE INDEX idx_task_name ON attack_comparison(task_name)')
+        
+        print("Created new attack_comparison table with all model columns")
     
     conn.commit()
     conn.close()
@@ -66,8 +86,63 @@ def load_results_from_json():
     
     return data
 
+def normalize_model_name(model_name):
+    """
+    Normalize model name to create valid SQL column names.
+    
+    Args:
+        model_name (str): Original model name
+        
+    Returns:
+        str: Normalized model name suitable for SQL column
+    """
+    # Convert to lowercase
+    name = model_name.lower()
+    
+    # Replace special characters with underscores
+    name = re.sub(r'[^a-z0-9]', '_', name)
+    
+    # Remove consecutive underscores
+    name = re.sub(r'_+', '_', name)
+    
+    # Remove leading/trailing underscores
+    name = name.strip('_')
+    
+    return name
+
+def get_model_columns(data):
+    """
+    Generate a list of all required model columns based on the data.
+    
+    Args:
+        data (dict): The loaded JSON data
+        
+    Returns:
+        list: List of tuples (column_name, column_type)
+    """
+    columns = []
+    
+    # Extract model names
+    model_names = list(data["models"].keys())
+    
+    # Create accuracy and change columns for each model
+    for model_name in model_names:
+        norm_name = normalize_model_name(model_name)
+        columns.append((f"{norm_name}_accuracy", "REAL DEFAULT 0"))
+        columns.append((f"{norm_name}_change", "REAL DEFAULT 0"))
+    
+    return columns
+
 def prepare_data(data):
-    """Prepare the data for insertion into the database."""
+    """
+    Prepare the data for insertion into the database.
+    
+    Args:
+        data (dict): The loaded JSON data
+        
+    Returns:
+        list: List of dictionaries with column values
+    """
     if not data:
         return []
     
@@ -90,36 +165,23 @@ def prepare_data(data):
         # Add data for each model
         for model_name in model_names:
             model_data = data["models"][model_name].get(attack_type, {})
-            
-            # Use model name to determine column prefix
-            if "gpt4o" in model_name.lower():
-                prefix = "gpt4o"
-            elif "qwen" in model_name.lower():
-                prefix = "qwen"
-            elif "gemma" in model_name.lower():
-                prefix = "gemma"
-            else:
-                # For future models, we'll need to extend the database schema
-                print(f"Warning: Unknown model {model_name}, skipping")
-                continue
+            norm_name = normalize_model_name(model_name)
             
             # Add accuracy and change columns
-            row[f"{prefix}_accuracy"] = model_data.get("accuracy", 0)
-            row[f"{prefix}_change"] = model_data.get("change", 0)
-        
-        # Ensure all required columns have values (even if 0)
-        for prefix in ["gpt4o", "qwen", "gemma"]:
-            if f"{prefix}_accuracy" not in row:
-                row[f"{prefix}_accuracy"] = 0
-            if f"{prefix}_change" not in row:
-                row[f"{prefix}_change"] = 0
+            row[f"{norm_name}_accuracy"] = model_data.get("accuracy", 0)
+            row[f"{norm_name}_change"] = model_data.get("change", 0)
         
         rows.append(row)
     
     return rows
 
 def store_results_in_db(rows):
-    """Store the prepared data in the SQLite database."""
+    """
+    Store the prepared data in the SQLite database.
+    
+    Args:
+        rows (list): List of dictionaries with column values
+    """
     if not rows:
         print("No data to store.")
         return
@@ -132,20 +194,13 @@ def store_results_in_db(rows):
     
     # Insert new data
     for row in rows:
-        cursor.execute('''
-        INSERT INTO attack_comparison 
-        (task_name, attack_type, gpt4o_accuracy, gpt4o_change, qwen_accuracy, qwen_change, gemma_accuracy, gemma_change)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            row["task_name"],
-            row["attack_type"],
-            row["gpt4o_accuracy"],
-            row["gpt4o_change"],
-            row["qwen_accuracy"],
-            row["qwen_change"],
-            row["gemma_accuracy"],
-            row["gemma_change"]
-        ))
+        # Dynamically build the SQL query based on the columns in the row
+        columns = list(row.keys())
+        placeholders = ', '.join(['?' for _ in columns])
+        values = [row[col] for col in columns]
+        
+        query = f"INSERT INTO attack_comparison ({', '.join(columns)}) VALUES ({placeholders})"
+        cursor.execute(query, values)
     
     conn.commit()
     conn.close()
@@ -169,29 +224,27 @@ def verify_database():
     
     # Display a sample of the data
     print("\nSample data (first 5 rows):")
-    print(df[['task_name', 'attack_type', 'gpt4o_accuracy', 'gpt4o_change', 
-              'qwen_accuracy', 'qwen_change', 'gemma_accuracy', 'gemma_change']].head().to_string(index=False))
+    # Get all columns except id and timestamp
+    display_cols = [col for col in df.columns if col not in ['id', 'timestamp']]
+    print(df[display_cols].head().to_string(index=False))
     
-    # Calculate some statistics
+    # Calculate some statistics for each model
     print("\nMost effective attacks (largest negative change) by model:")
     
-    # For GPT4o
-    min_gpt4o_idx = df['gpt4o_change'].idxmin()
-    print(f"  GPT4o: {df.loc[min_gpt4o_idx, 'attack_type']} ({df.loc[min_gpt4o_idx, 'gpt4o_change']:.2f}%)")
+    # Find all change columns
+    change_cols = [col for col in df.columns if col.endswith('_change')]
     
-    # For Qwen
-    min_qwen_idx = df['qwen_change'].idxmin()
-    print(f"  Qwen: {df.loc[min_qwen_idx, 'attack_type']} ({df.loc[min_qwen_idx, 'qwen_change']:.2f}%)")
-    
-    # For Gemma
-    min_gemma_idx = df['gemma_change'].idxmin()
-    print(f"  Gemma: {df.loc[min_gemma_idx, 'attack_type']} ({df.loc[min_gemma_idx, 'gemma_change']:.2f}%)")
+    for col in change_cols:
+        model_name = col.replace('_change', '')
+        if len(df) > 0:  # Make sure we have data
+            min_idx = df[col].idxmin()
+            print(f"  {model_name}: {df.loc[min_idx, 'attack_type']} ({df.loc[min_idx, col]:.2f}%)")
     
     # Calculate average change by model
     print("\nAverage accuracy change by model:")
-    print(f"  GPT4o: {df['gpt4o_change'].mean():.2f}%")
-    print(f"  Qwen: {df['qwen_change'].mean():.2f}%")
-    print(f"  Gemma: {df['gemma_change'].mean():.2f}%")
+    for col in change_cols:
+        model_name = col.replace('_change', '')
+        print(f"  {model_name}: {df[col].mean():.2f}%")
     
     # Show database size
     cursor.execute("SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()")
@@ -207,14 +260,17 @@ def main():
     # Ensure the database directory exists
     ensure_db_directory()
     
-    # Create the database schema
-    create_database()
-    
     # Load results from JSON
     data = load_results_from_json()
     if not data:
         print("No data found. Exiting.")
         return
+    
+    # Get model columns
+    model_columns = get_model_columns(data)
+    
+    # Create or update the database schema
+    create_database(model_columns)
     
     # Prepare the data
     rows = prepare_data(data)

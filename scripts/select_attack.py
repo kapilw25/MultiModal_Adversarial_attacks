@@ -130,7 +130,7 @@ def select_attack(engine, task, random_count):
     if choice == len(attacks):  # ALL ATTACKS option
         results = []
         for attack in attacks[:-1]:  # Exclude the ALL ATTACKS option itself
-            output_file = f"results/{engine}/eval_{engine}_{task}_{random_count}{attack['suffix']}.json"
+            output_file = f"results/models/{engine}/eval_{engine}_{task}_{random_count}{attack['suffix']}.json"
             
             # Check if file already exists
             if os.path.exists(output_file):
@@ -149,7 +149,7 @@ def select_attack(engine, task, random_count):
     # Process single attack option
     else:
         attack = attacks[choice-1]
-        output_file = f"results/{engine}/eval_{engine}_{task}_{random_count}{attack['suffix']}.json"
+        output_file = f"results/models/{engine}/eval_{engine}_{task}_{random_count}{attack['suffix']}.json"
         
         # Check if file already exists
         if os.path.exists(output_file):

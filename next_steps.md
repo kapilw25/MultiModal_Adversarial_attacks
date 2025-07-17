@@ -15,6 +15,7 @@
 | Microsoft | [Florence-2-base](https://huggingface.co/microsoft/Florence-2-base) (0.23B) ✅, [Florence-2-large](https://huggingface.co/microsoft/Florence-2-large) (0.77B) ✅, [udop-large](https://huggingface.co/microsoft/udop-large) (0.74B F32) ❌ (task mismatch) | - | [GUI-Actor-2B-Qwen2-VL](https://huggingface.co/microsoft/GUI-Actor-2B-Qwen2-VL) (2.23B BF16) ❌ (task mismatch) | [GUI-Actor-3B-Qwen2.5-VL](https://huggingface.co/microsoft/GUI-Actor-3B-Qwen2.5-VL) (3.79B BF16) ❌ (task mismatch) | [Phi-3.5-vision](https://huggingface.co/microsoft/Phi-3.5-vision-instruct) (4.15B BF16) ✅ | - | - |
 | LLaVA Hybrid | [Zhang199/TinyLLaVA-Qwen2-0.5B-SigLIP](https://huggingface.co/Zhang199/TinyLLaVA-Qwen2-0.5B-SigLIP) ❌ (custom arch), [jiajunlong/TinyLLaVA-0.89B](https://huggingface.co/jiajunlong/TinyLLaVA-0.89B) ❌ (custom arch) | [Intel/llava-gemma-2b](https://huggingface.co/Intel/llava-gemma-2b) (2.82B F32) ❌ | [tinyllava/TinyLLaVA-Gemma-SigLIP-2.4B](https://huggingface.co/tinyllava/TinyLLaVA-Gemma-SigLIP-2.4B) ❌ (custom arch), [Zhang199/TinyLLaVA-Qwen2.5-3B-SigLIP](https://huggingface.co/Zhang199/TinyLLaVA-Qwen2.5-3B-SigLIP) ❌ (custom arch) | [tinyllava/TinyLLaVA-Phi-2-SigLIP-3.1B](https://huggingface.co/tinyllava/TinyLLaVA-Phi-2-SigLIP-3.1B) ❌ (custom arch) | - | - | - |
 | InternVL | [InternVL3-1B](https://huggingface.co/OpenGVLab/InternVL3-1B) ✅ | [InternVL3-2B](https://huggingface.co/OpenGVLab/InternVL3-2B) ✅ | - | - | [InternVL2_5-4B](https://huggingface.co/OpenGVLab/InternVL2_5-4B) ✅ | - | - |
+| Salesforce | - | - | - | [blip2-opt-2.7b](https://huggingface.co/Salesforce/blip2-opt-2.7b) (3.74B) ❌ (chart incompatibility) | [instructblip-flan-t5-xl](https://huggingface.co/Salesforce/instructblip-flan-t5-xl) (4.02B) ❌ (chart incompatibility)| - | - | - |
 
 ## Legend
 - ✅ = Implemented and working in our framework
@@ -65,3 +66,10 @@
 - Model loads successfully on GPU but fails during image processing with `TypeError: unsupported operand type(s) for //: 'int' and 'NoneType'` due to missing patch_size attribute
 - Generates `ValueError: Image features and image tokens do not match: tokens: 1, features 1179648` when attempting inference, indicating incompatibility between image processing pipeline and model architecture
 
+
+### Salesforce Models (BLIP-2 & InstructBLIP)
+- Both models load successfully and perform well on natural images but fail with chart analysis: BLIP-2 repeats 
+questions verbatim (3.49GB GPU usage) while InstructBLIP generates irrelevant responses ("number of visits to idaho" 
+for internet usage chart)
+- Despite architectural differences (OPT vs FLAN-T5 backbone) and optimization attempts (prompt engineering, generation
+parameters), both exhibit the same fundamental limitation in understanding data visualizations
