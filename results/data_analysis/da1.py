@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
-Data analysis script for generating plots from the robustness database.
-This script reads data from the SQLite database and generates various plots
-to visualize model performance under different attack types.
+Data analysis script for generating plots from the normalized robustness database.
+This script reads data from the SQLite database with the new normalized structure
+and generates various plots to visualize model performance across different dimensions:
+- Attack types
+- Model families
+- Size categories
 """
 
 import os
@@ -73,42 +76,74 @@ MODEL_COLORS = {
     "internvl25_4b": "#98DF8A"        # Light Green
 }
 
-def normalize_model_name(model_name):
-    """
-    Normalize model name to match database column names.
-    
-    Args:
-        model_name (str): Original model name
-        
-    Returns:
-        str: Normalized model name suitable for SQL column
-    """
-    import re
-    
-    # Convert to lowercase
-    name = model_name.lower()
-    
-    # Replace special characters with underscores
-    name = re.sub(r'[^a-z0-9]', '_', name)
-    
-    # Remove consecutive underscores
-    name = re.sub(r'_+', '_', name)
-    
-    # Remove leading/trailing underscores
-    name = name.strip('_')
-    
-    return name
+# Define colors for model families
+FAMILY_COLORS = {
+    "OpenAI": "#0077B6",          # Blue
+    "Qwen VL": "#FF7F0E",         # Orange
+    "Google": "#2CA02C",          # Green
+    "DeepSeek VL": "#D62728",     # Red
+    "SmolVLM": "#9467BD",         # Purple
+    "Microsoft": "#E377C2",       # Pink
+    "Moondream": "#17BECF",       # Cyan
+    "GLM Edge": "#FFBB78",        # Light Orange
+    "InternVL": "#AEC7E8",        # Light Blue
+    "Salesforce": "#7F7F7F",      # Gray
+    "LLaVA Hybrid": "#BCBD22",    # Olive
+    "DeepSeek VL2": "#8C564B",    # Brown
+    "Other": "#C7C7C7"            # Light Gray
+}
+
+# Define colors for size categories
+SIZE_COLORS = {
+    "(0-1]B": "#FDE725",          # Yellow
+    "(1-2]B": "#5DC863",          # Green
+    "(2-3]B": "#21908C",          # Teal
+    "(3-4]B": "#3B528B",          # Blue
+    "(4-5]B": "#440154",          # Purple
+    "(5-6]B": "#FDE725",          # Yellow
+    "(6-7]B": "#5DC863",          # Green
+    "Cloud API": "#000000"         # Black
+}
+
+# Define colors for attack categories
+ATTACK_COLORS = {
+    "Transfer": "#FF7F0E",        # Orange
+    "Black-Box": "#1F77B4",       # Blue
+    "Original": "#2CA02C"         # Green
+}
 
 def load_data_from_db():
     """
-    Load data from the SQLite database.
+    Load data from the normalized SQLite database.
     
     Returns:
-        pandas.DataFrame: The loaded data
+        pandas.DataFrame: The loaded data with all dimension information
     """
     try:
         conn = sqlite3.connect(DB_PATH)
-        df = pd.read_sql_query("SELECT * FROM attack_comparison", conn)
+        
+        # Query that joins all dimension tables with the fact table
+        query = """
+        SELECT 
+            r.result_id,
+            t.task_name,
+            a.attack_name,
+            a.attack_category,
+            m.model_name,
+            f.family_name AS model_family,
+            s.size_range AS size_category,
+            r.accuracy,
+            r.accuracy_change,
+            r.timestamp
+        FROM results r
+        JOIN attack_types a ON r.attack_id = a.attack_id
+        JOIN models m ON r.model_id = m.model_id
+        JOIN tasks t ON r.task_id = t.task_id
+        JOIN model_families f ON m.family_id = f.family_id
+        JOIN size_categories s ON m.size_id = s.size_id
+        """
+        
+        df = pd.read_sql_query(query, conn)
         conn.close()
         return df
     except Exception as e:
@@ -122,39 +157,41 @@ def plot_model_degradation_line(df):
     Args:
         df (pandas.DataFrame): The loaded data
     """
-    # Get all change columns
-    change_cols = [col for col in df.columns if col.endswith('_change')]
-    
     # Select a subset of models to avoid overcrowding the plot
     # Prioritize models mentioned in the README
-    selected_models = ['gpt4o_change', 'qwen25_vl_3b_change', 'gemma3_vl_4b_change']
+    selected_models = ['gpt4o', 'qwen25_vl_3b', 'gemma3_vl_4b']
     
     # Filter to only include selected models that exist in the data
-    selected_models = [col for col in selected_models if col in change_cols]
+    selected_models = [model for model in selected_models if model in df['model_name'].unique()]
     
     # If we don't have enough models, add more from what's available
     if len(selected_models) < 3:
-        additional_models = [col for col in change_cols if col not in selected_models]
+        additional_models = [model for model in df['model_name'].unique() if model not in selected_models]
         selected_models.extend(additional_models[:3 - len(selected_models)])
     
-    # Create a new dataframe with just the attack type and selected model changes
-    plot_df = df[['attack_type'] + selected_models].copy()
+    # Create a pivot table for plotting
+    plot_df = df[df['model_name'].isin(selected_models)].pivot_table(
+        index='attack_name',
+        columns='model_name',
+        values='accuracy_change',
+        aggfunc='mean'
+    ).reset_index()
     
-    # Sort by attack type to ensure consistent ordering
-    plot_df = plot_df.sort_values('attack_type')
+    # Sort by attack name to ensure consistent ordering
+    plot_df = plot_df.sort_values('attack_name')
     
     # Set up the plot
     plt.figure(figsize=(14, 8))
     
     # Plot each model
-    for col in selected_models:
-        model_name = col.replace('_change', '')
-        display_name = DISPLAY_NAMES.get(model_name, model_name)
-        color = MODEL_COLORS.get(model_name, 'gray')
-        
-        plt.plot(plot_df['attack_type'], plot_df[col], 
-                 marker='o', linewidth=2, markersize=8, 
-                 label=display_name, color=color)
+    for model in selected_models:
+        if model in plot_df.columns:
+            display_name = DISPLAY_NAMES.get(model, model)
+            color = MODEL_COLORS.get(model, 'gray')
+            
+            plt.plot(plot_df['attack_name'], plot_df[model], 
+                    marker='o', linewidth=2, markersize=8, 
+                    label=display_name, color=color)
     
     # Add a horizontal line at y=0
     plt.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
@@ -181,20 +218,17 @@ def plot_attack_effectiveness_heatmap(df):
     Args:
         df (pandas.DataFrame): The loaded data
     """
-    # Get all change columns
-    change_cols = [col for col in df.columns if col.endswith('_change')]
-    
     # Create a pivot table for the heatmap
     # Rows are attack types, columns are models
     heatmap_data = df.pivot_table(
-        index='attack_type',
-        values=[col for col in change_cols],
+        index='attack_name',
+        columns='model_name',
+        values='accuracy_change',
         aggfunc='mean'
     )
     
     # Rename columns to display names
-    heatmap_data.columns = [DISPLAY_NAMES.get(col.replace('_change', ''), col.replace('_change', '')) 
-                           for col in heatmap_data.columns]
+    heatmap_data.columns = [DISPLAY_NAMES.get(col, col) for col in heatmap_data.columns]
     
     # Set up the plot
     plt.figure(figsize=(14, 10))
@@ -221,215 +255,39 @@ def plot_attack_effectiveness_heatmap(df):
     
     print(f"Created attack effectiveness heatmap: {os.path.join(PLOT_DIR, 'attack_effectiveness_heatmap.png')}")
 
-def plot_model_robustness_radar(df):
+def plot_model_family_robustness(df):
     """
-    Create a radar chart showing model robustness across different attack types.
+    Create a bar chart showing average robustness by model family.
     
     Args:
         df (pandas.DataFrame): The loaded data
     """
-    # Get all change columns
-    change_cols = [col for col in df.columns if col.endswith('_change')]
-    
-    # Select a subset of models to avoid overcrowding the plot
-    selected_models = ['gpt4o_change', 'qwen25_vl_3b_change', 'gemma3_vl_4b_change']
-    
-    # Filter to only include selected models that exist in the data
-    selected_models = [col for col in selected_models if col in change_cols]
-    
-    # If we don't have enough models, add more from what's available
-    if len(selected_models) < 3:
-        additional_models = [col for col in change_cols if col not in selected_models]
-        selected_models.extend(additional_models[:3 - len(selected_models)])
-    
-    # Select a subset of attack types for readability
-    # Prioritize the most effective attacks
-    attack_effectiveness = df.groupby('attack_type')[selected_models].mean().min(axis=1).sort_values()
-    selected_attacks = attack_effectiveness.index[:8].tolist()
-    
-    # Filter data to include only selected attacks
-    radar_df = df[df['attack_type'].isin(selected_attacks)].copy()
-    
-    # Set up the plot
-    fig = plt.figure(figsize=(10, 10))
-    ax = fig.add_subplot(111, polar=True)
-    
-    # Number of attack types
-    N = len(selected_attacks)
-    
-    # Angles for each attack type (in radians)
-    angles = np.linspace(0, 2*np.pi, N, endpoint=False).tolist()
-    
-    # Close the loop
-    angles += angles[:1]
-    
-    # Plot each model
-    for col in selected_models:
-        model_name = col.replace('_change', '')
-        display_name = DISPLAY_NAMES.get(model_name, model_name)
-        color = MODEL_COLORS.get(model_name, 'gray')
-        
-        # Get values for this model
-        values = radar_df.set_index('attack_type')[col].reindex(selected_attacks).tolist()
-        
-        # Close the loop
-        values += values[:1]
-        
-        # Plot the model
-        ax.plot(angles, values, linewidth=2, label=display_name, color=color)
-        ax.fill(angles, values, alpha=0.1, color=color)
-    
-    # Set the labels
-    ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(selected_attacks, fontsize=10)
-    
-    # Add a title
-    plt.title('Model Robustness Across Attack Types', fontsize=16, y=1.1)
-    
-    # Add a legend
-    plt.legend(loc='upper right', bbox_to_anchor=(0.1, 0.1))
-    
-    # Save the plot
-    plt.tight_layout()
-    plt.savefig(os.path.join(PLOT_DIR, 'model_robustness_radar.png'), dpi=300)
-    plt.close()
-    
-    print(f"Created model robustness radar chart: {os.path.join(PLOT_DIR, 'model_robustness_radar.png')}")
-
-def plot_model_size_vs_robustness(df):
-    """
-    Create a scatter plot showing the relationship between model size and robustness.
-    
-    Args:
-        df (pandas.DataFrame): The loaded data
-    """
-    # Define model sizes in billions of parameters
-    model_sizes = {
-        "gpt4o": 25.0,  # Estimated
-        "qwen25_vl_3b": 3.0,
-        "qwen25_vl_7b": 7.0,
-        "qwen2_vl_2b": 2.0,
-        "gemma3_vl_4b": 4.0,
-        "paligemma_vl_3b": 3.0,
-        "deepseek1_vl_1pt3b": 1.3,
-        "deepseek1_vl_7b": 7.0,
-        "smolvlm2_pt25b": 0.256,
-        "smolvlm2_pt5b": 0.5,
-        "smolvlm2_2pt2b": 2.2,
-        "phi3pt5_vision_4b": 4.15,
-        "florence2_pt23b": 0.23,
-        "florence2_pt77b": 0.77,
-        "moondream2_2b": 1.93,
-        "glmedge_2b": 2.0,
-        "internvl3_1b": 1.0,
-        "internvl3_2b": 2.0,
-        "internvl25_4b": 4.0
-    }
-    
-    # Get all change columns
-    change_cols = [col for col in df.columns if col.endswith('_change')]
-    
-    # Calculate average change for each model
-    model_avg_changes = {}
-    for col in change_cols:
-        model_name = col.replace('_change', '')
-        model_avg_changes[model_name] = df[col].mean()
-    
-    # Create lists for plotting
-    models = []
-    sizes = []
-    changes = []
-    colors = []
-    
-    for model, avg_change in model_avg_changes.items():
-        if model in model_sizes:
-            models.append(DISPLAY_NAMES.get(model, model))
-            sizes.append(model_sizes[model])
-            changes.append(avg_change)
-            colors.append(MODEL_COLORS.get(model, 'gray'))
+    # Calculate average accuracy change by model family
+    family_avg = df.groupby('model_family')['accuracy_change'].mean().sort_values()
     
     # Set up the plot
     plt.figure(figsize=(12, 8))
     
-    # Create the scatter plot
-    scatter = plt.scatter(sizes, changes, c=colors, s=100, alpha=0.7)
-    
-    # Add labels for each point
-    for i, model in enumerate(models):
-        plt.annotate(model, (sizes[i], changes[i]), 
-                    textcoords="offset points", 
-                    xytext=(0, 10), 
-                    ha='center')
-    
-    # Add a trend line
-    z = np.polyfit(sizes, changes, 1)
-    p = np.poly1d(z)
-    plt.plot(sorted(sizes), p(sorted(sizes)), "r--", alpha=0.7)
-    
-    # Add a horizontal line at y=0
-    plt.axhline(y=0, color='gray', linestyle='--', alpha=0.5)
-    
-    # Customize the plot
-    plt.title('Model Size vs. Robustness Against Attacks', fontsize=16)
-    plt.xlabel('Model Size (Billions of Parameters)', fontsize=14)
-    plt.ylabel('Average Accuracy Change (%)', fontsize=14)
-    plt.grid(True, alpha=0.3)
-    
-    # Use log scale for x-axis to better visualize the range of model sizes
-    plt.xscale('log')
-    plt.xlim(0.2, 30)
-    
-    # Add text explaining the interpretation
-    plt.figtext(0.5, 0.01, 
-                "Higher values indicate better robustness (less accuracy degradation)",
-                ha="center", fontsize=12)
-    
-    plt.tight_layout()
-    
-    # Save the plot
-    plt.savefig(os.path.join(PLOT_DIR, 'model_size_vs_robustness.png'), dpi=300)
-    plt.close()
-    
-    print(f"Created model size vs. robustness plot: {os.path.join(PLOT_DIR, 'model_size_vs_robustness.png')}")
-
-def plot_attack_comparison_bar(df):
-    """
-    Create a bar chart comparing the effectiveness of different attacks.
-    
-    Args:
-        df (pandas.DataFrame): The loaded data
-    """
-    # Get all change columns
-    change_cols = [col for col in df.columns if col.endswith('_change')]
-    
-    # Calculate average change for each attack type
-    attack_avg_changes = df.groupby('attack_type')[change_cols].mean().mean(axis=1).sort_values()
-    
-    # Set up the plot
-    plt.figure(figsize=(14, 8))
-    
     # Create the bar chart
-    bars = plt.bar(attack_avg_changes.index, attack_avg_changes.values, color='skyblue')
+    bars = plt.bar(family_avg.index, family_avg.values)
     
-    # Color bars based on value (red for negative, green for positive)
+    # Color bars based on model family
     for i, bar in enumerate(bars):
-        if attack_avg_changes.values[i] < 0:
-            bar.set_color('#FF7F7F')  # Light red
-        else:
-            bar.set_color('#7FBF7F')  # Light green
+        family = family_avg.index[i]
+        bar.set_color(FAMILY_COLORS.get(family, 'gray'))
     
     # Add a horizontal line at y=0
     plt.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
     
     # Customize the plot
-    plt.title('Average Effectiveness of Different Attack Types', fontsize=16)
-    plt.xlabel('Attack Type', fontsize=14)
+    plt.title('Average Robustness by Model Family', fontsize=16)
+    plt.xlabel('Model Family', fontsize=14)
     plt.ylabel('Average Accuracy Change (%)', fontsize=14)
     plt.xticks(rotation=45, ha='right')
     plt.grid(True, axis='y', alpha=0.3)
     
     # Add value labels on top of bars
-    for i, v in enumerate(attack_avg_changes.values):
+    for i, v in enumerate(family_avg.values):
         plt.text(i, v + (0.5 if v >= 0 else -1.5), 
                 f"{v:.1f}%", 
                 ha='center', fontsize=10)
@@ -437,14 +295,259 @@ def plot_attack_comparison_bar(df):
     plt.tight_layout()
     
     # Save the plot
-    plt.savefig(os.path.join(PLOT_DIR, 'attack_comparison_bar.png'), dpi=300)
+    plt.savefig(os.path.join(PLOT_DIR, 'model_family_robustness.png'), dpi=300)
     plt.close()
     
-    print(f"Created attack comparison bar chart: {os.path.join(PLOT_DIR, 'attack_comparison_bar.png')}")
+    print(f"Created model family robustness bar chart: {os.path.join(PLOT_DIR, 'model_family_robustness.png')}")
+
+def plot_size_category_robustness(df):
+    """
+    Create a bar chart showing average robustness by size category.
+    
+    Args:
+        df (pandas.DataFrame): The loaded data
+    """
+    # Calculate average accuracy change by size category
+    # Define a custom sort order for size categories
+    size_order = ['(0-1]B', '(1-2]B', '(2-3]B', '(3-4]B', '(4-5]B', '(5-6]B', '(6-7]B', 'Cloud API']
+    
+    # Filter to only include size categories that exist in the data
+    size_order = [size for size in size_order if size in df['size_category'].unique()]
+    
+    # Calculate average accuracy change by size category
+    size_avg = df.groupby('size_category')['accuracy_change'].mean()
+    
+    # Reindex based on the custom sort order
+    size_avg = size_avg.reindex(size_order)
+    
+    # Set up the plot
+    plt.figure(figsize=(12, 8))
+    
+    # Create the bar chart
+    bars = plt.bar(size_avg.index, size_avg.values)
+    
+    # Color bars based on size category
+    for i, bar in enumerate(bars):
+        size = size_avg.index[i]
+        bar.set_color(SIZE_COLORS.get(size, 'gray'))
+    
+    # Add a horizontal line at y=0
+    plt.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
+    
+    # Customize the plot
+    plt.title('Average Robustness by Model Size Category', fontsize=16)
+    plt.xlabel('Model Size Category', fontsize=14)
+    plt.ylabel('Average Accuracy Change (%)', fontsize=14)
+    plt.grid(True, axis='y', alpha=0.3)
+    
+    # Add value labels on top of bars
+    for i, v in enumerate(size_avg.values):
+        plt.text(i, v + (0.5 if v >= 0 else -1.5), 
+                f"{v:.1f}%", 
+                ha='center', fontsize=10)
+    
+    plt.tight_layout()
+    
+    # Save the plot
+    plt.savefig(os.path.join(PLOT_DIR, 'size_category_robustness.png'), dpi=300)
+    plt.close()
+    
+    print(f"Created size category robustness bar chart: {os.path.join(PLOT_DIR, 'size_category_robustness.png')}")
+
+def plot_attack_category_effectiveness(df):
+    """
+    Create a bar chart showing the effectiveness of different attack categories.
+    
+    Args:
+        df (pandas.DataFrame): The loaded data
+    """
+    # Calculate average change for each attack category
+    attack_cat_avg = df.groupby('attack_category')['accuracy_change'].mean().sort_values()
+    
+    # Set up the plot
+    plt.figure(figsize=(10, 6))
+    
+    # Create the bar chart
+    bars = plt.bar(attack_cat_avg.index, attack_cat_avg.values)
+    
+    # Color bars based on attack category
+    for i, bar in enumerate(bars):
+        category = attack_cat_avg.index[i]
+        bar.set_color(ATTACK_COLORS.get(category, 'gray'))
+    
+    # Add a horizontal line at y=0
+    plt.axhline(y=0, color='gray', linestyle='--', alpha=0.7)
+    
+    # Customize the plot
+    plt.title('Average Effectiveness by Attack Category', fontsize=16)
+    plt.xlabel('Attack Category', fontsize=14)
+    plt.ylabel('Average Accuracy Change (%)', fontsize=14)
+    plt.grid(True, axis='y', alpha=0.3)
+    
+    # Add value labels on top of bars
+    for i, v in enumerate(attack_cat_avg.values):
+        plt.text(i, v + (0.5 if v >= 0 else -1.5), 
+                f"{v:.1f}%", 
+                ha='center', fontsize=10)
+    
+    plt.tight_layout()
+    
+    # Save the plot
+    plt.savefig(os.path.join(PLOT_DIR, 'attack_category_effectiveness.png'), dpi=300)
+    plt.close()
+    
+    print(f"Created attack category effectiveness bar chart: {os.path.join(PLOT_DIR, 'attack_category_effectiveness.png')}")
+
+def plot_family_vs_attack_category_heatmap(df):
+    """
+    Create a heatmap showing the effectiveness of attack categories across model families.
+    
+    Args:
+        df (pandas.DataFrame): The loaded data
+    """
+    # Create a pivot table for the heatmap
+    heatmap_data = df.pivot_table(
+        index='model_family',
+        columns='attack_category',
+        values='accuracy_change',
+        aggfunc='mean'
+    )
+    
+    # Set up the plot
+    plt.figure(figsize=(10, 8))
+    
+    # Create the heatmap
+    sns.heatmap(heatmap_data, 
+                annot=True, 
+                fmt=".1f", 
+                cmap="RdYlGn_r",  # Red for negative (bad), green for positive (good)
+                center=0,
+                linewidths=.5,
+                cbar_kws={'label': 'Accuracy Change (%)'}
+               )
+    
+    # Customize the plot
+    plt.title('Attack Category Effectiveness Across Model Families', fontsize=16)
+    plt.ylabel('Model Family', fontsize=14)
+    plt.xlabel('Attack Category', fontsize=14)
+    plt.tight_layout()
+    
+    # Save the plot
+    plt.savefig(os.path.join(PLOT_DIR, 'family_vs_attack_category_heatmap.png'), dpi=300)
+    plt.close()
+    
+    print(f"Created family vs attack category heatmap: {os.path.join(PLOT_DIR, 'family_vs_attack_category_heatmap.png')}")
+
+def plot_size_vs_attack_category_heatmap(df):
+    """
+    Create a heatmap showing the effectiveness of attack categories across model size categories.
+    
+    Args:
+        df (pandas.DataFrame): The loaded data
+    """
+    # Define a custom sort order for size categories
+    size_order = ['(0-1]B', '(1-2]B', '(2-3]B', '(3-4]B', '(4-5]B', '(5-6]B', '(6-7]B', 'Cloud API']
+    
+    # Filter to only include size categories that exist in the data
+    size_order = [size for size in size_order if size in df['size_category'].unique()]
+    
+    # Create a pivot table for the heatmap
+    heatmap_data = df.pivot_table(
+        index='size_category',
+        columns='attack_category',
+        values='accuracy_change',
+        aggfunc='mean'
+    )
+    
+    # Reindex based on the custom sort order
+    heatmap_data = heatmap_data.reindex(size_order)
+    
+    # Set up the plot
+    plt.figure(figsize=(10, 8))
+    
+    # Create the heatmap
+    sns.heatmap(heatmap_data, 
+                annot=True, 
+                fmt=".1f", 
+                cmap="RdYlGn_r",  # Red for negative (bad), green for positive (good)
+                center=0,
+                linewidths=.5,
+                cbar_kws={'label': 'Accuracy Change (%)'}
+               )
+    
+    # Customize the plot
+    plt.title('Attack Category Effectiveness Across Model Size Categories', fontsize=16)
+    plt.ylabel('Model Size Category', fontsize=14)
+    plt.xlabel('Attack Category', fontsize=14)
+    plt.tight_layout()
+    
+    # Save the plot
+    plt.savefig(os.path.join(PLOT_DIR, 'size_vs_attack_category_heatmap.png'), dpi=300)
+    plt.close()
+    
+    print(f"Created size vs attack category heatmap: {os.path.join(PLOT_DIR, 'size_vs_attack_category_heatmap.png')}")
+
+def plot_3d_dimension_analysis(df):
+    """
+    Create a 3D scatter plot showing the relationship between model family, size category, and robustness.
+    
+    Args:
+        df (pandas.DataFrame): The loaded data
+    """
+    # Calculate average accuracy change by model family and size category
+    grouped_data = df.groupby(['model_family', 'size_category'])['accuracy_change'].mean().reset_index()
+    
+    # Set up the plot
+    fig = plt.figure(figsize=(14, 10))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    # Create a mapping of model families to numeric values for the x-axis
+    families = grouped_data['model_family'].unique()
+    family_to_num = {family: i for i, family in enumerate(families)}
+    
+    # Create a mapping of size categories to numeric values for the y-axis
+    size_order = ['(0-1]B', '(1-2]B', '(2-3]B', '(3-4]B', '(4-5]B', '(5-6]B', '(6-7]B', 'Cloud API']
+    size_to_num = {size: i for i, size in enumerate(size_order) if size in grouped_data['size_category'].unique()}
+    
+    # Create lists for plotting
+    x = [family_to_num[family] for family in grouped_data['model_family']]
+    y = [size_to_num.get(size, -1) for size in grouped_data['size_category']]
+    z = grouped_data['accuracy_change'].values
+    colors = [FAMILY_COLORS.get(family, 'gray') for family in grouped_data['model_family']]
+    
+    # Create the scatter plot
+    scatter = ax.scatter(x, y, z, c=colors, s=100, alpha=0.7)
+    
+    # Add labels for each point
+    for i in range(len(x)):
+        ax.text(x[i], y[i], z[i], 
+                f"{grouped_data['model_family'].iloc[i]}, {grouped_data['size_category'].iloc[i]}", 
+                fontsize=8)
+    
+    # Customize the plot
+    ax.set_title('Model Family, Size Category, and Robustness', fontsize=16)
+    ax.set_xlabel('Model Family', fontsize=14)
+    ax.set_ylabel('Size Category', fontsize=14)
+    ax.set_zlabel('Average Accuracy Change (%)', fontsize=14)
+    
+    # Set custom tick labels
+    ax.set_xticks(list(family_to_num.values()))
+    ax.set_xticklabels(list(family_to_num.keys()), rotation=45, ha='right')
+    
+    ax.set_yticks(list(size_to_num.values()))
+    ax.set_yticklabels(list(size_to_num.keys()))
+    
+    plt.tight_layout()
+    
+    # Save the plot
+    plt.savefig(os.path.join(PLOT_DIR, '3d_dimension_analysis.png'), dpi=300)
+    plt.close()
+    
+    print(f"Created 3D dimension analysis plot: {os.path.join(PLOT_DIR, '3d_dimension_analysis.png')}")
 
 def main():
     """Main function to run the script."""
-    print("Starting data analysis...")
+    print("Starting data analysis with normalized database structure...")
     
     # Load data from the database
     df = load_data_from_db()
@@ -458,9 +561,12 @@ def main():
     # Generate plots
     plot_model_degradation_line(df)
     plot_attack_effectiveness_heatmap(df)
-    plot_model_robustness_radar(df)
-    plot_model_size_vs_robustness(df)
-    plot_attack_comparison_bar(df)
+    plot_model_family_robustness(df)
+    plot_size_category_robustness(df)
+    plot_attack_category_effectiveness(df)
+    plot_family_vs_attack_category_heatmap(df)
+    plot_size_vs_attack_category_heatmap(df)
+    plot_3d_dimension_analysis(df)
     
     print(f"\nAll plots saved to {PLOT_DIR}")
 
