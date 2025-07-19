@@ -72,26 +72,9 @@ This design ensures that new models can be added with minimal changes to the exi
 | InternVL2.5-4B | 4B | 2.73 GB | 14.56s | 5.89s | bfloat16, NF4 | Complete, accurate ✅ |
 | Phi-3.5-vision-instruct | 4.15B | 2.34 GB | 16.77s | 64.15s ⬆️ | bfloat16, NF4 | Complete, accurate ✅ |
 
-### 2. Transfer Attacks
-Located in `attack_models/transfer_attacks/`, these attacks typically require access to model gradients but are implemented here using surrogate models:
-- `v2_pgd_attack.py`: Projected Gradient Descent attack
-- `v3_fgsm_attack.py`: Fast Gradient Sign Method attack
-- `v4_cw_l2_attack.py`: Carlini & Wagner L2 attack
-- `v5_cw_l0_attack.py`: Carlini & Wagner L0 attack
-- `v6_cw_linf_attack.py`: Carlini & Wagner L∞ attack
-- `v7_lbfgs_attack.py`: L-BFGS attack
-- `v8_jsma_attack.py`: Jacobian-based Saliency Map Attack
-- `v9_deepfool_attack.py`: DeepFool attack
+### 2. Transfer Attacks & True Black-Box Attacks
 
-### 3. True Black-Box Attacks
-Located in `attack_models/true_black_box_attacks/`, these attacks don't require any gradient information:
-- `v10_square_attack.py`: Square Attack with perceptual constraints
-- `v11_hop_skip_jump_attack.py`: HopSkipJump Attack with perceptual constraints
-- `v12_pixel_attack.py`: Pixel Attack with perceptual constraints
-- `v13_simba_attack.py`: SimBA (Simple Black-box Adversarial) Attack with perceptual constraints
-- `v14_spatial_transformation_attack.py`: Spatial Transformation Attack with perceptual constraints
-- `v15_query_efficient_bb_attack.py`: Query-Efficient Black-box Attack with perceptual constraints
-- `v0_attack_utils.py`: Shared utility functions for all black-box attacks
+The project implements 17 adversarial attacks against VLMs, all executable via a single bash script (`scripts/run_all_attacks.sh`). The script runs 8 transfer attacks (PGD, FGSM, CW variants, L-BFGS, JSMA, DeepFool) that use surrogate models, and 9 true black-box attacks (Square, HopSkipJump, Pixel, SimBA, Spatial, Query-Efficient, ZOO, Boundary, GeoDA) that don't require gradient information. All attacks maintain SSIM ≥ 0.85 for perceptual similarity.
 
 ### 4. Evaluation Framework
 Located in `scripts/`, this module handles model evaluation and result analysis:
@@ -151,14 +134,10 @@ pip install -r requirements.txt
 
 ### 2. Generate Adversarial Examples
 
-#### Square Attack (True Black-Box)
+To run all attacks sequentially:
 ```bash
-source venv_MM/bin/activate && python attack_models/true_black_box_attacks/v10_square_attack.py --image_path data/test_extracted/chart/20231114102825506748.png --eps 0.15 --norm inf --max_iter 200 --p_init 0.3 --ssim_threshold 0.85
-```
-
-#### HopSkipJump Attack (True Black-Box)
-```bash
-source venv_MM/bin/activate && python attack_models/true_black_box_attacks/v11_hop_skip_jump_attack.py --image_path data/test_extracted/chart/20231114102825506748.png --norm 2 --max_iter 20 --max_eval 500 --ssim_threshold 0.85
+chmod +x scripts/run_all_attacks.sh
+./scripts/run_all_attacks.sh
 ```
 
 ### 3. Evaluate Model Performance
