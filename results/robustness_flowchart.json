@@ -1,0 +1,444 @@
+{
+  "models": {
+    "gpt4o": {
+      "Original": {
+        "accuracy": 90.0,
+        "change": 0.0,
+        "effect": "Baseline"
+      },
+      "PGD": {
+        "accuracy": 95.0,
+        "change": 5.0,
+        "effect": "Improvement"
+      },
+      "FGSM": {
+        "accuracy": 90.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "CW-L2": {
+        "accuracy": 90.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "CW-L0": {
+        "accuracy": 85.0,
+        "change": -5.0,
+        "effect": "Degradation"
+      },
+      "CW-L\u221e": {
+        "accuracy": 80.0,
+        "change": -10.0,
+        "effect": "Degradation"
+      },
+      "L-BFGS": {
+        "accuracy": 85.0,
+        "change": -5.0,
+        "effect": "Degradation"
+      },
+      "JSMA": {
+        "accuracy": 90.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "DeepFool": {
+        "accuracy": 80.0,
+        "change": -10.0,
+        "effect": "Degradation"
+      },
+      "Square": {
+        "accuracy": 80.0,
+        "change": -10.0,
+        "effect": "Degradation"
+      },
+      "HopSkipJump": {
+        "accuracy": 80.0,
+        "change": -10.0,
+        "effect": "Degradation"
+      },
+      "Pixel": {
+        "accuracy": 80.0,
+        "change": -10.0,
+        "effect": "Degradation"
+      },
+      "SimBA": {
+        "accuracy": 80.0,
+        "change": -10.0,
+        "effect": "Degradation"
+      },
+      "Spatial": {
+        "accuracy": 85.0,
+        "change": -5.0,
+        "effect": "Degradation"
+      },
+      "Query-Efficient BB": {
+        "accuracy": 80.0,
+        "change": -10.0,
+        "effect": "Degradation"
+      },
+      "ZOO": {
+        "accuracy": 90.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "Boundary": {
+        "accuracy": 85.0,
+        "change": -5.0,
+        "effect": "Degradation"
+      },
+      "GeoDA": {
+        "accuracy": 80.0,
+        "change": -10.0,
+        "effect": "Degradation"
+      }
+    },
+    "Qwen25_VL_3B": {
+      "Original": {
+        "accuracy": 20.0,
+        "change": 0.0,
+        "effect": "Baseline"
+      },
+      "PGD": {
+        "accuracy": 25.0,
+        "change": 5.0,
+        "effect": "Improvement"
+      },
+      "FGSM": {
+        "accuracy": 30.0,
+        "change": 10.0,
+        "effect": "Improvement"
+      },
+      "CW-L2": {
+        "accuracy": 25.0,
+        "change": 5.0,
+        "effect": "Improvement"
+      },
+      "CW-L0": {
+        "accuracy": 35.0,
+        "change": 15.0,
+        "effect": "Improvement"
+      },
+      "CW-L\u221e": {
+        "accuracy": 20.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "L-BFGS": {
+        "accuracy": 35.0,
+        "change": 15.0,
+        "effect": "Improvement"
+      },
+      "JSMA": {
+        "accuracy": 30.0,
+        "change": 10.0,
+        "effect": "Improvement"
+      },
+      "DeepFool": {
+        "accuracy": 20.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "Square": {
+        "accuracy": 35.0,
+        "change": 15.0,
+        "effect": "Improvement"
+      },
+      "HopSkipJump": {
+        "accuracy": 25.0,
+        "change": 5.0,
+        "effect": "Improvement"
+      },
+      "Pixel": {
+        "accuracy": 10.0,
+        "change": -10.0,
+        "effect": "Degradation"
+      },
+      "SimBA": {
+        "accuracy": 25.0,
+        "change": 5.0,
+        "effect": "Improvement"
+      },
+      "Spatial": {
+        "accuracy": 35.0,
+        "change": 15.0,
+        "effect": "Improvement"
+      },
+      "Query-Efficient BB": {
+        "accuracy": 40.0,
+        "change": 20.0,
+        "effect": "Improvement"
+      },
+      "ZOO": {
+        "accuracy": 30.0,
+        "change": 10.0,
+        "effect": "Improvement"
+      },
+      "Boundary": {
+        "accuracy": 40.0,
+        "change": 20.0,
+        "effect": "Improvement"
+      },
+      "GeoDA": {
+        "accuracy": 30.0,
+        "change": 10.0,
+        "effect": "Improvement"
+      }
+    },
+    "Qwen25_VL_7B": {
+      "Original": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "Baseline"
+      },
+      "PGD": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "FGSM": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "CW-L2": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "CW-L0": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "CW-L\u221e": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "L-BFGS": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "JSMA": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "DeepFool": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "Square": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "HopSkipJump": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "Pixel": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "SimBA": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "Spatial": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "Query-Efficient BB": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "ZOO": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "Boundary": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "GeoDA": {
+        "accuracy": 0.0,
+        "change": 0.0,
+        "effect": "No Change"
+      }
+    },
+    "Qwen2_VL_2B": {
+      "Original": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "Baseline"
+      },
+      "PGD": {
+        "accuracy": 5.0,
+        "change": -5.0,
+        "effect": "Degradation"
+      },
+      "FGSM": {
+        "accuracy": 5.0,
+        "change": -5.0,
+        "effect": "Degradation"
+      },
+      "CW-L2": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "CW-L0": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "CW-L\u221e": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "L-BFGS": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "JSMA": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "DeepFool": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "Square": {
+        "accuracy": 0.0,
+        "change": -10.0,
+        "effect": "Degradation"
+      },
+      "HopSkipJump": {
+        "accuracy": 5.0,
+        "change": -5.0,
+        "effect": "Degradation"
+      },
+      "Pixel": {
+        "accuracy": 0.0,
+        "change": -10.0,
+        "effect": "Degradation"
+      },
+      "SimBA": {
+        "accuracy": 5.0,
+        "change": -5.0,
+        "effect": "Degradation"
+      },
+      "Spatial": {
+        "accuracy": 5.0,
+        "change": -5.0,
+        "effect": "Degradation"
+      },
+      "Query-Efficient BB": {
+        "accuracy": 5.0,
+        "change": -5.0,
+        "effect": "Degradation"
+      },
+      "ZOO": {
+        "accuracy": 5.0,
+        "change": -5.0,
+        "effect": "Degradation"
+      },
+      "Boundary": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "GeoDA": {
+        "accuracy": 5.0,
+        "change": -5.0,
+        "effect": "Degradation"
+      }
+    },
+    "Gemma3_VL_4B": {
+      "Original": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "Baseline"
+      },
+      "PGD": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "FGSM": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "CW-L2": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "CW-L0": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "CW-L\u221e": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "L-BFGS": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "JSMA": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "DeepFool": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "Square": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "HopSkipJump": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "Pixel": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      },
+      "SimBA": {
+        "accuracy": 10.0,
+        "change": 0.0,
+        "effect": "No Change"
+      }
+    }
+  },
+  "metadata": {
+    "task_name": "flowchart",
+    "timestamp": "2025-07-19T07:00:00Z",
+    "version": "1.0"
+  }
+}

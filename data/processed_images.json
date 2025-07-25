@@ -1,0 +1,42 @@
+{
+  "chart": [
+    "chart/20231107140031466140.png",
+    "chart/20231107141554953383.png",
+    "chart/20231108143642918671.png"
+  ],
+  "table": [
+    "table/20240202222616910185.png",
+    "table/20240202222804197473.png",
+    "table/20240202141559370876.png"
+  ],
+  "road_map": [
+    "road_map/20240408193524_0_0.png",
+    "road_map/20240408204626_0_0.png",
+    "road_map/20240409124219_0_0.png"
+  ],
+  "dashboard": [
+    "dashboard/0001.png",
+    "dashboard/0002.png",
+    "dashboard/0003.png"
+  ],
+  "flowchart": [
+    "flowchart/20240603102225671652.png",
+    "flowchart/20240603110521295355.png",
+    "flowchart/20240603111725191116.png"
+  ],
+  "relation_graph": [
+    "relation_graph/20240610181502300779.png",
+    "relation_graph/20240610225610635784.png",
+    "relation_graph/20240610180638444414.png"
+  ],
+  "planar_layout": [
+    "planar_layout/1.png",
+    "planar_layout/0416.png",
+    "planar_layout/0333.png"
+  ],
+  "visual_puzzle": [
+    "visual_puzzle/15.png",
+    "visual_puzzle/16.png",
+    "visual_puzzle/17.png"
+  ]
+}

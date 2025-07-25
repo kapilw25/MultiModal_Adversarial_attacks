@@ -1,0 +1,51 @@
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "This is a playground. How many persons?", "answer": "5", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "How many tracks?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "How many people can this playground hold at the same time for a race?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Is there Person 10?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Is there an entrance?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Is there a bathroom?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Is there a football gate?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Is this playground suitable for football?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Do we have to cross the tracks to get into the football field?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Where is Person 4 in the playground?", "answer": "Left side", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Who is closest to Person 4?", "answer": "Person 3", "type": "planar_layout", "markers": []}
+{"question_id": "0333", "image": "planar_layout/0333.png", "text": "Is the distribution of Person 3 and Person 5 symmetrical?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "This is a pharmacy floor plan. Is there an exit?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Is there a restroom?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "If I have abdominal pain, where should I go?", "answer": "Digestive System", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Where should I pay my bills?", "answer": "Cashier area", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Where is the Cashier area?", "answer": "Top left corner", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Can I go upstairs/downstairs?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "How many exit doors are there?", "answer": "2", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Where are the ENT medicines?", "answer": "Middle right", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Is Hematology under Cardiovascular, according to this figure?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Which exit is the ENT pharmacy near?", "answer": "Emergency Exit", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Where should patients go for counseling?", "answer": "Service counter", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Where is the Service counter?", "answer": "Lower right part", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "Is the Cashier close to the exit?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "If I have a stomachache, where should I go?", "answer": "Digestive System", "type": "planar_layout", "markers": []}
+{"question_id": "0416", "image": "planar_layout/0416.png", "text": "If I want to go to the restroom from the service center, which direction should I go?", "answer": "Left", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "How many rooms are there?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "What room is directly above the living room?", "answer": "Bedroom", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Is there a sofa in the living room?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "How many doors are there?", "answer": "4", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Is there a bathtub in the bathroom?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "What room is to the right of the living room?", "answer": "Kitchen", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Is there a wardrobe in the bedroom?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "What is the label inside the bathroom?", "answer": "Bathroom", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "How many windows are there in the living room?", "answer": "1", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Which room has a TV?", "answer": "Living Room", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "If you move from the bedroom to the living room, which direction do you go?", "answer": "Down", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Which is larger, the living room or the kitchen?", "answer": "Living Room", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Which is larger, the bedroom or the bathroom?", "answer": "Bedroom", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Is there a door between the living room and the kitchen?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Is there a sink in the bathroom?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Which is larger, the kitchen or the bathroom?", "answer": "Kitchen", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Does the bedroom have a window?", "answer": "No", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Is there a door between the living room and the bedroom?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "How many beds are there?", "answer": "1", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "Is there a dining table in the kitchen?", "answer": "Yes", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "What room is below the bedroom?", "answer": "Living Room", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "What room is to the left of the kitchen?", "answer": "Living Room", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "What room is below the bathroom?", "answer": "Living Room", "type": "planar_layout", "markers": []}
+{"question_id": "1", "image": "planar_layout/1.png", "text": "If you move left from the kitchen, which room do you enter?", "answer": "Living Room", "type": "planar_layout", "markers": []}
