@@ -37,7 +37,7 @@ class InternVL2_5_4BModelWrapper(BaseVLModel):
         
         # Set appropriate paths and configurations for this model
         self.model_path = "OpenGVLab/InternVL2_5-4B"
-        self.max_gpu_memory = "6GiB"  # Larger model needs more memory
+        self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
         self.input_size = 448
         self.max_num = 3  # Reduced for memory efficiency with larger model
         

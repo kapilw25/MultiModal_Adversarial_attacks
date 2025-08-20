@@ -32,7 +32,7 @@ class Moondream2ModelWrapper(BaseVLModel):
         if "moondream2" in model_name.lower():
             self.model_path = "vikhyatk/moondream2"
             self.model_revision = "2025-06-21"
-            self.max_gpu_memory = "4GiB"  # ~2B model needs moderate memory
+            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
             self.dtype = torch.float16 if torch.cuda.is_available() else torch.float32
         else:
             raise ValueError(f"Unknown Moondream model version in name: {model_name}")

@@ -52,7 +52,8 @@ class PaliGemmaModelWrapper(BaseVLModel):
                 quantization_config=self.quantization_config,
                 torch_dtype=torch.float16,  # Changed to float16 for better compatibility
                 low_cpu_mem_usage=True,
-                device_map="auto"  # Let the model decide the best device placement
+                device_map="auto",  # Let the model decide the best device placement
+                max_memory={0: "7GiB", "cpu": "16GiB"}  # Upgraded to 7GiB for better performance
             )
             
             # Explicitly tie weights to resolve the warning
@@ -68,7 +69,8 @@ class PaliGemmaModelWrapper(BaseVLModel):
                 model_path,
                 quantization_config=self.quantization_config,
                 torch_dtype=torch.float16,
-                low_cpu_mem_usage=True
+                low_cpu_mem_usage=True,
+                max_memory={0: "7GiB", "cpu": "16GiB"}  # Upgraded to 7GiB for better performance
             )
             
             # Explicitly move model to device after loading

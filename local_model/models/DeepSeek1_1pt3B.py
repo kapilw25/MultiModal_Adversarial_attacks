@@ -58,7 +58,8 @@ class DeepSeekVL1pt3BModelWrapper(BaseVLModel):
             torch_dtype=torch.bfloat16,  # Use bfloat16 to match the model's expected type
             low_cpu_mem_usage=True,     # Reduce CPU memory usage during loading
             device_map="auto",          # Let the library optimize device placement
-            trust_remote_code=True
+            trust_remote_code=True,
+            max_memory={0: "7GiB", "cpu": "16GiB"}  # Upgraded to 7GiB for better performance
         )
         
         # Record end time and calculate duration

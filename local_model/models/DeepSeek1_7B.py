@@ -65,7 +65,7 @@ class DeepSeekVL7BModelWrapper(BaseVLModel):
                 torch_dtype=torch.bfloat16,  # Use bfloat16 to match the model's expected type
                 low_cpu_mem_usage=True,     # Reduce CPU memory usage during loading
                 device_map="auto",          # Let the library optimize device placement
-                max_memory={0: "6GiB", "cpu": "16GiB"},  # Limit GPU memory usage to 6GB, offload the rest to CPU
+                max_memory={0: "7GiB", "cpu": "16GiB"},  # Limit GPU memory usage to 7GB, offload the rest to CPU
                 offload_folder="offload_folder",  # Folder for offloading weights
                 offload_state_dict=True,    # Offload state dict to CPU
                 trust_remote_code=True

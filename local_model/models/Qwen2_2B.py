@@ -72,7 +72,7 @@ class Qwen2VL2BModelWrapper(BaseVLModel):
                     attn_implementation="flash_attention_2",
                     low_cpu_mem_usage=True,
                     device_map="auto",
-                    max_memory={0: "6GiB", "cpu": "16GiB"},
+                    max_memory={0: "7GiB", "cpu": "16GiB"},
                 )
                 print("Successfully loaded model with flash attention")
             except Exception as flash_err:
@@ -84,7 +84,7 @@ class Qwen2VL2BModelWrapper(BaseVLModel):
                     torch_dtype=torch.float16,
                     low_cpu_mem_usage=True,
                     device_map="auto",
-                    max_memory={0: "6GiB", "cpu": "16GiB"},
+                    max_memory={0: "7GiB", "cpu": "16GiB"},
                 )
                 print("Successfully loaded model without flash attention")
             

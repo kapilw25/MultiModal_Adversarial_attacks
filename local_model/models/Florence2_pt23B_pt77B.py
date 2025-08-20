@@ -33,13 +33,13 @@ class Florence2ModelWrapper(BaseVLModel):
         if "base" in model_name.lower():
             self.model_path = "microsoft/Florence-2-base"
             self.model_size = "base"
-            self.max_gpu_memory = "2GiB"  # Smaller model needs less memory
+            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
             self.use_4bit = False  # Small enough to run in float16
             self.dtype = torch.float16
         elif "large" in model_name.lower():
             self.model_path = "microsoft/Florence-2-large"
             self.model_size = "large"
-            self.max_gpu_memory = "3GiB"
+            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
             self.use_4bit = False  # Can still run in float16
             self.dtype = torch.float16
         else:

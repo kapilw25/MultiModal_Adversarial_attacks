@@ -66,7 +66,7 @@ class Qwen25VL7BModelWrapper(BaseVLModel):
                 torch_dtype=torch.float16,
                 low_cpu_mem_usage=True,
                 device_map="auto",
-                max_memory={0: "6GiB", "cpu": "16GiB"},
+                max_memory={0: "7GiB", "cpu": "16GiB"},
             )
             print("Successfully loaded standard model with 4-bit quantization")
             self.model_loaded = True

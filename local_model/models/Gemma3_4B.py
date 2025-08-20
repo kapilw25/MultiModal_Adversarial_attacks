@@ -43,7 +43,8 @@ class GemmaVLModelWrapper(BaseVLModel):
             model_path,
             self.quantization_config,
             torch_dtype=torch.bfloat16,  # Use bfloat16 for Gemma
-            low_cpu_mem_usage=True       # Additional memory optimization
+            low_cpu_mem_usage=True,      # Additional memory optimization
+            max_memory={0: "7GiB", "cpu": "16GiB"}  # Upgraded to 7GiB for better performance
         )
         
         # Load processor with recommended pixel settings

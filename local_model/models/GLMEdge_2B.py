@@ -30,7 +30,7 @@ class GLMEdgeModelWrapper(BaseVLModel):
         # Set model path and configurations
         self.model_path = "THUDM/glm-edge-v-2b"
         self.model_size = "2B"
-        self.max_gpu_memory = "4GiB"
+        self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
         self.dtype = torch.bfloat16
         
         # Aggressive memory cleanup before loading

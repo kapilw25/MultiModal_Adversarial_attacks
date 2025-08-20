@@ -39,13 +39,13 @@ class InternVL3ModelWrapper(BaseVLModel):
         if "1B" in model_name:
             self.model_path = "OpenGVLab/InternVL3-1B"
             self.model_size = "1B"
-            self.max_gpu_memory = "3GiB"
+            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
             self.input_size = 448
             self.max_num = 6  # Reduced from 12 for memory efficiency
         elif "2B" in model_name:
             self.model_path = "OpenGVLab/InternVL3-2B"
             self.model_size = "2B"
-            self.max_gpu_memory = "5GiB"
+            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
             self.input_size = 448
             self.max_num = 4  # Further reduced for larger model
         else:

@@ -32,20 +32,20 @@ class SmolVLM2ModelWrapper(BaseVLModel):
         if "256M" in model_name:
             self.model_path = "HuggingFaceTB/SmolVLM2-256M-Video-Instruct"
             self.model_size = "256M"
-            self.max_gpu_memory = "2GiB"  # Smaller model needs less memory
+            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
             self.use_4bit = False  # Small enough to run in float32
             self.dtype = torch.float32
         elif "500M" in model_name:
             self.model_path = "HuggingFaceTB/SmolVLM2-500M-Video-Instruct"
             self.model_size = "500M"
-            self.max_gpu_memory = "3GiB"
+            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
             self.use_4bit = False  # Can still run in float32
             self.dtype = torch.float32
         elif "2.2B" in model_name:
             self.model_path = "HuggingFaceTB/SmolVLM2-2.2B-Instruct"
             self.model_size = "2.2B"
-            self.max_gpu_memory = "5GiB"  # Larger model needs more memory
-            self.use_4bit = True  # Use 4-bit quantization for the largest model
+            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
+            self.use_4bit = False  # Test without quantization
             self.dtype = torch.float16  # Use float16 for the 2.2B model
         else:
             raise ValueError(f"Unknown SmolVLM2 model size in name: {model_name}")

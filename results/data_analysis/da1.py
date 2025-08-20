@@ -19,7 +19,7 @@ import sys
 
 # Add the parent directory to sys.path to import local_llm_tools
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from scripts.local_llm_tools import MODEL_MAPPING
+# from scripts.local_llm_tools import MODEL_MAPPING
 
 # Define the database path
 DB_PATH = "results/robustness.db"
@@ -206,10 +206,10 @@ def plot_model_degradation_line(df):
     plt.tight_layout()
     
     # Save the plot
-    plt.savefig(os.path.join(PLOT_DIR, 'model_degradation_line.png'), dpi=300)
+    plt.savefig(os.path.join(PLOT_DIR, 'linechart_model_degradation.png'), dpi=300)
     plt.close()
     
-    print(f"Created model degradation line plot: {os.path.join(PLOT_DIR, 'model_degradation_line.png')}")
+    print(f"Created model degradation line plot: {os.path.join(PLOT_DIR, 'linechart_model_degradation.png')}")
 
 def plot_attack_effectiveness_heatmap(df):
     """
@@ -250,10 +250,55 @@ def plot_attack_effectiveness_heatmap(df):
     plt.tight_layout()
     
     # Save the plot
-    plt.savefig(os.path.join(PLOT_DIR, 'attack_effectiveness_heatmap.png'), dpi=300)
+    plt.savefig(os.path.join(PLOT_DIR, 'heatmap_attack_effectiveness.png'), dpi=300)
     plt.close()
     
-    print(f"Created attack effectiveness heatmap: {os.path.join(PLOT_DIR, 'attack_effectiveness_heatmap.png')}")
+    print(f"Created attack effectiveness heatmap: {os.path.join(PLOT_DIR, 'heatmap_attack_effectiveness.png')}")
+
+def plot_raw_accuracy_heatmap(df):
+    """
+    Create a heatmap showing the raw accuracy values across models and attacks.
+    
+    Args:
+        df (pandas.DataFrame): The loaded data
+    """
+    # Create a pivot table for the heatmap
+    # Rows are attack types, columns are models
+    heatmap_data = df.pivot_table(
+        index='attack_name',
+        columns='model_name',
+        values='accuracy',
+        aggfunc='mean'
+    )
+    
+    # Rename columns to display names
+    heatmap_data.columns = [DISPLAY_NAMES.get(col, col) for col in heatmap_data.columns]
+    
+    # Set up the plot
+    plt.figure(figsize=(14, 10))
+    
+    # Create the heatmap
+    sns.heatmap(heatmap_data, 
+                annot=True, 
+                fmt=".1f", 
+                cmap="YlOrRd",  # Yellow to red colormap for accuracy values
+                vmin=0,
+                vmax=100,
+                linewidths=.5,
+                cbar_kws={'label': 'Accuracy (%)'}
+               )
+    
+    # Customize the plot
+    plt.title('Raw Accuracy Values Across Models and Attacks', fontsize=16)
+    plt.ylabel('Attack Type', fontsize=14)
+    plt.xlabel('Model', fontsize=14)
+    plt.tight_layout()
+    
+    # Save the plot
+    plt.savefig(os.path.join(PLOT_DIR, 'heatmap_raw_accuracy.png'), dpi=300)
+    plt.close()
+    
+    print(f"Created raw accuracy heatmap: {os.path.join(PLOT_DIR, 'heatmap_raw_accuracy.png')}")
 
 def plot_model_family_robustness(df):
     """
@@ -295,10 +340,10 @@ def plot_model_family_robustness(df):
     plt.tight_layout()
     
     # Save the plot
-    plt.savefig(os.path.join(PLOT_DIR, 'model_family_robustness.png'), dpi=300)
+    plt.savefig(os.path.join(PLOT_DIR, 'barchart_model_family_robustness.png'), dpi=300)
     plt.close()
     
-    print(f"Created model family robustness bar chart: {os.path.join(PLOT_DIR, 'model_family_robustness.png')}")
+    print(f"Created model family robustness bar chart: {os.path.join(PLOT_DIR, 'barchart_model_family_robustness.png')}")
 
 def plot_size_category_robustness(df):
     """
@@ -349,10 +394,10 @@ def plot_size_category_robustness(df):
     plt.tight_layout()
     
     # Save the plot
-    plt.savefig(os.path.join(PLOT_DIR, 'size_category_robustness.png'), dpi=300)
+    plt.savefig(os.path.join(PLOT_DIR, 'barchart_size_category_robustness.png'), dpi=300)
     plt.close()
     
-    print(f"Created size category robustness bar chart: {os.path.join(PLOT_DIR, 'size_category_robustness.png')}")
+    print(f"Created size category robustness bar chart: {os.path.join(PLOT_DIR, 'barchart_size_category_robustness.png')}")
 
 def plot_attack_category_effectiveness(df):
     """
@@ -393,10 +438,10 @@ def plot_attack_category_effectiveness(df):
     plt.tight_layout()
     
     # Save the plot
-    plt.savefig(os.path.join(PLOT_DIR, 'attack_category_effectiveness.png'), dpi=300)
+    plt.savefig(os.path.join(PLOT_DIR, 'barchart_attack_category_effectiveness.png'), dpi=300)
     plt.close()
     
-    print(f"Created attack category effectiveness bar chart: {os.path.join(PLOT_DIR, 'attack_category_effectiveness.png')}")
+    print(f"Created attack category effectiveness bar chart: {os.path.join(PLOT_DIR, 'barchart_attack_category_effectiveness.png')}")
 
 def plot_family_vs_attack_category_heatmap(df):
     """
@@ -433,10 +478,10 @@ def plot_family_vs_attack_category_heatmap(df):
     plt.tight_layout()
     
     # Save the plot
-    plt.savefig(os.path.join(PLOT_DIR, 'family_vs_attack_category_heatmap.png'), dpi=300)
+    plt.savefig(os.path.join(PLOT_DIR, 'heatmap_family_vs_attack_category.png'), dpi=300)
     plt.close()
     
-    print(f"Created family vs attack category heatmap: {os.path.join(PLOT_DIR, 'family_vs_attack_category_heatmap.png')}")
+    print(f"Created family vs attack category heatmap: {os.path.join(PLOT_DIR, 'heatmap_family_vs_attack_category.png')}")
 
 def plot_size_vs_attack_category_heatmap(df):
     """
@@ -482,10 +527,10 @@ def plot_size_vs_attack_category_heatmap(df):
     plt.tight_layout()
     
     # Save the plot
-    plt.savefig(os.path.join(PLOT_DIR, 'size_vs_attack_category_heatmap.png'), dpi=300)
+    plt.savefig(os.path.join(PLOT_DIR, 'heatmap_size_vs_attack_category.png'), dpi=300)
     plt.close()
     
-    print(f"Created size vs attack category heatmap: {os.path.join(PLOT_DIR, 'size_vs_attack_category_heatmap.png')}")
+    print(f"Created size vs attack category heatmap: {os.path.join(PLOT_DIR, 'heatmap_size_vs_attack_category.png')}")
 
 def plot_3d_dimension_analysis(df):
     """
@@ -540,10 +585,10 @@ def plot_3d_dimension_analysis(df):
     plt.tight_layout()
     
     # Save the plot
-    plt.savefig(os.path.join(PLOT_DIR, '3d_dimension_analysis.png'), dpi=300)
+    plt.savefig(os.path.join(PLOT_DIR, 'scatter3d_dimension_analysis.png'), dpi=300)
     plt.close()
     
-    print(f"Created 3D dimension analysis plot: {os.path.join(PLOT_DIR, '3d_dimension_analysis.png')}")
+    print(f"Created 3D dimension analysis plot: {os.path.join(PLOT_DIR, 'scatter3d_dimension_analysis.png')}")
 
 def main():
     """Main function to run the script."""
@@ -561,6 +606,7 @@ def main():
     # Generate plots
     plot_model_degradation_line(df)
     plot_attack_effectiveness_heatmap(df)
+    plot_raw_accuracy_heatmap(df)
     plot_model_family_robustness(df)
     plot_size_category_robustness(df)
     plot_attack_category_effectiveness(df)

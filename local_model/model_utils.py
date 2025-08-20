@@ -138,7 +138,62 @@ def get_processor_with_pixel_settings(processor_path, min_size=256, max_size=128
     return processor
 
 def model_cleanup(model):
-    """Clean up model resources"""
-    del model
-    cleanup_memory()
-    print("Model resources cleaned up")
+    """Clean up model resources with robust error handling for CUDA context corruption"""
+    try:
+        print("Starting model cleanup...")
+        
+        # Try to move model to CPU first to free GPU memory
+        try:
+            if hasattr(model, 'cpu'):
+                model.cpu()
+                print("Model moved to CPU")
+        except Exception as e:
+            print(f"Warning: Could not move model to CPU: {e}")
+        
+        # Delete model reference
+        del model
+        print("Model reference deleted")
+        
+        # Cleanup memory
+        cleanup_memory()
+        
+        # Additional GPU context reset for CUDA errors
+        if torch.cuda.is_available():
+            try:
+                # Force synchronization to catch any pending CUDA errors
+                torch.cuda.synchronize()
+                
+                # Reset max memory stats
+                torch.cuda.reset_max_memory_allocated()
+                torch.cuda.reset_max_memory_cached()
+                
+                print("GPU context reset successfully")
+            except RuntimeError as cuda_error:
+                if "CUDA error" in str(cuda_error):
+                    print(f"⚠️  CUDA context corruption detected during cleanup: {cuda_error}")
+                    print("Attempting GPU context recovery...")
+                    
+                    # Try to reset CUDA context more aggressively
+                    try:
+                        torch.cuda.empty_cache()
+                        # Reset accumulated CUDA errors
+                        torch.cuda.synchronize()
+                        print("GPU context recovery attempted")
+                    except Exception as recovery_error:
+                        print(f"❌ GPU context recovery failed: {recovery_error}")
+                        print("System may require process restart to recover GPU context")
+                else:
+                    raise cuda_error
+        
+        print("Model resources cleaned up successfully")
+        
+    except Exception as cleanup_error:
+        print(f"❌ Error during model cleanup: {cleanup_error}")
+        print("Forcing aggressive cleanup...")
+        
+        # Force garbage collection even if cleanup failed
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
+        raise cleanup_error

@@ -231,18 +231,3 @@ python scripts/metrics_persistence_manager.py
 ```
 
 This creates or updates the SQLite database with the latest evaluation results, providing a centralized repository for all robustness metrics.
-
-## Search Term Analysis
-
-The following table provides a comprehensive analysis of key research terms used in this project, based on academic search patterns and research impact:
-
-| Key Term | Search Frequency (2022-2024) | Research Impact | Top Venues | Search Patterns & Trends |
-|----------|--------------------------|-----------------|-------------|------------------------|
-| 4-bit Quantized | ~3,200 papers | High in ML optimization | NeurIPS, ICLR, ICML | - Paired with "model compression" <br> - Rising in LLM efficiency <br> - Industry adoption focus |
-| VLMs/Vision-Language Models | ~18,000 papers | Very High | CVPR, ICCV, ACL | - Rapid growth since 2023 <br> - Industry research priority <br> - Multi-modal integration |
-| Under Attack | ~15,000 papers | High in security | USENIX, CCS, S&P | - Common in adversarial ML <br> - Security conference focus <br> - Practical applications |
-| Benchmarking | ~25,000 papers | High in systems | MLSys, OSDI, SOSP | - Evaluation frameworks <br> - Performance metrics <br> - Comparative analysis |
-| Robustness | ~45,000 papers | Very High | All Top ML venues | - Most cited security term <br> - Cross-domain impact <br> - Theoretical & practical |
-| Multi-Modal | ~30,000 papers | Extremely High | NeurIPS, ICLR, AAAI | - Fastest growing term <br> - Cross-domain research <br> - Industry applications |
-| Adversarial | ~20,000 papers | Very High | Security conferences | - Attack & defense methods <br> - ML security focus <br> - Risk assessment |
-| Threats | ~12,000 papers | High in security | Security journals | - Often with "adversarial" <br> - Risk analysis <br> - Defense strategies |
