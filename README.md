@@ -127,9 +127,16 @@ Located in `scripts/`, this module handles model evaluation and result analysis:
 ### 1. Setup
 
 ```bash
-python -m venv venv_MM
+python3 -m venv venv_MM
 source venv_MM/bin/activate
 pip install -r requirements.txt
+```
+
+```bash
+deactivate
+python3 -m venv venv_florence
+source venv_florence/bin/activate
+pip install -r requirements_step1.txt  && pip install -r requirements_step2.txt
 ```
 
 ### 2. Generate Adversarial Examples

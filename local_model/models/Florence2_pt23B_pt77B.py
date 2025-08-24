@@ -71,15 +71,14 @@ class Florence2ModelWrapper(BaseVLModel):
         try:
             print(f"Loading Florence-2-{self.model_size} model...")
             
-            # Load model with appropriate settings
+            # Load model with appropriate settings (Florence-2 doesn't support device_map="auto")
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_path,
                 torch_dtype=self.dtype,
                 trust_remote_code=True,
                 low_cpu_mem_usage=True,
-                device_map="auto",
-                max_memory={0: self.max_gpu_memory, "cpu": "16GiB"},
-            )
+                attn_implementation="eager"
+            ).to(self.device)
             
             self.model_loaded = True
             

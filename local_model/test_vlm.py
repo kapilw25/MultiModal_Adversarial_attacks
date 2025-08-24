@@ -6,9 +6,18 @@ import os
 import sys
 import time
 import threading
-import psutil
 import shutil
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Optional imports - gracefully handle missing dependencies
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+    print("Warning: psutil not available. System monitoring disabled.")
+
+from local_model.manager_environment import EnvironmentManager
 from local_model.model_classes import create_model
 
 # Hardcoded image path and question
@@ -20,6 +29,12 @@ monitoring_active = True
 
 def monitor_system_activity():
     """Monitor and display system activity metrics every second"""
+    if not PSUTIL_AVAILABLE:
+        # Silent monitoring - just keep the thread alive
+        while monitoring_active:
+            time.sleep(1)
+        return
+    
     print("\n--- Starting System Activity Monitor ---")
     
     # Get the current process
@@ -144,7 +159,17 @@ def select_model():
             return [model_name]
         elif choice == '19':
             print("Selected: ALL models")
-            return list(model_map.values())
+            # Get all models and reorder to put the specified 3 models last
+            all_models = list(model_map.values())
+            models_to_move_last = ["Moondream2-2B", "GLM-Edge-V-2B", "Phi-3.5-vision-instruct-4bit"]
+            
+            # Remove the 3 models from their current positions
+            remaining_models = [model for model in all_models if model not in models_to_move_last]
+            
+            # Add the 3 models at the end
+            reordered_models = remaining_models + models_to_move_last
+            
+            return reordered_models
         else:
             print("Invalid choice. Please enter a number between 1 and 19.")
 
@@ -157,6 +182,34 @@ def test_model(model_name):
         print(f"Error: Image not found at {IMAGE_PATH}")
         return False
     
+    # Initialize environment manager
+    env_manager = EnvironmentManager()
+    
+    # Check if this is a Florence-2 model that needs special environment
+    env_name = env_manager.get_model_environment(model_name)
+    
+    if env_name == 'florence2':
+        print(f"Running {model_name} in Florence-2 environment (transformers==4.44.2)")
+        
+        # Run current script in Florence-2 environment with model-specific args
+        current_script = __file__
+        args = ['--single-model', model_name, '--image', IMAGE_PATH, '--question', QUESTION]
+        
+        stdout, stderr, return_code = env_manager.run_model_with_env_check(model_name, current_script, args)
+        
+        if return_code == 0:
+            print(f"\nModel response:\n{stdout}")
+            return True
+        else:
+            print(f"Error running Florence-2 model: {stderr}")
+            return False
+    else:
+        # Run in current environment (latest transformers)
+        print(f"Running {model_name} in current environment (latest transformers)")
+        return _run_model_direct(model_name)
+
+def _run_model_direct(model_name):
+    """Direct model execution (used for both environments)"""
     # Create model
     print(f"\nCreating {model_name} model...")
     try:
@@ -186,15 +239,46 @@ def test_model(model_name):
         model.cleanup()
 
 def main():
-    global monitoring_active
+    global monitoring_active, IMAGE_PATH, QUESTION
+    
+    # Check for single model execution (called from environment manager)
+    if len(sys.argv) > 1 and sys.argv[1] == '--single-model':
+        # Parse arguments for single model execution
+        import argparse
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--single-model', required=True, help='Model name to test')
+        parser.add_argument('--image', required=True, help='Image path')
+        parser.add_argument('--question', required=True, help='Question to ask')
+        
+        args = parser.parse_args()
+        
+        # Set global variables
+        IMAGE_PATH = args.image
+        QUESTION = args.question
+        
+        # Run single model directly (no monitoring, no interactive selection)
+        success = _run_model_direct(args.single_model)
+        sys.exit(0 if success else 1)
+    
+    # Regular interactive execution
+    print("="*60)
+    print("VLM Multi-Environment Pipeline")
+    print("="*60)
+    
+    # Initialize and check environment setup
+    try:
+        env_manager = EnvironmentManager()
+        env_manager.check_and_setup_environments()
+    except Exception as e:
+        print(f"Warning: Environment manager initialization failed: {e}")
+        print("Continuing with current environment only...")
     
     # Get absolute path for the image
-    global IMAGE_PATH
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(script_dir)
     IMAGE_PATH = os.path.join(project_root, IMAGE_PATH)
     
-    print(f"Using image: {IMAGE_PATH}")
+    print(f"\nUsing image: {IMAGE_PATH}")
     print(f"Using question: '{QUESTION}'")
     
     # Start the monitoring thread

@@ -1,14 +1,4 @@
-# Install updated CUDA:
-# URL: https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local
-
-# Core PyTorch dependencies with CUDA support - MUST be installed before other packages
-torch>=2.2.0+cu121
-torchvision>=0.18.0+cu121
---extra-index-url https://download.pytorch.org/whl/cu121
-git+https://github.com/huggingface/transformers.git
-flash-attn
-timm
-
+# Step 2: Install remaining packages that need torch during build
 absl-py>=2.1.0
 adversarial-robustness-toolbox>=1.15.0
 albumentations>=1.3.1
@@ -16,7 +6,6 @@ annotated-types>=0.7.0
 anyio>=4.3.0
 autoawq>=0.1.8
 bitsandbytes>=0.43.0
-peft
 certifi>=2024.2.2
 charset-normalizer>=3.3.2
 click>=8.1.7
@@ -26,7 +15,6 @@ contourpy>=1.2.1
 cycler>=0.12.1
 datasets>=2.18.0
 distro>=1.9.0
-flash-attn
 fonttools>=4.51.0
 graphviz>=0.20.3
 h11>=0.14.0
@@ -47,7 +35,6 @@ openai>=1.30.1
 packaging>=24.0
 setuptools-scm>=6.2
 pandas>=2.1.2
-pillow>=10.3.0
 pip>=24.0
 prettytable>=3.10.0
 psutil>=5.9.0
@@ -60,7 +47,6 @@ python-dotenv>=1.0.1
 pytz>=2024.1
 qwen-vl-utils>=0.0.8
 regex>=2024.5.15
-requests>=2.32.2
 rouge>=1.0.1
 rouge_score>=0.1.2
 scikit-image>=0.20.0
@@ -73,9 +59,6 @@ sniffio>=1.3.1
 spacy>=3.7.4
 tiktoken>=0.7.0
 tqdm>=4.66.4
-# Use the latest transformers from source for all VLMs (installed above)
-# Florence-2 models use separate environment with transformers==4.44.2
-accelerate>=0.25.0
 tabulate
 typing_extensions>=4.11.0
 tzdata>=2024.1
@@ -88,13 +71,8 @@ git+https://github.com/openai/CLIP.git
 pymupdf
 camelot-py[cv]
 ghostscript
-tabulate
 markitdown
 # DeepSeek-VL2 dependencies
 git+https://github.com/deepseek-ai/DeepSeek-VL.git
-# # TinyLLaVA dependencies
-# git+https://github.com/TinyLLaVA/TinyLLaVA_Factory.git
-# Optional: Flash Attention 2 for better performance with Qwen2-VL models
-# flash-attn>=2.5.0
-# Phi-3.5-vision-instruct specific requirements
-# flash-attn>=2.5.8
+# Pin transformers to prevent version conflicts with Florence-2
+transformers==4.44.2

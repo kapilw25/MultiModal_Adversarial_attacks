@@ -1,5 +1,6 @@
 .env
 venv_MM
+venv*
 
 # directories
 data/train

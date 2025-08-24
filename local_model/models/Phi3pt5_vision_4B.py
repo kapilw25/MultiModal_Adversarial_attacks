@@ -147,7 +147,7 @@ class Phi35VisionModelWrapper(BaseVLModel):
                     image = Image.open(image_path)
                     # Resize image to reduce memory usage if too large
                     if image.size[0] > 1024 or image.size[1] > 1024:
-                        image = image.resize((1024, 1024), Image.Resampling.LANCZOS)
+                        image = image.resize((224, 224), Image.Resampling.LANCZOS)
                     print(f"   ✅ Successfully loaded image: {image.size}")
                 else:
                     print(f"   ❌ Image not found at: {image_path}")
@@ -182,15 +182,18 @@ class Phi35VisionModelWrapper(BaseVLModel):
                      for k, v in inputs.items()}
             
             generation_args = {
-                "max_new_tokens": 500,  # Keep detailed responses
+                "max_new_tokens": 64,  # Reduced from 500 to match Qwen speed
                 "do_sample": False,
+                "num_beams": 1,  # Disable beam search for speed
                 "pad_token_id": self.processor.tokenizer.eos_token_id,
-                "use_cache": False  # Disable cache to avoid DynamicCache issues
+                "use_cache": False  # Disable cache to avoid DynamicCache compatibility issues
             }
             
-            # Generate response with memory management
+            # Generate response with memory management (use inference_mode for speed)
             print(f"Generating response with {self.model_name}...")
-            with torch.no_grad():
+            with torch.inference_mode():  # Faster than torch.no_grad()
+                # Clear cache before generation for memory efficiency
+                torch.cuda.empty_cache()
                 generate_ids = self.model.generate(
                     **inputs,
                     eos_token_id=self.processor.tokenizer.eos_token_id,

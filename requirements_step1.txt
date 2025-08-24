@@ -1,0 +1,10 @@
+# Step 1: Install torch and essential dependencies first
+torch>=2.2.0
+torchvision>=0.18.0
+transformers==4.44.2
+flash-attn
+timm
+accelerate>=0.25.0
+pillow>=10.3.0
+requests>=2.32.2
+peft
