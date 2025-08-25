@@ -65,7 +65,7 @@ class Phi35VisionModelWrapper(BaseVLModel):
                 device_map="auto",  # Let it decide optimal placement
                 trust_remote_code=True,
                 torch_dtype=torch.bfloat16,  # Consistent with quantization
-                _attn_implementation='eager',  # Explicitly disable flash attention
+                _attn_implementation='eager',  # Vision component hardcoded to FlashAttn
                 low_cpu_mem_usage=True,  # Reduce CPU memory usage during loading
                 use_cache=False,  # Disable cache to avoid DynamicCache issues
                 max_memory={0: "7GiB", "cpu": "16GiB"}  # Upgraded to 7GiB for better performance

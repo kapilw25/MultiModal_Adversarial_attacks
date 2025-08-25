@@ -9,6 +9,7 @@ from local_model.base_model import BaseVLModel
 from local_model.model_utils import (
     cleanup_memory, 
     get_device, 
+    get_quantization_config,
     time_inference,
     model_cleanup
 )
@@ -32,10 +33,16 @@ class Moondream2ModelWrapper(BaseVLModel):
         if "moondream2" in model_name.lower():
             self.model_path = "vikhyatk/moondream2"
             self.model_revision = "2025-06-21"
-            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
+            self.max_gpu_memory = "7GiB"
             self.dtype = torch.float16 if torch.cuda.is_available() else torch.float32
         else:
             raise ValueError(f"Unknown Moondream model version in name: {model_name}")
+        
+        # NOTE: 4-bit quantization removed due to vision encoder dtype incompatibility
+        # Error: "self and mat2 must have the same dtype, but got BFloat16 and Byte"
+        # Moondream2's custom vision encoder has dtype mismatch with quantized weights
+        # The vision encoder expects BFloat16 but gets quantized Byte tensors
+        # Keeping original float16 for compatibility
         
         # Aggressive memory cleanup before loading
         cleanup_memory()
@@ -52,7 +59,7 @@ class Moondream2ModelWrapper(BaseVLModel):
         try:
             print(f"Loading {self.model_path} model...")
             
-            # Load model with appropriate settings
+            # Load model without quantization due to vision encoder dtype incompatibility
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_path,
                 revision=self.model_revision,

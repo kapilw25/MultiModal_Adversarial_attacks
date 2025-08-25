@@ -9,6 +9,7 @@ from local_model.base_model import BaseVLModel
 from local_model.model_utils import (
     cleanup_memory, 
     get_device, 
+    get_quantization_config,
     time_inference,
     model_cleanup
 )
@@ -32,23 +33,32 @@ class SmolVLM2ModelWrapper(BaseVLModel):
         if "256M" in model_name:
             self.model_path = "HuggingFaceTB/SmolVLM2-256M-Video-Instruct"
             self.model_size = "256M"
-            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
-            self.use_4bit = False  # Small enough to run in float32
-            self.dtype = torch.float32
+            self.max_gpu_memory = "7GiB"
+            self.use_4bit = True  # Enable 4-bit quantization for speed
+            self.dtype = torch.bfloat16
         elif "500M" in model_name:
             self.model_path = "HuggingFaceTB/SmolVLM2-500M-Video-Instruct"
             self.model_size = "500M"
-            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
-            self.use_4bit = False  # Can still run in float32
-            self.dtype = torch.float32
+            self.max_gpu_memory = "7GiB"
+            self.use_4bit = True  # Enable 4-bit quantization for speed
+            self.dtype = torch.bfloat16
         elif "2.2B" in model_name:
             self.model_path = "HuggingFaceTB/SmolVLM2-2.2B-Instruct"
             self.model_size = "2.2B"
-            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
-            self.use_4bit = False  # Test without quantization
-            self.dtype = torch.float16  # Use float16 for the 2.2B model
+            self.max_gpu_memory = "7GiB"
+            self.use_4bit = True  # Enable 4-bit quantization for speed
+            self.dtype = torch.bfloat16
         else:
             raise ValueError(f"Unknown SmolVLM2 model size in name: {model_name}")
+        
+        # Configure 4-bit quantization for all models
+        print(f"Setting up 4-bit quantization for {model_name}...")
+        self.quantization_config = get_quantization_config(
+            load_in_4bit=True,
+            compute_dtype=torch.bfloat16,
+            use_double_quant=True,
+            quant_type="nf4"
+        )
         
         # Aggressive memory cleanup before loading
         cleanup_memory()
@@ -73,48 +83,17 @@ class SmolVLM2ModelWrapper(BaseVLModel):
         try:
             print(f"Loading SmolVLM2-{self.model_size} model...")
             
-            # Configure model loading based on size
-            if self.use_4bit:
-                # 4-bit quantization for larger models
-                print(f"Using 4-bit quantization for SmolVLM2-{self.model_size} with {self.dtype} compute dtype")
-                quantization_config = BitsAndBytesConfig(
-                    load_in_4bit=True,
-                    bnb_4bit_compute_dtype=self.dtype,  # Use float16 for 2.2B model
-                    bnb_4bit_quant_type="nf4",
-                    bnb_4bit_use_double_quant=True,
-                )
-                
-                # Load with 4-bit quantization
-                self.model = AutoModelForImageTextToText.from_pretrained(
-                    self.model_path,
-                    quantization_config=quantization_config,
-                    torch_dtype=self.dtype,  # Explicitly set torch_dtype
-                    low_cpu_mem_usage=True,
-                    device_map="auto",
-                    max_memory={0: self.max_gpu_memory, "cpu": "16GiB"},
-                )
-            else:
-                # For smaller models, use float32
-                try:
-                    print(f"Loading SmolVLM2-{self.model_size} with {self.dtype} dtype...")
-                    self.model = AutoModelForImageTextToText.from_pretrained(
-                        self.model_path,
-                        torch_dtype=self.dtype,
-                        low_cpu_mem_usage=True,
-                        device_map="auto",
-                        max_memory={0: self.max_gpu_memory, "cpu": "16GiB"},
-                    )
-                    print(f"Successfully loaded model with {self.dtype} dtype")
-                except Exception as e:
-                    print(f"Error loading model with specified dtype: {e}")
-                    print("Trying with default dtype...")
-                    self.model = AutoModelForImageTextToText.from_pretrained(
-                        self.model_path,
-                        low_cpu_mem_usage=True,
-                        device_map="auto",
-                        max_memory={0: self.max_gpu_memory, "cpu": "16GiB"},
-                    )
-                    print("Successfully loaded model with default dtype")
+            # Load all models with 4-bit quantization
+            print(f"Loading SmolVLM2-{self.model_size} with 4-bit quantization...")
+            self.model = AutoModelForImageTextToText.from_pretrained(
+                self.model_path,
+                quantization_config=self.quantization_config,
+                torch_dtype=self.dtype,
+                low_cpu_mem_usage=True,
+                device_map="auto",
+                max_memory={0: self.max_gpu_memory, "cpu": "16GiB"},
+            )
+            print(f"Successfully loaded model with 4-bit quantization")
             
             self.model_loaded = True
             

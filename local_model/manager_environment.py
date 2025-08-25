@@ -101,7 +101,10 @@ class EnvironmentManager:
             'moondream2_2b': 'default',
             'paligemma_3b': 'default',
             'phi3pt5_vision_4b': 'default',
-            'smolvlm2': 'default'
+            'smolvlm2': 'default',
+            # LLAVA models - use default environment (latest transformers)
+            'llava-1.5-7b': 'default',
+            'llava-v1.6-mistral-7b': 'default'
         }
         
         return model_mapping.get(model_name.lower(), 'default')

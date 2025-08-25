@@ -62,31 +62,17 @@ class Qwen2VL2BModelWrapper(BaseVLModel):
                 bnb_4bit_use_double_quant=True,
             )
             
-            # Try to load with flash attention if available
-            try:
-                print("Attempting to load model with flash attention...")
-                self.model = Qwen2VLForConditionalGeneration.from_pretrained(
-                    model_path,
-                    quantization_config=quantization_config,
-                    torch_dtype=torch.bfloat16,
-                    attn_implementation="flash_attention_2",
-                    low_cpu_mem_usage=True,
-                    device_map="auto",
-                    max_memory={0: "7GiB", "cpu": "16GiB"},
-                )
-                print("Successfully loaded model with flash attention")
-            except Exception as flash_err:
-                print(f"Flash attention not available: {flash_err}")
-                print("Loading model without flash attention...")
-                self.model = Qwen2VLForConditionalGeneration.from_pretrained(
-                    model_path,
-                    quantization_config=quantization_config,
-                    torch_dtype=torch.float16,
-                    low_cpu_mem_usage=True,
-                    device_map="auto",
-                    max_memory={0: "7GiB", "cpu": "16GiB"},
-                )
-                print("Successfully loaded model without flash attention")
+            # Load model (will use SDPA by default in newer transformers)
+            print("Loading model with default attention (SDPA)...")
+            self.model = Qwen2VLForConditionalGeneration.from_pretrained(
+                model_path,
+                quantization_config=quantization_config,
+                torch_dtype=torch.bfloat16,
+                low_cpu_mem_usage=True,
+                device_map="auto",
+                max_memory={0: "7GiB", "cpu": "16GiB"},
+            )
+            print("Successfully loaded model with default attention")
             
             # Record end time and calculate duration
             end_time = time.time()

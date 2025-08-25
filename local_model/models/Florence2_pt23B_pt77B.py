@@ -9,6 +9,7 @@ from local_model.base_model import BaseVLModel
 from local_model.model_utils import (
     cleanup_memory, 
     get_device, 
+    get_quantization_config,
     time_inference,
     model_cleanup
 )
@@ -33,17 +34,20 @@ class Florence2ModelWrapper(BaseVLModel):
         if "base" in model_name.lower():
             self.model_path = "microsoft/Florence-2-base"
             self.model_size = "base"
-            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
-            self.use_4bit = False  # Small enough to run in float16
+            self.max_gpu_memory = "7GiB"
             self.dtype = torch.float16
         elif "large" in model_name.lower():
             self.model_path = "microsoft/Florence-2-large"
             self.model_size = "large"
-            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
-            self.use_4bit = False  # Can still run in float16
+            self.max_gpu_memory = "7GiB"
             self.dtype = torch.float16
         else:
             raise ValueError(f"Unknown Florence-2 model size in name: {model_name}")
+        
+        # NOTE: 4-bit quantization removed due to device_map incompatibility
+        # Error: "Florence2ForConditionalGeneration does not support `device_map='auto'`"
+        # Florence-2 models don't implement _no_split_modules attribute required for device_map
+        # Keeping original float16 without quantization for compatibility
         
         # Aggressive memory cleanup before loading
         cleanup_memory()
@@ -71,13 +75,12 @@ class Florence2ModelWrapper(BaseVLModel):
         try:
             print(f"Loading Florence-2-{self.model_size} model...")
             
-            # Load model with appropriate settings (Florence-2 doesn't support device_map="auto")
+            # Load model without quantization (Florence-2 doesn't support device_map="auto")
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_path,
                 torch_dtype=self.dtype,
                 trust_remote_code=True,
                 low_cpu_mem_usage=True,
-                attn_implementation="eager"
             ).to(self.device)
             
             self.model_loaded = True

@@ -9,6 +9,7 @@ from local_model.base_model import BaseVLModel
 from local_model.model_utils import (
     cleanup_memory, 
     get_device, 
+    get_quantization_config,
     time_inference
 )
 import time
@@ -32,6 +33,12 @@ class GLMEdgeModelWrapper(BaseVLModel):
         self.model_size = "2B"
         self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
         self.dtype = torch.bfloat16
+        
+        # NOTE: 4-bit quantization removed due to dtype incompatibility
+        # Error: "self and mat2 must have the same dtype, but got BFloat16 and Byte"
+        # GLM-Edge's SigLIP vision encoder has dtype mismatch with quantized weights
+        # The vision component expects BFloat16 but gets quantized Byte tensors
+        # Keeping original bfloat16 for compatibility (31s inference time)
         
         # Aggressive memory cleanup before loading
         cleanup_memory()
@@ -67,15 +74,16 @@ class GLMEdgeModelWrapper(BaseVLModel):
         try:
             print(f"Loading GLM Edge 2B model...")
             
-            # Use bfloat16 without 4-bit quantization
-            print(f"Loading GLM Edge 2B with {self.dtype} dtype...")
+            # Load without quantization due to vision encoder dtype incompatibility
+            print(f"Loading GLM Edge 2B with bfloat16 (no quantization)...")
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_path,
                 torch_dtype=self.dtype,
                 device_map="auto",
                 trust_remote_code=True,
+                low_cpu_mem_usage=True,
             )
-            print(f"Successfully loaded model with {self.dtype} dtype")
+            print(f"Successfully loaded model with bfloat16")
             
             self.model_loaded = True
             

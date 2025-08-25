@@ -120,14 +120,22 @@ def select_model():
     print("  [8] SmolVLM2-256M-Video-Instruct")
     print("  [9] SmolVLM2-500M-Video-Instruct")
     print("  [10] SmolVLM2-2.2B-Instruct")
-    print("  [11] GLM-Edge-V-2B")
-    print("  [12] InternVL3-1B")
-    print("  [13] InternVL3-2B")
-    print("  [14] InternVL2.5-4B")
-    print("  [15] Florence-2-base")
-    print("  [16] Florence-2-large")
-    print("  [17] Moondream2-2B")
-    print("  [18] Phi-3.5-vision-instruct-4bit")
+    # COMMENTED OUT: GLM-Edge-V-2B - Very slow performance (31s inference time)
+    # Vision encoder (SigLIP) incompatible with 4-bit quantization due to dtype mismatch
+    # BFloat16 vision encoder conflicts with quantized Byte tensors
+    # print("  [11] GLM-Edge-V-2B")
+    print("  [11] InternVL3-1B")
+    print("  [12] InternVL3-2B")
+    print("  [13] InternVL2.5-4B")
+    print("  [14] Florence-2-base")
+    print("  [15] Florence-2-large")
+    print("  [16] Moondream2-2B")
+    print("  [17] LLAVA-1.5-7B")
+    print("  [18] LLAVA-v1.6-Mistral-7B")
+    # COMMENTED OUT: Phi-3.5-vision - Extremely slow performance (60s inference time)
+    # Requires eager attention (SDPA incompatible), cannot use efficient attention mechanisms
+    # Vision component doesn't support optimized attention implementations
+    # print("  [19] Phi-3.5-vision-instruct-4bit")
     print("  [19] ALL")
     
     model_map = {
@@ -141,37 +149,42 @@ def select_model():
         '8': "SmolVLM2-256M-Video-Instruct",
         '9': "SmolVLM2-500M-Video-Instruct",
         '10': "SmolVLM2-2.2B-Instruct",
-        '11': "GLM-Edge-V-2B",
-        '12': "InternVL3-1B",
-        '13': "InternVL3-2B",
-        '14': "InternVL2.5-4B",
-        '15': "Florence-2-base",
-        '16': "Florence-2-large",
-        '17': "Moondream2-2B",
-        '18': "Phi-3.5-vision-instruct-4bit",
+        # COMMENTED OUT: GLM-Edge-V-2B due to slow performance (31s) and quantization incompatibility
+        # '11': "GLM-Edge-V-2B",
+        '11': "InternVL3-1B",
+        '12': "InternVL3-2B",
+        '13': "InternVL2.5-4B",
+        '14': "Florence-2-base",
+        '15': "Florence-2-large",
+        '16': "Moondream2-2B",
+        '17': "LLAVA-1.5-7B",
+        '18': "LLAVA-v1.6-Mistral-7B",
+        # COMMENTED OUT: Phi-3.5-vision due to extremely slow performance (60s) and attention limitations
+        # '19': "Phi-3.5-vision-instruct-4bit",
     }
     
     while True:
-        choice = input("\nEnter your choice (1-19): ")
+        choice = input("\nEnter your choice (1-18): ")
         if choice in model_map:
             model_name = model_map[choice]
             print(f"Selected: {model_name}")
             return [model_name]
         elif choice == '19':
             print("Selected: ALL models")
-            # Get all models and reorder to put the specified 3 models last
+            # Get all available models (excluding commented out slow models)
             all_models = list(model_map.values())
-            models_to_move_last = ["Moondream2-2B", "GLM-Edge-V-2B", "Phi-3.5-vision-instruct-4bit"]
+            # NOTE: GLM-Edge-V-2B and Phi-3.5-vision are excluded from ALL due to performance issues
+            # GLM-Edge-V-2B: 31s inference, quantization incompatible
+            # Phi-3.5-vision: 60s inference, requires slow eager attention
+            models_to_move_last = ["Moondream2-2B"]  # Only Moondream2 moved to last now
             
-            # Remove the 3 models from their current positions
+            # Remove Moondream2 from current position and add at end
             remaining_models = [model for model in all_models if model not in models_to_move_last]
-            
-            # Add the 3 models at the end
             reordered_models = remaining_models + models_to_move_last
             
             return reordered_models
         else:
-            print("Invalid choice. Please enter a number between 1 and 19.")
+            print("Invalid choice. Please enter a number between 1-18 or 19 for ALL.")
 
 def test_model(model_name):
     """Test a specific model with the hardcoded image and question"""

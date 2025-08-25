@@ -72,5 +72,12 @@ def create_model(model_name):
     elif model_name == "Phi-3.5-vision-instruct-4bit":
         from local_model.models.Phi3pt5_vision_4B import Phi35VisionModelWrapper
         return Phi35VisionModelWrapper(model_name)
+    # LLAVA models
+    elif model_name == "LLAVA-1.5-7B":
+        from local_model.models.LLAVA_1pt5_7B import LLAVA15ModelWrapper
+        return LLAVA15ModelWrapper(model_name)
+    elif model_name == "LLAVA-v1.6-Mistral-7B":
+        from local_model.models.LLAVA_v1pt6_Mistral_7B import LLAVAv16MistralModelWrapper
+        return LLAVAv16MistralModelWrapper(model_name)
     else:
         raise ValueError(f"Unsupported model: {model_name}")
