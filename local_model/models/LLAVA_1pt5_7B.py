@@ -146,9 +146,9 @@ class LLAVA15ModelWrapper(BaseVLModel):
                     num_beams=1,  # No beam search to save memory
                 )
             
-            # Process output - skip first 2 tokens as per LLAVA working script pattern
+            # Process output - use proper token handling for LLAVA 1.5
             output_text = self.processor.decode(
-                generated_ids[0][2:],  # Skip first 2 tokens as per working script
+                generated_ids[0][inputs['input_ids'].shape[1]:],  # Skip input tokens instead
                 skip_special_tokens=True
             )
             

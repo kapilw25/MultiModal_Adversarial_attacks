@@ -22,44 +22,52 @@ from scripts.vlm_cloud_client import retry, timeout_decorator
 # Import the model factory function
 from local_model.model_classes import create_model
 
+# Import text cleaner for response processing
+from text_cleaner import clean_vlm_response
+
 # Global model instances dictionary to avoid reloading models for each request
 _model_instances = {}
 _model_lock = threading.Lock()  # Thread-safe access to model instances
 
-# Define model mapping once at the module level
+# Define model mapping once at the module level - Performance-optimized models only
 # IMPORTANT: These names must exactly match the model names in model_classes.py
+# Matches the exact sequence from local_model/test_vlm.py for consistent performance
 MODEL_MAPPING = {
-    # Qwen models
+    # Qwen models (1-3)
     "Qwen25_VL_3B": "Qwen2.5-VL-3B-Instruct_4bit",
-    "Qwen25_VL_7B": "Qwen2.5-VL-7B-Instruct-4bit",  # Note the hyphen instead of underscore
+    "Qwen25_VL_7B": "Qwen2.5-VL-7B-Instruct-4bit",
     "Qwen2_VL_2B": "Qwen2-VL-2B-Instruct_4bit",
     
-    # Google models
+    # Google models (4-5)
     "Gemma3_VL_4B": "Gemma-3-4b-it_4bit",
     "PaliGemma_VL_3B": "PaliGemma-3B-mix-224_4bit",
     
-    # DeepSeek models
+    # DeepSeek models (6-7)
     "DeepSeek1_VL_1pt3B": "DeepSeek-VL-1.3B-chat_4bit",
     "DeepSeek1_VL_7B": "DeepSeek-VL-7B-chat_4bit",
     
-    # SmolVLM2 models
+    # SmolVLM2 models (8-10)
     "SmolVLM2_pt25B": "SmolVLM2-256M-Video-Instruct",
     "SmolVLM2_pt5B": "SmolVLM2-500M-Video-Instruct",
     "SmolVLM2_2pt2B": "SmolVLM2-2.2B-Instruct",
     
-    # Microsoft models
-    "Phi3pt5_vision_4B": "Phi-3.5-vision-instruct-4bit",
+    # InternVL models (11-13)
+    "InternVL3_1B": "InternVL3-1B",
+    "InternVL3_2B": "InternVL3-2B",
+    "InternVL25_4B": "InternVL2.5-4B",
     
-    # Florence models
+    # Florence models (14-15)
     "Florence2_pt23B": "Florence-2-base",
     "Florence2_pt77B": "Florence-2-large",
     
-    # Other models
+    # Other fast models (16-18)
     "Moondream2_2B": "Moondream2-2B",
-    "GLMEdge_2B": "GLM-Edge-V-2B",
-    "InternVL3_1B": "InternVL3-1B",
-    "InternVL3_2B": "InternVL3-2B",
-    "InternVL25_4B": "InternVL2.5-4B"
+    "LLAVA_1pt5_7B": "LLAVA-1.5-7B",
+    "LLAVA_v1pt6_Mistral_7B": "LLAVA-v1.6-Mistral-7B"
+    
+    # EXCLUDED - Slow performance models:
+    # "Phi3pt5_vision_4B": "Phi-3.5-vision-instruct-4bit",  # 60s inference time
+    # "GLMEdge_2B": "GLM-Edge-V-2B",  # 31s inference + quantization issues
 }
 
 def cleanup_gpu_memory():
@@ -244,12 +252,15 @@ def send_chat_request(
     try:
         response = model.predict(image_url, prompt_text)
         
-        # Check if response indicates a CUDA error
-        if isinstance(response, tuple) and len(response) >= 1:
-            if "ERROR: CUDA device-side assert" in str(response[0]):
+        # Clean the response to remove verbosity and format artifacts
+        cleaned_response = clean_vlm_response(response)
+        
+        # Check if cleaned response indicates a CUDA error
+        if isinstance(cleaned_response, tuple) and len(cleaned_response) >= 1:
+            if "ERROR: CUDA device-side assert" in str(cleaned_response[0]):
                 print(f"⚠️  CUDA error handled gracefully for engine: {engine}")
                 return "CUDA_ERROR_HANDLED", ["CUDA_ERROR_HANDLED"]
-        elif "ERROR: CUDA device-side assert" in str(response):
+        elif "ERROR: CUDA device-side assert" in str(cleaned_response):
             print(f"⚠️  CUDA error handled gracefully for engine: {engine}")
             return "CUDA_ERROR_HANDLED", ["CUDA_ERROR_HANDLED"]
             
@@ -262,7 +273,7 @@ def send_chat_request(
             # Re-raise other exceptions
             raise e
     
-    response = response
+    response = cleaned_response
     
     # Clean up temporary file if created
     if image_url.startswith("/tmp/"):

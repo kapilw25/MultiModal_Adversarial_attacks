@@ -20,10 +20,25 @@ import json
 from tqdm import tqdm
 from text_cleaner import clean_vlm_response
 from datetime import datetime, timedelta
+# Import memory clearing utility
+try:
+    from local_model.model_utils import clear_model_memory_if_needed
+except ImportError:
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'local_model'))
+    from model_utils import clear_model_memory_if_needed
 try:
     from scripts.corrupted_images_blacklist import should_skip_image, log_corrupted_image_skip, is_question_corrupted
 except ImportError:
     from corrupted_images_blacklist import should_skip_image, log_corrupted_image_skip, is_question_corrupted
+
+
+def get_prompt_suffix(engine):
+    """Get model-specific prompt suffix based on model capabilities"""
+    # REVERT: Enhanced prompting made LLAVA worse - going back to standard prompts
+    # Memory clearing will handle repetition, prompts should remain consistent
+    return " Answer format (do not generate any other content): The answer is <answer>."
 
 
 class MemoryMonitor:
@@ -394,7 +409,7 @@ class VLMBatchOrchestrator:
                 "content": [
                     {
                         "type": "text",
-                        "text": data['text'] + " Answer format (do not generate any other content): The answer is <answer>."
+                        "text": data['text'] + get_prompt_suffix(engine)
                     },
                     {
                         "type": "image_url",
@@ -405,6 +420,11 @@ class VLMBatchOrchestrator:
                 ]
             }
         ]
+        
+        # Clear memory for models prone to context bleeding/repetition
+        memory_cleared = clear_model_memory_if_needed(engine)
+        if memory_cleared:
+            print(f"🧹 Memory cleared for {engine} to prevent context bleeding")
         
         # Call VLM client with error handling and timing
         question_start_time = time.time()

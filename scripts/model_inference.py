@@ -5,6 +5,12 @@ from mimetypes import guess_type
 import sys
 import torch
 import gc
+
+# Add proper paths for imports when running from different directories
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, current_dir)  # scripts directory
+sys.path.insert(0, os.path.join(parent_dir, 'local_model'))  # local_model directory
 try:
     from scripts.attack_selector import select_attack
     from scripts.batch_processor import create_batch_processor

@@ -130,6 +130,7 @@ Located in `scripts/`, this module handles model evaluation and result analysis:
 python3 -m venv venv_MM
 source venv_MM/bin/activate
 pip install -r requirements.txt
+python -m spacy download en_core_web_sm # Download spaCy English model for text processing  
 ```
 
 ```bash

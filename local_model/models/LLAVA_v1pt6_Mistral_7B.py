@@ -147,9 +147,9 @@ class LLAVAv16MistralModelWrapper(BaseVLModel):
                     num_beams=1,  # No beam search to save memory
                 )
             
-            # Process output - following working script pattern (no token skipping for v1.6)
+            # Process output - use proper token handling for LLAVA v1.6
             output_text = self.processor.decode(
-                generated_ids[0],  # No token skipping for v1.6 based on working script
+                generated_ids[0][inputs['input_ids'].shape[1]:],  # Skip input tokens properly
                 skip_special_tokens=True
             )
             

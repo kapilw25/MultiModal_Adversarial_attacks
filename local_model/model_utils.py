@@ -11,6 +11,44 @@ def cleanup_memory():
     torch.cuda.empty_cache()
     gc.collect()
 
+def clear_model_memory_if_needed(engine, model_instance=None):
+    """Clear model memory for engines prone to context bleeding/repetition
+    
+    Args:
+        engine (str): Model engine name (e.g., 'LLAVA_v1pt6_Mistral_7B')
+        model_instance: Optional model instance to clear specific attributes
+        
+    Returns:
+        bool: True if memory clearing was applied, False otherwise
+    """
+    # List of models that need memory clearing between questions
+    memory_sensitive_models = [
+        'LLAVA_1pt5_7B',
+        'LLAVA_v1pt6_Mistral_7B'
+        # Add more models here as needed: 'DeepSeek1_1pt3B', etc.
+    ]
+    
+    if engine in memory_sensitive_models:
+        # Clear CUDA cache
+        torch.cuda.empty_cache()
+        
+        # Clear model-specific memory states
+        if model_instance:
+            # Clear past key values that cause context bleeding
+            if hasattr(model_instance, 'past_key_values'):
+                model_instance.past_key_values = None
+            if hasattr(model_instance, 'model') and hasattr(model_instance.model, 'past_key_values'):
+                model_instance.model.past_key_values = None
+            # Clear any cached generation states
+            if hasattr(model_instance, '_generation_cache'):
+                model_instance._generation_cache = None
+        
+        # Light garbage collection for problematic models
+        gc.collect()
+        return True
+    
+    return False
+
 def get_device():
     """Get the appropriate device (CUDA or CPU)"""
     return "cuda" if torch.cuda.is_available() else "cpu"
