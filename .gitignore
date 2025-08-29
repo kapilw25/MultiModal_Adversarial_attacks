@@ -1,6 +1,8 @@
 .env
 venv_MM
 venv*
+*backup*
+unit_test
 
 # directories
 data/train

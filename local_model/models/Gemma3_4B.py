@@ -54,6 +54,10 @@ class GemmaVLModelWrapper(BaseVLModel):
     def predict(self, image_path, question):
         """Process an image and question to generate an answer"""
         try:
+            # Aggressive memory cleanup before inference
+            cleanup_memory()
+            torch.cuda.empty_cache()
+            
             # Prepare messages
             messages = [
                 {
@@ -69,31 +73,42 @@ class GemmaVLModelWrapper(BaseVLModel):
                 }
             ]
             
-            # Process inputs - use more memory efficient settings
+            # Process inputs with memory-efficient settings
             inputs = self.processor.apply_chat_template(
                 messages, 
                 add_generation_prompt=True, 
                 tokenize=True,
                 return_dict=True, 
                 return_tensors="pt"
-            ).to(self.device, dtype=torch.bfloat16)  # Use bfloat16 for Gemma
+            ).to(self.device, dtype=torch.bfloat16)
             
-            # Generate response
+            # Generate response with aggressive memory optimization
             print(f"Generating response with {self.model_name}...")
             input_len = inputs["input_ids"].shape[-1]
             
-            # Clean up memory before generation
+            # Final memory cleanup before generation
             cleanup_memory()
+            torch.cuda.empty_cache()
             
             with torch.inference_mode():
-                # Use more memory-efficient generation settings
+                # Use memory-efficient generation settings
                 generation = self.model.generate(
                     **inputs, 
-                    max_new_tokens=128,
-                    do_sample=False,  # Deterministic generation uses less memory
-                    num_beams=1,      # Beam search with 1 beam = greedy search (less memory)
+                    max_new_tokens=64,        # Reduced from 128 to save memory
+                    do_sample=False,          # Deterministic generation uses less memory
+                    num_beams=1,              # Greedy search (least memory)
+                    use_cache=False,          # Disable KV cache to save memory
+                    pad_token_id=self.processor.tokenizer.eos_token_id,
+                    # Memory optimization flags
+                    output_attentions=False,
+                    output_hidden_states=False,
+                    return_dict_in_generate=False
                 )
                 generation = generation[0][input_len:]
+            
+            # Clean up immediately after generation
+            cleanup_memory()
+            torch.cuda.empty_cache()
             
             # Process output
             print("Processing output...")
@@ -101,6 +116,12 @@ class GemmaVLModelWrapper(BaseVLModel):
             
             return output_text
             
+        except torch.cuda.OutOfMemoryError as oom_e:
+            # Handle OOM specifically with aggressive cleanup
+            print(f"CUDA OOM Error in Gemma prediction: {str(oom_e)}")
+            cleanup_memory()
+            torch.cuda.empty_cache()
+            return f"CUDA_OOM_ERROR: {str(oom_e)}"
         except Exception as e:
             print(f"Error in Gemma prediction: {str(e)}")
             import traceback

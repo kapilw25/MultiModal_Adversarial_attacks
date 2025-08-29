@@ -136,9 +136,8 @@ class Florence2ModelWrapper(BaseVLModel):
             # Load image
             image = Image.open(image_path).convert("RGB")
             
-            # For chart analysis, we'll use the DETAILED_CAPTION task
-            # This works better for charts than VQA
-            task_prompt = "<DETAILED_CAPTION>"
+            # Always use VQA task for question answering
+            vqa_prompt = f"<VQA>{question}"
             
             # Measure memory before inference
             print("Memory before inference:")
@@ -149,9 +148,9 @@ class Florence2ModelWrapper(BaseVLModel):
                 # Clear cache before heavy operations
                 torch.cuda.empty_cache()
                 
-                # Prepare inputs
+                # Prepare inputs for VQA task
                 inputs = self.processor(
-                    text=task_prompt, 
+                    text=vqa_prompt, 
                     images=image, 
                     return_tensors="pt"
                 ).to(self.device, self.dtype)
@@ -160,21 +159,23 @@ class Florence2ModelWrapper(BaseVLModel):
                 torch.cuda.empty_cache()
                 
                 # Generate response
-                print(f"Generating response with Florence-2-{self.model_size}...")
+                print(f"Generating VQA response with Florence-2-{self.model_size}...")
                 
                 generated_ids = self.model.generate(
                     input_ids=inputs["input_ids"],
                     pixel_values=inputs["pixel_values"],
-                    max_new_tokens=256,
+                    max_new_tokens=128,  # Reduced for concise answers
                     num_beams=3,
                     do_sample=False,  # Deterministic to save memory
                 )
                 
-                # Decode and post-process
+                # Decode the response
                 generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
+                
+                # Post-process the generation to extract VQA answer
                 parsed_answer = self.processor.post_process_generation(
                     generated_text, 
-                    task=task_prompt, 
+                    task="<VQA>", 
                     image_size=(image.width, image.height)
                 )
             
@@ -182,49 +183,64 @@ class Florence2ModelWrapper(BaseVLModel):
             print("Memory after inference:")
             self._print_memory_usage()
             
-            # Extract the actual answer from the parsed result
-            if isinstance(parsed_answer, dict) and task_prompt in parsed_answer:
-                result = parsed_answer[task_prompt]
+            # Extract the actual answer from the VQA parsed result
+            if isinstance(parsed_answer, dict) and "<VQA>" in parsed_answer:
+                # Get the VQA result
+                vqa_result = parsed_answer["<VQA>"]
                 
-                # If the result doesn't seem to answer the question, try a different approach
-                if len(result.split()) < 5:  # Very short answer
-                    # Try a different task prompt
-                    with torch.inference_mode():
-                        # Try with VQA task
-                        vqa_prompt = f"<VQA> {question}"
-                        inputs = self.processor(
-                            text=vqa_prompt, 
-                            images=image, 
-                            return_tensors="pt"
-                        ).to(self.device, self.dtype)
-                        
-                        generated_ids = self.model.generate(
-                            input_ids=inputs["input_ids"],
-                            pixel_values=inputs["pixel_values"],
-                            max_new_tokens=256,
-                            num_beams=3,
-                        )
-                        
-                        generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
-                        
-                        # Extract answer part (after the prompt)
-                        match = re.search(r'<VQA>\s*(.*?)(?:\s*<|$)', generated_text)
-                        if match:
-                            vqa_result = match.group(1).strip()
-                            if len(vqa_result.split()) > 3:  # If we got a reasonable answer
-                                return vqa_result
+                # Clean up the VQA result to extract just the answer
+                if isinstance(vqa_result, str):
+                    # Remove any residual task tokens or formatting
+                    cleaned_answer = vqa_result.strip()
+                    
+                    # Remove common prefixes that might appear
+                    prefixes_to_remove = [
+                        "VQA>", "<VQA>", "The answer is", "Answer:", "A:", 
+                        "Question:", "Q:", vqa_prompt, question
+                    ]
+                    
+                    for prefix in prefixes_to_remove:
+                        if cleaned_answer.startswith(prefix):
+                            cleaned_answer = cleaned_answer[len(prefix):].strip()
+                    
+                    # Remove any remaining angle brackets or location tokens
+                    cleaned_answer = re.sub(r'<[^>]*>', '', cleaned_answer).strip()
+                    
+                    # If we got a valid answer, return it with proper format
+                    if cleaned_answer and len(cleaned_answer) > 0:
+                        return f"The answer is {cleaned_answer}"
                 
-                return result
+                # If we couldn't clean it properly, try one more cleaning pass
+                fallback_clean = str(vqa_result)
+                # Remove VQA> prefix and location tokens
+                fallback_clean = re.sub(r'VQA>', '', fallback_clean).strip()
+                fallback_clean = re.sub(r'<loc_\d+>', '', fallback_clean).strip()
+                
+                if fallback_clean and len(fallback_clean) > 0:
+                    return f"The answer is {fallback_clean}"
+                else:
+                    return f"The answer is {str(vqa_result)}"
+            
+            # If VQA parsing failed, try to extract from raw generated text
+            elif isinstance(parsed_answer, str) or generated_text:
+                # Use the generated text directly and clean it
+                text_to_clean = str(parsed_answer) if isinstance(parsed_answer, str) else generated_text
+                
+                # Remove the input prompt and extract just the answer part
+                answer_part = text_to_clean.replace(vqa_prompt, "").strip()
+                
+                # Remove common model artifacts
+                answer_part = re.sub(r'<[^>]*>', '', answer_part).strip()  # Remove all angle bracket tokens
+                answer_part = re.sub(r'^\w*:', '', answer_part).strip()     # Remove "Answer:" type prefixes
+                
+                if answer_part and len(answer_part) > 0:
+                    return f"The answer is {answer_part}"
+                    
+                # Last resort: return something meaningful
+                return "Unable to extract answer from VQA response"
+            
             else:
-                # Try to extract meaningful content from the raw output
-                if isinstance(parsed_answer, str):
-                    # Remove any task prompts from the output
-                    cleaned = re.sub(r'<[A-Z_]+>', '', parsed_answer).strip()
-                    if cleaned:
-                        return cleaned
-                
-                # If all else fails, return the raw parsed answer
-                return str(parsed_answer)
+                return f"Unexpected VQA response format: {type(parsed_answer)}"
             
         except Exception as e:
             print(f"Error in Florence-2-{self.model_size} prediction: {e}")

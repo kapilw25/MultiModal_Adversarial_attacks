@@ -33,12 +33,19 @@ def update_database_from_json(json_path):
         
         # Run the database update process
         database_manager.ensure_db_directory()
+        
+        # Backup existing database before creating fresh one
+        backup_files = database_manager.backup_existing_files()
+        if backup_files:
+            print(f"📁 Created {len(backup_files)} backup files")
+        
         data = database_manager.load_results_from_json()
         if data:
             database_manager.create_database()
             conn = database_manager.sqlite3.connect(database_manager.DB_PATH)
             id_maps = database_manager.populate_dimension_tables(data, conn)
             database_manager.store_results(data, id_maps, conn)
+            database_manager.store_performance_metrics(data, id_maps, conn)
             database_manager.create_attack_effectiveness_table(data, conn)
             conn.close()
             print("✅ Database updated successfully")
@@ -405,6 +412,112 @@ def get_task_question_count(task):
         return questions_per_image * 3
 
 
+def aggregate_performance_metrics(file_paths):
+    """
+    Aggregate performance metrics from individual inference JSON files.
+    
+    Args:
+        file_paths (list): List of file paths to process
+        
+    Returns:
+        dict: Aggregated performance metrics by attack type
+    """
+    performance_data = {}
+    
+    for path in file_paths:
+        file_name = os.path.basename(path)
+        
+        # Determine attack type from filename
+        if "_BB_pgd" in file_name:
+            attack_type = "PGD"
+        elif "_BB_fgsm" in file_name:
+            attack_type = "FGSM"
+        elif "_BB_cw_l2" in file_name:
+            attack_type = "CW-L2"
+        elif "_BB_cw_l0" in file_name:
+            attack_type = "CW-L0"
+        elif "_BB_cw_linf" in file_name:
+            attack_type = "CW-L∞"
+        elif "_BB_lbfgs" in file_name:
+            attack_type = "L-BFGS"
+        elif "_BB_jsma" in file_name:
+            attack_type = "JSMA"
+        elif "_BB_deepfool" in file_name:
+            attack_type = "DeepFool"
+        elif "_BB_square" in file_name:
+            attack_type = "Square"
+        elif "_BB_hop_skip_jump" in file_name:
+            attack_type = "HopSkipJump"
+        elif "_BB_pixel" in file_name:
+            attack_type = "Pixel"
+        elif "_BB_simba" in file_name:
+            attack_type = "SimBA"
+        elif "_BB_spatial" in file_name:
+            attack_type = "Spatial"
+        elif "_BB_query_efficient_bb" in file_name:
+            attack_type = "Query-Efficient BB"
+        elif "_BB_zoo" in file_name:
+            attack_type = "ZOO"
+        elif "_BB_boundary" in file_name:
+            attack_type = "Boundary"
+        elif "_BB_geoda" in file_name:
+            attack_type = "GeoDA"
+        else:
+            attack_type = "Original"
+        
+        # Read individual JSON lines and extract performance metrics
+        try:
+            with open(path, 'r') as f:
+                metrics_list = []
+                total_questions = 0
+                cached_loads = 0
+                total_loads = 0
+                
+                for line in f:
+                    if line.strip():
+                        entry = json.loads(line)
+                        total_questions += 1
+                        
+                        # Extract performance metrics if present
+                        if 'performance_metrics' in entry:
+                            pm = entry['performance_metrics']
+                            metrics_list.append({
+                                'inference_time': pm.get('inference_time_seconds', 0),
+                                'gpu_allocated': pm.get('gpu_memory', {}).get('after_inference_mb', 0),
+                                'gpu_peak': pm.get('gpu_memory', {}).get('peak_mb', 0),
+                                'gpu_reserved': pm.get('gpu_memory', {}).get('reserved_mb', 0),
+                                'gpu_total': pm.get('gpu_memory', {}).get('total_gpu_mb', 0),
+                                'cpu_memory': pm.get('cpu_memory', {}).get('after_inference_mb', 0),
+                                'loading_time': pm.get('model_loading', {}).get('loading_time_seconds', 0),
+                                'was_cached': pm.get('model_loading', {}).get('was_cached', False)
+                            })
+                            
+                            total_loads += 1
+                            if pm.get('model_loading', {}).get('was_cached', False):
+                                cached_loads += 1
+                
+                # Aggregate metrics
+                if metrics_list:
+                    avg_metrics = {
+                        'avg_inference_time_seconds': sum(m['inference_time'] for m in metrics_list) / len(metrics_list),
+                        'avg_gpu_memory_allocated_mb': sum(m['gpu_allocated'] for m in metrics_list) / len(metrics_list),
+                        'avg_gpu_memory_peak_mb': sum(m['gpu_peak'] for m in metrics_list) / len(metrics_list),
+                        'avg_gpu_memory_reserved_mb': sum(m['gpu_reserved'] for m in metrics_list) / len(metrics_list),
+                        'total_gpu_memory_mb': metrics_list[0]['gpu_total'] if metrics_list else 0,  # Same for all
+                        'avg_cpu_memory_mb': sum(m['cpu_memory'] for m in metrics_list) / len(metrics_list),
+                        'model_loading_time_seconds': sum(m['loading_time'] for m in metrics_list),  # Total loading time
+                        'cache_hit_ratio': cached_loads / total_loads if total_loads > 0 else 0,
+                        'total_questions': total_questions
+                    }
+                    
+                    performance_data[attack_type] = avg_metrics
+                    
+        except Exception as e:
+            print(f"Warning: Could not extract performance metrics from {path}: {e}")
+    
+    return performance_data
+
+
 def evaluate_all_files(engine, task, random_count=None):
     """Evaluate all files for a given engine and task"""
     # Get appropriate question count for this task if not provided
@@ -427,6 +540,10 @@ def evaluate_all_files(engine, task, random_count=None):
     print(f"Found {len(file_paths)} evaluation files for task '{task}':")
     for i, path in enumerate(file_paths):
         print(f"  [{i+1}] {os.path.basename(path)}")
+    
+    # Aggregate performance metrics from all files
+    print(f"Aggregating performance metrics for {engine}...")
+    performance_metrics = aggregate_performance_metrics(file_paths)
     
     # Evaluate each file
     results = {}
@@ -500,10 +617,10 @@ def evaluate_all_files(engine, task, random_count=None):
                           tablefmt="grid"))
             
             # Save results to JSON file for database storage
-            save_results_to_json(engine, task, change_data)
+            save_results_to_json(engine, task, change_data, performance_metrics)
 
 
-def save_results_to_json(engine, task, change_data):
+def save_results_to_json(engine, task, change_data, performance_metrics=None):
     """Save evaluation results to a JSON file for database storage"""
     # Skip if there's no data
     if not change_data:
@@ -515,20 +632,59 @@ def save_results_to_json(engine, task, change_data):
     # Path to the JSON file
     json_path = f"results/robustness_{task}.json"
     
-    # Initialize the data structure if the file doesn't exist
-    if not os.path.exists(json_path):
+    # Backup existing JSON file if this is the first model being processed
+    # (only backup once per task evaluation run)
+    if os.path.exists(json_path):
+        # Check if this is a fresh run by seeing if file contains current pipeline models
+        try:
+            with open(json_path, 'r') as f:
+                existing_data = json.load(f)
+            
+            # Check if file contains outdated models (models not in current pipeline)
+            from vlm_local_client import list_available_models
+            current_models = set(list_available_models())
+            existing_models = set(existing_data.get("models", {}).keys())
+            
+            # If there are models in the file that aren't in current pipeline, backup and start fresh
+            outdated_models = existing_models - current_models
+            if outdated_models:
+                backup_json = json_path.replace('.json', '_backup.json')
+                import shutil
+                shutil.copy2(json_path, backup_json)
+                print(f"📁 Backed up JSON with outdated models to {backup_json}")
+                print(f"🗑️  Found outdated models: {', '.join(outdated_models)}")
+                # Start fresh
+                data = {
+                    "models": {},
+                    "metadata": {
+                        "task_name": task,
+                        "timestamp": "2025-07-19T07:00:00Z",
+                        "version": "2.0"
+                    }
+                }
+            else:
+                # Load existing data (current models)
+                data = existing_data
+        except:
+            # If can't read existing file, start fresh
+            data = {
+                "models": {},
+                "metadata": {
+                    "task_name": task,
+                    "timestamp": "2025-07-19T07:00:00Z",
+                    "version": "2.0"
+                }
+            }
+    else:
+        # Initialize the data structure for new file
         data = {
             "models": {},
             "metadata": {
                 "task_name": task,
                 "timestamp": "2025-07-19T07:00:00Z",
-                "version": "1.0"
+                "version": "2.0"
             }
         }
-    else:
-        # Load existing data
-        with open(json_path, 'r') as f:
-            data = json.load(f)
     
     # Initialize model data if not present
     if engine not in data["models"]:
@@ -551,18 +707,26 @@ def save_results_to_json(engine, task, change_data):
         
         effect = row[4]
         
-        # Store in the data structure
-        data["models"][engine][attack_type] = {
+        # Create base entry
+        entry = {
             "accuracy": attack_accuracy,
             "change": change,
             "effect": effect
         }
+        
+        # Add performance metrics if available
+        if performance_metrics and attack_type in performance_metrics:
+            entry["performance_metrics"] = performance_metrics[attack_type]
+        
+        # Store in the data structure
+        data["models"][engine][attack_type] = entry
     
     # Save to file
     with open(json_path, 'w') as f:
         json.dump(data, f, indent=2)
     
     print(f"Results saved to {json_path}")
+    print(f"Performance metrics integrated for {len(performance_metrics) if performance_metrics else 0} attack types")
     
     # Auto-update database after JSON creation
     update_database_from_json(json_path)

@@ -25,99 +25,152 @@ def ensure_db_directory():
     """Ensure the directory for the database exists."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
+def backup_existing_files():
+    """
+    Backup existing robustness files before creating fresh ones.
+    This ensures we don't lose previous data and always work with current pipeline models.
+    """
+    backup_files = []
+    
+    # Backup database file if it exists
+    if os.path.exists(DB_PATH):
+        backup_db = DB_PATH.replace('.db', '_backup.db')
+        import shutil
+        shutil.copy2(DB_PATH, backup_db)
+        backup_files.append(backup_db)
+        print(f"📁 Backed up database to {backup_db}")
+    
+    # Backup JSON file if it exists
+    if os.path.exists(JSON_PATH):
+        backup_json = JSON_PATH.replace('.json', '_backup.json')
+        import shutil
+        shutil.copy2(JSON_PATH, backup_json)
+        backup_files.append(backup_json)
+        print(f"📁 Backed up JSON to {backup_json}")
+    
+    return backup_files
+
 def create_database():
     """
     Create the normalized database schema with dimension and fact tables.
+    Always creates fresh tables to ensure current pipeline models and schema.
     """
+    # Remove existing database file to ensure fresh start
+    if os.path.exists(DB_PATH):
+        os.remove(DB_PATH)
+        print(f"🗑️  Removed existing database for fresh creation")
+    
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Check if tables exist
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='results'")
-    tables_exist = cursor.fetchone() is not None
+    # Always create fresh tables
+    # Create attack_types dimension table
+    cursor.execute('''
+    CREATE TABLE attack_types (
+        attack_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        attack_name TEXT NOT NULL UNIQUE,
+        attack_category TEXT NOT NULL
+    )
+    ''')
     
-    if not tables_exist:
-        # Create attack_types dimension table
-        cursor.execute('''
-        CREATE TABLE attack_types (
-            attack_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            attack_name TEXT NOT NULL UNIQUE,
-            attack_category TEXT NOT NULL
-        )
-        ''')
-        
-        # Create model_families dimension table
-        cursor.execute('''
-        CREATE TABLE model_families (
-            family_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            family_name TEXT NOT NULL UNIQUE
-        )
-        ''')
-        
-        # Create size_categories dimension table
-        cursor.execute('''
-        CREATE TABLE size_categories (
-            size_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            size_range TEXT NOT NULL UNIQUE
-        )
-        ''')
-        
-        # Create tasks dimension table
-        cursor.execute('''
-        CREATE TABLE tasks (
-            task_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            task_name TEXT NOT NULL UNIQUE
-        )
-        ''')
-        
-        # Create models dimension table
-        cursor.execute('''
-        CREATE TABLE models (
-            model_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            model_name TEXT NOT NULL UNIQUE,
-            family_id INTEGER,
-            size_id INTEGER,
-            FOREIGN KEY (family_id) REFERENCES model_families(family_id),
-            FOREIGN KEY (size_id) REFERENCES size_categories(size_id)
-        )
-        ''')
-        
-        # Create results fact table
-        cursor.execute('''
-        CREATE TABLE results (
-            result_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    # Create model_families dimension table
+    cursor.execute('''
+    CREATE TABLE model_families (
+        family_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        family_name TEXT NOT NULL UNIQUE
+    )
+    ''')
+    
+    # Create size_categories dimension table
+    cursor.execute('''
+    CREATE TABLE size_categories (
+        size_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        size_range TEXT NOT NULL UNIQUE
+    )
+    ''')
+    
+    # Create tasks dimension table
+    cursor.execute('''
+    CREATE TABLE tasks (
+        task_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_name TEXT NOT NULL UNIQUE
+    )
+    ''')
+    
+    # Create models dimension table
+    cursor.execute('''
+    CREATE TABLE models (
+        model_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        model_name TEXT NOT NULL UNIQUE,
+        family_id INTEGER,
+        size_id INTEGER,
+        FOREIGN KEY (family_id) REFERENCES model_families(family_id),
+        FOREIGN KEY (size_id) REFERENCES size_categories(size_id)
+    )
+    ''')
+    
+    # Create results fact table
+    cursor.execute('''
+    CREATE TABLE results (
+        result_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        attack_id INTEGER,
+        model_id INTEGER,
+        task_id INTEGER,
+        accuracy REAL DEFAULT 0,
+        accuracy_change REAL DEFAULT 0,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (attack_id) REFERENCES attack_types(attack_id),
+        FOREIGN KEY (model_id) REFERENCES models(model_id),
+        FOREIGN KEY (task_id) REFERENCES tasks(task_id)
+    )
+    ''')
+    
+    # Create performance_metrics table
+    cursor.execute('''
+    CREATE TABLE performance_metrics (
+            metric_id INTEGER PRIMARY KEY AUTOINCREMENT,
             attack_id INTEGER,
             model_id INTEGER,
             task_id INTEGER,
-            accuracy REAL DEFAULT 0,
-            accuracy_change REAL DEFAULT 0,
+            avg_inference_time_seconds REAL DEFAULT 0,
+            avg_gpu_memory_allocated_mb REAL DEFAULT 0,
+            avg_gpu_memory_peak_mb REAL DEFAULT 0,
+            avg_gpu_memory_reserved_mb REAL DEFAULT 0,
+            total_gpu_memory_mb REAL DEFAULT 0,
+            avg_cpu_memory_mb REAL DEFAULT 0,
+            model_loading_time_seconds REAL DEFAULT 0,
+            cache_hit_ratio REAL DEFAULT 0,
+            total_questions INTEGER DEFAULT 0,
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (attack_id) REFERENCES attack_types(attack_id),
             FOREIGN KEY (model_id) REFERENCES models(model_id),
             FOREIGN KEY (task_id) REFERENCES tasks(task_id)
-        )
-        ''')
+    )
+    ''')
+    
+    # Create a human-readable attack_effectiveness table
+    # This table will have columns for each model showing both accuracy and degradation
+    cursor.execute('''
+    CREATE TABLE attack_effectiveness (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        attack_name TEXT NOT NULL,
+        attack_category TEXT NOT NULL,
+        task_name TEXT NOT NULL,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+    
+    # Create indexes
+    cursor.execute('CREATE INDEX idx_attack_id ON results(attack_id)')
+    cursor.execute('CREATE INDEX idx_model_id ON results(model_id)')
+    cursor.execute('CREATE INDEX idx_task_id ON results(task_id)')
+    cursor.execute('CREATE INDEX idx_performance_attack_id ON performance_metrics(attack_id)')
+    cursor.execute('CREATE INDEX idx_performance_model_id ON performance_metrics(model_id)')
+    cursor.execute('CREATE INDEX idx_performance_task_id ON performance_metrics(task_id)')
+    cursor.execute('CREATE INDEX idx_attack_effectiveness_name ON attack_effectiveness(attack_name)')
+    cursor.execute('CREATE INDEX idx_attack_effectiveness_category ON attack_effectiveness(attack_category)')
         
-        # Create a human-readable attack_effectiveness table
-        # This table will have columns for each model showing both accuracy and degradation
-        cursor.execute('''
-        CREATE TABLE attack_effectiveness (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            attack_name TEXT NOT NULL,
-            attack_category TEXT NOT NULL,
-            task_name TEXT NOT NULL,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        ''')
-        
-        # Create indexes
-        cursor.execute('CREATE INDEX idx_attack_id ON results(attack_id)')
-        cursor.execute('CREATE INDEX idx_model_id ON results(model_id)')
-        cursor.execute('CREATE INDEX idx_task_id ON results(task_id)')
-        cursor.execute('CREATE INDEX idx_attack_effectiveness_name ON attack_effectiveness(attack_name)')
-        cursor.execute('CREATE INDEX idx_attack_effectiveness_category ON attack_effectiveness(attack_category)')
-        
-        print("Created new normalized database schema with dimension and fact tables")
+    print("✅ Created fresh normalized database schema with dimension and fact tables")
     
     conn.commit()
     conn.close()
@@ -504,6 +557,61 @@ def store_results(data, id_maps, conn):
     
     conn.commit()
 
+def store_performance_metrics(data, id_maps, conn):
+    """
+    Store performance metrics in the performance_metrics table.
+    
+    Args:
+        data (dict): The loaded JSON data
+        id_maps (dict): Mapping of dimension values to IDs
+        conn (sqlite3.Connection): Database connection
+    """
+    cursor = conn.cursor()
+    
+    # Clear existing performance metrics for the task
+    cursor.execute("DELETE FROM performance_metrics WHERE task_id = ?", (id_maps['task_id'],))
+    
+    # Extract model names
+    model_names = list(data["models"].keys())
+    
+    # Insert performance metrics
+    for model_name in model_names:
+        model_id = id_maps['model_id_map'][model_name]
+        
+        for attack_type, attack_data in data["models"][model_name].items():
+            attack_id = id_maps['attack_id_map'][attack_type]
+            
+            # Check if performance metrics exist for this attack
+            if 'performance_metrics' in attack_data:
+                pm = attack_data['performance_metrics']
+                
+                cursor.execute(
+                    """
+                    INSERT INTO performance_metrics 
+                    (attack_id, model_id, task_id, avg_inference_time_seconds, 
+                     avg_gpu_memory_allocated_mb, avg_gpu_memory_peak_mb, avg_gpu_memory_reserved_mb,
+                     total_gpu_memory_mb, avg_cpu_memory_mb, model_loading_time_seconds, 
+                     cache_hit_ratio, total_questions) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        attack_id, 
+                        model_id, 
+                        id_maps['task_id'], 
+                        pm.get("avg_inference_time_seconds", 0),
+                        pm.get("avg_gpu_memory_allocated_mb", 0),
+                        pm.get("avg_gpu_memory_peak_mb", 0),
+                        pm.get("avg_gpu_memory_reserved_mb", 0),
+                        pm.get("total_gpu_memory_mb", 0),
+                        pm.get("avg_cpu_memory_mb", 0),
+                        pm.get("model_loading_time_seconds", 0),
+                        pm.get("cache_hit_ratio", 0),
+                        pm.get("total_questions", 0)
+                    )
+                )
+    
+    conn.commit()
+
 def verify_database():
     """Verify the database was created correctly by running some test queries."""
     conn = sqlite3.connect(DB_PATH)
@@ -597,10 +705,15 @@ def verify_database():
 
 def main():
     """Main function to run the script."""
-    print("Starting to store evaluation results in normalized database...")
+    print("🚀 Starting to store evaluation results in normalized database...")
     
     # Ensure the database directory exists
     ensure_db_directory()
+    
+    # Backup existing files before creating fresh ones
+    backup_files = backup_existing_files()
+    if backup_files:
+        print(f"✅ Created {len(backup_files)} backup files")
     
     # Load results from JSON
     data = load_results_from_json()
@@ -621,6 +734,10 @@ def main():
     # Store results in fact table
     print("Storing results in fact table...")
     store_results(data, id_maps, conn)
+    
+    # Store performance metrics
+    print("Storing performance metrics...")
+    store_performance_metrics(data, id_maps, conn)
     
     # Create and populate the attack_effectiveness table
     print("Creating and populating attack effectiveness table...")

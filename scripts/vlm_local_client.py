@@ -12,6 +12,8 @@ import base64
 import torch
 import gc
 import threading
+import psutil
+from datetime import datetime
 
 # Add the parent directory to sys.path to import local_model modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -56,11 +58,11 @@ MODEL_MAPPING = {
     "InternVL3_2B": "InternVL3-2B",
     "InternVL25_4B": "InternVL2.5-4B",
     
-    # Florence models (14-15)
-    "Florence2_pt23B": "Florence-2-base",
-    "Florence2_pt77B": "Florence-2-large",
+    # Florence models - DISABLED: Not suitable for VQA tasks
+    # "Florence2_pt23B": "Florence-2-base",
+    # "Florence2_pt77B": "Florence-2-large",
     
-    # Other fast models (16-18)
+    # Other fast models (14-16)
     "Moondream2_2B": "Moondream2-2B",
     "LLAVA_1pt5_7B": "LLAVA-1.5-7B",
     "LLAVA_v1pt6_Mistral_7B": "LLAVA-v1.6-Mistral-7B"
@@ -156,6 +158,30 @@ def get_gpu_memory_info():
     return f"GPU Memory: {allocated:.2f}GB allocated, {reserved:.2f}GB reserved, {total:.2f}GB total"
 
 
+def get_detailed_memory_metrics():
+    """Get detailed memory metrics for performance tracking"""
+    metrics = {}
+    
+    # GPU Memory
+    if torch.cuda.is_available():
+        metrics["gpu"] = {
+            "allocated_mb": torch.cuda.memory_allocated() / (1024**2),
+            "reserved_mb": torch.cuda.memory_reserved() / (1024**2),
+            "peak_mb": torch.cuda.max_memory_allocated() / (1024**2),
+            "total_mb": torch.cuda.get_device_properties(0).total_memory / (1024**2)
+        }
+    else:
+        metrics["gpu"] = {"allocated_mb": 0, "reserved_mb": 0, "peak_mb": 0, "total_mb": 0}
+    
+    # CPU Memory
+    process = psutil.Process(os.getpid())
+    metrics["cpu"] = {
+        "memory_mb": process.memory_info().rss / (1024**2)
+    }
+    
+    return metrics
+
+
 def get_model(engine="Qwen25_VL_3B"):
     """Get or create a model instance based on the engine name (thread-safe)."""
     global _model_instances
@@ -195,6 +221,7 @@ def send_chat_request(
         logit_bias: dict = {},
         max_new_token=4096,
         sample_n=1,
+        collect_metrics=False,
 ):
     """
     Send a chat request to the local vision-language model.
@@ -209,15 +236,40 @@ def send_chat_request(
         logit_bias: Logit bias dictionary (not used for local model)
         max_new_token: Maximum number of new tokens to generate (default: 4096)
         sample_n: Number of samples to generate (default: 1, only 1 is supported)
+        collect_metrics: Whether to collect performance metrics (default: False)
     
     Returns:
-        Tuple of (response_text, [response_text])
+        Tuple of (response_text, [response_text]) or (response_text, [response_text], metrics_dict)
     """
     if sample_n != 1:
         print("Warning: sample_n > 1 is not supported for local model. Using sample_n=1.")
     
+    # Initialize performance metrics if requested
+    performance_metrics = None
+    if collect_metrics:
+        performance_metrics = {
+            "inference_time_seconds": 0.0,
+            "gpu_memory": {"before_inference_mb": 0, "after_inference_mb": 0, "peak_mb": 0, "reserved_mb": 0, "total_gpu_mb": 0},
+            "cpu_memory": {"before_inference_mb": 0, "after_inference_mb": 0},
+            "model_loading": {"was_cached": False, "loading_time_seconds": 0.0},
+            "batch_info": {"batch_size": 1, "position_in_batch": 1, "total_batch_questions": 1}
+        }
+        start_time = time.time()
+        memory_before = get_detailed_memory_metrics()
+        performance_metrics["gpu_memory"]["before_inference_mb"] = memory_before["gpu"]["allocated_mb"]
+        performance_metrics["cpu_memory"]["before_inference_mb"] = memory_before["cpu"]["memory_mb"]
+    
+    # Check if model is already cached
+    model_was_cached = engine in _model_instances
+    model_load_start = time.time()
+    
     # Get the model instance
     model = get_model(engine)
+    
+    # Record model loading metrics
+    if collect_metrics:
+        performance_metrics["model_loading"]["was_cached"] = model_was_cached
+        performance_metrics["model_loading"]["loading_time_seconds"] = 0.0 if model_was_cached else (time.time() - model_load_start)
     
     # Extract image URL and text from the message
     image_url = None
@@ -259,21 +311,37 @@ def send_chat_request(
         if isinstance(cleaned_response, tuple) and len(cleaned_response) >= 1:
             if "ERROR: CUDA device-side assert" in str(cleaned_response[0]):
                 print(f"⚠️  CUDA error handled gracefully for engine: {engine}")
+                if collect_metrics:
+                    return "CUDA_ERROR_HANDLED", ["CUDA_ERROR_HANDLED"], performance_metrics
                 return "CUDA_ERROR_HANDLED", ["CUDA_ERROR_HANDLED"]
         elif "ERROR: CUDA device-side assert" in str(cleaned_response):
             print(f"⚠️  CUDA error handled gracefully for engine: {engine}")
+            if collect_metrics:
+                return "CUDA_ERROR_HANDLED", ["CUDA_ERROR_HANDLED"], performance_metrics
             return "CUDA_ERROR_HANDLED", ["CUDA_ERROR_HANDLED"]
             
     except Exception as e:
         if "CUDA error: device-side assert triggered" in str(e):
             print(f"⚠️  CUDA device-side assert caught at VLM client level for engine: {engine}")
             print(f"Error: {e}")
+            if collect_metrics:
+                return "CUDA_ERROR_HANDLED", ["CUDA_ERROR_HANDLED"], performance_metrics
             return "CUDA_ERROR_HANDLED", ["CUDA_ERROR_HANDLED"]
         else:
             # Re-raise other exceptions
             raise e
     
     response = cleaned_response
+    
+    # Collect final performance metrics
+    if collect_metrics:
+        memory_after = get_detailed_memory_metrics()
+        performance_metrics["inference_time_seconds"] = time.time() - start_time
+        performance_metrics["gpu_memory"]["after_inference_mb"] = memory_after["gpu"]["allocated_mb"]
+        performance_metrics["gpu_memory"]["peak_mb"] = memory_after["gpu"]["peak_mb"]
+        performance_metrics["gpu_memory"]["reserved_mb"] = memory_after["gpu"]["reserved_mb"]
+        performance_metrics["gpu_memory"]["total_gpu_mb"] = memory_after["gpu"]["total_mb"]
+        performance_metrics["cpu_memory"]["after_inference_mb"] = memory_after["cpu"]["memory_mb"]
     
     # Clean up temporary file if created
     if image_url.startswith("/tmp/"):
@@ -283,6 +351,8 @@ def send_chat_request(
             pass
     
     # Return the response in the same format as send_chat_request_azure
+    if collect_metrics:
+        return response, [response], performance_metrics
     return response, [response]
 
 

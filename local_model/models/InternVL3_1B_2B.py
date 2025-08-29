@@ -21,6 +21,9 @@ import psutil
 import os
 import gc
 
+# Set PyTorch memory management for fragmentation fix
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+
 # Constants for image preprocessing
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
@@ -39,15 +42,15 @@ class InternVL3ModelWrapper(BaseVLModel):
         if "1B" in model_name:
             self.model_path = "OpenGVLab/InternVL3-1B"
             self.model_size = "1B"
-            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
-            self.input_size = 448
-            self.max_num = 6  # Reduced from 12 for memory efficiency
+            self.max_gpu_memory = "7GiB"  # Keep 7GiB for model loading capacity
+            self.input_size = 448  # Keep 448 for quality
+            self.max_num = 1  # CRITICAL: Single patch only to prevent OOM during inference
         elif "2B" in model_name:
             self.model_path = "OpenGVLab/InternVL3-2B"
             self.model_size = "2B"
-            self.max_gpu_memory = "7GiB"  # Upgraded to 7GiB for better performance
-            self.input_size = 448
-            self.max_num = 4  # Further reduced for larger model
+            self.max_gpu_memory = "7GiB"  # Keep 7GiB for model loading capacity
+            self.input_size = 448  # Keep 448 for quality
+            self.max_num = 1  # CRITICAL: Single patch only to prevent OOM during inference
         else:
             raise ValueError(f"Unknown InternVL3 model size in name: {model_name}")
         
@@ -276,6 +279,10 @@ class InternVL3ModelWrapper(BaseVLModel):
             # Measure memory after inference
             print("Memory after inference:")
             self._print_memory_usage()
+            
+            # Clear history after each inference to prevent memory accumulation
+            self.history = None
+            torch.cuda.empty_cache()
             
             return response
             

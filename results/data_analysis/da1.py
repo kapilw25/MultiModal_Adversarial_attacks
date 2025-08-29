@@ -29,52 +29,12 @@ PLOT_DIR = "results/data_analysis/plots1"
 # Ensure the plot directory exists
 os.makedirs(PLOT_DIR, exist_ok=True)
 
-# Define a mapping from normalized model names to display names
-# This will be used for plot labels
-DISPLAY_NAMES = {
-    "gpt4o": "GPT-4o",
-    "qwen25_vl_3b": "Qwen2.5-VL-3B",
-    "qwen25_vl_7b": "Qwen2.5-VL-7B",
-    "qwen2_vl_2b": "Qwen2-VL-2B",
-    "gemma3_vl_4b": "Gemma-3-4B",
-    "paligemma_vl_3b": "PaliGemma-3B",
-    "deepseek1_vl_1pt3b": "DeepSeek-VL-1.3B",
-    "deepseek1_vl_7b": "DeepSeek-VL-7B",
-    "smolvlm2_pt25b": "SmolVLM2-256M",
-    "smolvlm2_pt5b": "SmolVLM2-500M",
-    "smolvlm2_2pt2b": "SmolVLM2-2.2B",
-    "phi3pt5_vision_4b": "Phi-3.5-Vision-4B",
-    "florence2_pt23b": "Florence-2-Base",
-    "florence2_pt77b": "Florence-2-Large",
-    "moondream2_2b": "Moondream2-2B",
-    "glmedge_2b": "GLM-Edge-V-2B",
-    "internvl3_1b": "InternVL3-1B",
-    "internvl3_2b": "InternVL3-2B",
-    "internvl25_4b": "InternVL2.5-4B"
-}
+# Dynamic configurations loaded from database
+DISPLAY_NAMES = {}
+MODEL_INFO = {}
 
-# Define a color palette for the models
-MODEL_COLORS = {
-    "gpt4o": "#0077B6",               # Blue
-    "qwen25_vl_3b": "#FF7F0E",        # Orange
-    "qwen25_vl_7b": "#FF9E4A",        # Light Orange
-    "qwen2_vl_2b": "#FFB347",         # Pale Orange
-    "gemma3_vl_4b": "#2CA02C",        # Green
-    "paligemma_vl_3b": "#98DF8A",     # Light Green
-    "deepseek1_vl_1pt3b": "#D62728",  # Red
-    "deepseek1_vl_7b": "#FF9999",     # Light Red
-    "smolvlm2_pt25b": "#9467BD",      # Purple
-    "smolvlm2_pt5b": "#C5B0D5",       # Light Purple
-    "smolvlm2_2pt2b": "#8C564B",      # Brown
-    "phi3pt5_vision_4b": "#E377C2",   # Pink
-    "florence2_pt23b": "#7F7F7F",     # Gray
-    "florence2_pt77b": "#BCBD22",     # Olive
-    "moondream2_2b": "#17BECF",       # Cyan
-    "glmedge_2b": "#FFBB78",          # Light Orange
-    "internvl3_1b": "#AEC7E8",        # Light Blue
-    "internvl3_2b": "#FFBB78",        # Light Orange
-    "internvl25_4b": "#98DF8A"        # Light Green
-}
+# Dynamic color palettes loaded from database
+MODEL_COLORS = {}
 
 # Define colors for model families
 FAMILY_COLORS = {
@@ -111,6 +71,62 @@ ATTACK_COLORS = {
     "Black-Box": "#1F77B4",       # Blue
     "Original": "#2CA02C"         # Green
 }
+
+def load_dynamic_configurations():
+    """
+    Load model configurations dynamically from database.
+    """
+    global DISPLAY_NAMES, MODEL_COLORS, MODEL_INFO
+    
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        
+        # Load model information
+        model_query = """
+        SELECT 
+            m.model_name,
+            m.display_name,
+            f.family_name,
+            s.size_range,
+            m.model_size_b
+        FROM models m
+        JOIN model_families f ON m.family_id = f.family_id
+        JOIN size_categories s ON m.size_id = s.size_id
+        ORDER BY m.model_name
+        """
+        
+        df_models = pd.read_sql_query(model_query, conn)
+        
+        # Create dictionaries
+        for _, row in df_models.iterrows():
+            DISPLAY_NAMES[row['model_name']] = row['display_name']
+            MODEL_INFO[row['model_name']] = {
+                'display_name': row['display_name'],
+                'family': row['family_name'],
+                'size_category': row['size_range'],
+                'size_b': row['model_size_b']
+            }
+        
+        # Generate dynamic colors
+        import seaborn as sns
+        import matplotlib
+        model_colors = sns.color_palette("tab20", len(MODEL_INFO))
+        for i, model_name in enumerate(sorted(MODEL_INFO.keys())):
+            if i < len(model_colors):
+                MODEL_COLORS[model_name] = matplotlib.colors.rgb2hex(model_colors[i])
+            else:
+                # Generate consistent color from model name hash
+                import hashlib
+                hash_color = hashlib.md5(model_name.encode()).hexdigest()[:6]
+                MODEL_COLORS[model_name] = f"#{hash_color}"
+        
+        conn.close()
+        print(f"Loaded {len(MODEL_INFO)} models from database")
+        return True
+        
+    except Exception as e:
+        print(f"Error loading configurations: {e}")
+        return False
 
 def load_data_from_db():
     """
@@ -593,6 +609,11 @@ def plot_3d_dimension_analysis(df):
 def main():
     """Main function to run the script."""
     print("Starting data analysis with normalized database structure...")
+    
+    # Load dynamic configurations from database
+    if not load_dynamic_configurations():
+        print("Failed to load configurations from database")
+        return
     
     # Load data from the database
     df = load_data_from_db()

@@ -14,7 +14,7 @@ import os
 import psutil
 import time
 import threading
-import concurrent.futures
+# import concurrent.futures  # Removed - using sequential processing to avoid GPU OOM
 from typing import Dict, List, Tuple, Optional, Callable, Any
 import json
 from tqdm import tqdm
@@ -147,7 +147,9 @@ class DynamicBatchCalculator:
         
         # Estimate based on available memory for parallel processing
         # Further optimized memory estimates for 6-7GB target utilization
-        if "3B" in engine:
+        if "Gemma" in engine:
+            memory_per_question_gb = 1.2  # Gemma models need more memory due to vision tower
+        elif "3B" in engine:
             memory_per_question_gb = 0.4  # More aggressive for 3B models (was 0.7)
         elif "7B" in engine:
             memory_per_question_gb = 0.8  # Reduced for 7B models (was 1.2)
@@ -161,32 +163,25 @@ class DynamicBatchCalculator:
         max_parallel_questions = int(usable_memory_gb / memory_per_question_gb)
         
         # Focus on image batching instead of question parallelism for 8GB GPU optimization
-        # Reduce parallel questions to prioritize more images in batch
-        if "SmolVLM" in engine or "pt25B" in engine or "pt5B" in engine:
-            parallel_batch_size = 2  # Process 2 questions at a time for SmolVLM
-        elif "3B" in engine:
-            parallel_batch_size = 3  # Process 3 questions at a time for 3B models  
-        elif "7B" in engine:
-            parallel_batch_size = 2  # Process 2 questions at a time for 7B models
-        else:
-            parallel_batch_size = 2  # Process 2 questions at a time (default)
+        # Set all models to sequential processing to prevent OOM errors
+        parallel_batch_size = 1  # Sequential processing for all VLMs to avoid memory issues
         
         # Simple validation - ensure we don't exceed available memory
         if available_memory_gb < 2.0:
             parallel_batch_size = 1  # Sequential processing for low memory
         
-        # Calculate expected memory usage
-        expected_memory_usage_gb = parallel_batch_size * memory_per_question_gb + 2.3  # +2.3GB for model base
+        # Calculate expected memory usage for sequential processing
+        expected_memory_usage_gb = parallel_batch_size * memory_per_question_gb + 3.0  # +3.0GB for model base (conservative)
         expected_memory_percent = (expected_memory_usage_gb / 8.2) * 100  # Total GPU memory
         
-        print(f"🚀 MAXIMUM UTILIZATION - Parallel batch calculation for {engine}:")
+        print(f"🚀 SEQUENTIAL PROCESSING - Memory calculation for {engine}:")
         print(f"   Available memory: {available_memory_gb:.1f}GB")
         print(f"   Usable memory: {usable_memory_gb:.1f}GB (safety margin: {aggressive_safety_margin:.1f}%)")
         print(f"   Memory per question: {memory_per_question_gb:.1f}GB")
         print(f"   Max parallel questions by memory: {max_parallel_questions}")
-        print(f"   🎯 MAXIMUM parallel batch size: {parallel_batch_size} questions")
+        print(f"   🎯 SEQUENTIAL batch size: {parallel_batch_size} question at a time")
         print(f"   🔥 Expected memory usage: {expected_memory_usage_gb:.1f}GB ({expected_memory_percent:.0f}%)")
-        print(f"   🚀 Target: 6-7GB memory utilization (73-85%)")
+        print(f"   🚀 Target: Safe memory utilization to prevent OOM")
         
         return parallel_batch_size
 
@@ -367,7 +362,8 @@ class VLMBatchOrchestrator:
                                 image_url: str,
                                 vlm_client_func: Callable,
                                 engine: str,
-                                metadata: Dict) -> Dict:
+                                metadata: Dict,
+                                batch_info: Dict = None) -> Dict:
         """
         Process a single question (thread-safe)
         
@@ -426,10 +422,22 @@ class VLMBatchOrchestrator:
         if memory_cleared:
             print(f"🧹 Memory cleared for {engine} to prevent context bleeding")
         
-        # Call VLM client with error handling and timing
+        # Call VLM client with error handling, timing, and performance metrics
         question_start_time = time.time()
+        performance_metrics = None
         try:
-            res, _ = vlm_client_func(message_text=msgs, engine=engine, sample_n=1)
+            # Call VLM client with metrics collection enabled
+            vlm_result = vlm_client_func(message_text=msgs, engine=engine, sample_n=1, collect_metrics=True)
+            
+            # Handle different return formats (with or without metrics)
+            if len(vlm_result) == 3:
+                res, _, performance_metrics = vlm_result
+            else:
+                res, _ = vlm_result
+            
+            # Update batch information in performance metrics
+            if performance_metrics and batch_info:
+                performance_metrics["batch_info"].update(batch_info)
             
             # Handle CUDA errors gracefully
             if res == "CUDA_ERROR_HANDLED":
@@ -451,7 +459,7 @@ class VLMBatchOrchestrator:
         
         # Prepare result
         markers = data.get('markers', [])
-        return {
+        result = {
             "question_id": data['question_id'],
             "prompt": data['text'],
             "text": clean_vlm_response(res),
@@ -462,6 +470,12 @@ class VLMBatchOrchestrator:
             "model_id": engine,
             "metadata": metadata
         }
+        
+        # Add performance metrics if available
+        if performance_metrics:
+            result["performance_metrics"] = performance_metrics
+            
+        return result
     
     def _process_parallel_sub_batch(self,
                                    questions_data: List[Dict],
@@ -471,7 +485,7 @@ class VLMBatchOrchestrator:
                                    metadata: Dict,
                                    max_workers: int = None) -> List[Dict]:
         """
-        Process multiple questions in parallel for the same image
+        Process multiple questions SEQUENTIALLY for the same image to avoid GPU OOM
         
         Args:
             questions_data: List of question dictionaries
@@ -479,7 +493,7 @@ class VLMBatchOrchestrator:
             vlm_client_func: VLM client function
             engine: Model engine name
             metadata: Metadata for results
-            max_workers: Maximum number of parallel workers
+            max_workers: Ignored - kept for compatibility (sequential processing)
             
         Returns:
             List of processed results
@@ -487,43 +501,49 @@ class VLMBatchOrchestrator:
         if not questions_data:
             return []
         
-        # Use ThreadPoolExecutor for parallel processing
+        # Use SEQUENTIAL processing to avoid GPU memory contention
         results = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all questions for parallel processing
-            future_to_question = {
-                executor.submit(
-                    self._process_single_question,
+        
+        # Process questions one by one to prevent GPU OOM
+        for i, question_data in enumerate(questions_data):
+            try:
+                # Create batch info for performance metrics
+                batch_info = {
+                    "batch_size": len(questions_data),
+                    "position_in_batch": i + 1,
+                    "total_batch_questions": len(questions_data)
+                }
+                
+                result = self._process_single_question(
                     question_data,
                     image_url,
                     vlm_client_func,
                     engine,
-                    metadata
-                ): question_data for question_data in questions_data
-            }
-            
-            # Collect results as they complete
-            for future in concurrent.futures.as_completed(future_to_question):
-                try:
-                    result = future.result()
-                    results.append(result)
-                except Exception as e:
-                    question_data = future_to_question[future]
-                    print(f"⚠️  Parallel processing error for question {question_data['question_id']}: {e}")
-                    # Create error result
-                    markers = question_data.get('markers', [])
-                    error_result = {
-                        "question_id": question_data['question_id'],
-                        "prompt": question_data['text'],
-                        "text": f"ERROR: Parallel processing exception - {str(e)}",
-                        "truth": question_data['answer'],
-                        "type": question_data['type'],
-                        "answer_id": "",
-                        "markers": markers,
-                        "model_id": engine,
-                        "metadata": metadata
-                    }
-                    results.append(error_result)
+                    metadata,
+                    batch_info
+                )
+                results.append(result)
+                
+                # Brief pause between questions to allow GPU memory cleanup
+                import time
+                time.sleep(0.1)  # 100ms pause for memory cleanup
+                
+            except Exception as e:
+                print(f"⚠️  Sequential processing error for question {question_data['question_id']}: {e}")
+                # Create error result
+                markers = question_data.get('markers', [])
+                error_result = {
+                    "question_id": question_data['question_id'],
+                    "prompt": question_data['text'],
+                    "text": f"ERROR: Sequential processing exception - {str(e)}",
+                    "truth": question_data['answer'],
+                    "type": question_data['type'],
+                    "answer_id": "",
+                    "markers": markers,
+                    "model_id": engine,
+                    "metadata": metadata
+                }
+                results.append(error_result)
         
         return results
     
@@ -729,12 +749,12 @@ class VLMBatchOrchestrator:
             
             print(f"   📸 Successfully loaded {len(batch_urls)} images into memory")
             
-            # Phase 2: Process all questions for all images in this batch with parallel processing
+            # Phase 2: Process all questions for all images in this batch with sequential processing
             total_questions = sum(len(data_items) for _, data_items in batch)
-            print(f"   🚀 Phase 2: Processing {total_questions} questions with parallel optimization...")
+            print(f"   🚀 Phase 2: Processing {total_questions} questions with sequential optimization...")
             
-            # Calculate optimal parallel batch size for sub-batching
-            optimal_parallel_size = self.batch_calculator.calculate_optimal_parallel_batch_size(engine)
+            # Calculate optimal sequential batch size for sub-batching
+            optimal_sequential_size = self.batch_calculator.calculate_optimal_parallel_batch_size(engine)
             
             # Simple batch progress without detailed timing
             with tqdm(total=total_questions, desc=f"   Batch {batch_index + 1}/{total_batches}", leave=False) as pbar:
@@ -771,30 +791,30 @@ class VLMBatchOrchestrator:
                     
                     # Process valid questions in parallel sub-batches
                     if valid_data_items:
-                        # Split questions into parallel sub-batches
-                        for i in range(0, len(valid_data_items), optimal_parallel_size):
-                            sub_batch = valid_data_items[i:i + optimal_parallel_size]
+                        # Split questions into sequential sub-batches
+                        for i in range(0, len(valid_data_items), optimal_sequential_size):
+                            sub_batch = valid_data_items[i:i + optimal_sequential_size]
                             
-                            print(f"      🔄 Processing {len(sub_batch)} questions in parallel for {img_path}")
+                            print(f"      🔄 Processing {len(sub_batch)} questions sequentially for {img_path}")
                             
                             # Time the sub-batch processing
                             sub_batch_start = time.time()
                             
-                            # Process this sub-batch in parallel
+                            # Process this sub-batch sequentially to avoid GPU OOM
                             sub_batch_results = self._process_parallel_sub_batch(
                                 questions_data=sub_batch,
                                 image_url=url,
                                 vlm_client_func=vlm_client_func,
                                 engine=engine,
                                 metadata={},
-                                max_workers=min(optimal_parallel_size, len(sub_batch))
+                                max_workers=1  # Sequential processing
                             )
                             
                             batch_results.extend(sub_batch_results)
                             pbar.update(len(sub_batch))
                             
-                            # Brief pause between parallel sub-batches to prevent overwhelming GPU
-                            if i + optimal_parallel_size < len(valid_data_items):
+                            # Brief pause between sequential sub-batches for GPU memory cleanup
+                            if i + optimal_sequential_size < len(valid_data_items):
                                 time.sleep(0.2)
             
             # Monitor memory after batch processing

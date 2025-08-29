@@ -57,13 +57,13 @@ def create_model(model_name):
     elif model_name == "InternVL2.5-4B":
         from local_model.models.InternVL25_4B import InternVL2_5_4BModelWrapper
         return InternVL2_5_4BModelWrapper(model_name)
-    # Florence-2 models
-    elif model_name == "Florence-2-base":
-        from local_model.models.Florence2_pt23B_pt77B import Florence2ModelWrapper
-        return Florence2ModelWrapper(model_name)
-    elif model_name == "Florence-2-large":
-        from local_model.models.Florence2_pt23B_pt77B import Florence2ModelWrapper
-        return Florence2ModelWrapper(model_name)
+    # Florence-2 models - DISABLED: Not suitable for VQA tasks
+    # elif model_name == "Florence-2-base":
+    #     from local_model.models.Florence2_pt23B_pt77B import Florence2ModelWrapper
+    #     return Florence2ModelWrapper(model_name)
+    # elif model_name == "Florence-2-large":
+    #     from local_model.models.Florence2_pt23B_pt77B import Florence2ModelWrapper
+    #     return Florence2ModelWrapper(model_name)
     # Moondream2 model
     elif model_name == "Moondream2-2B":
         from local_model.models.Moondream2_2B import Moondream2ModelWrapper

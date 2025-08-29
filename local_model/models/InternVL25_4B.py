@@ -21,6 +21,9 @@ import psutil
 import os
 import gc
 
+# Set PyTorch memory management for fragmentation fix
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+
 # Constants for image preprocessing
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
@@ -213,6 +216,10 @@ class InternVL2_5_4BModelWrapper(BaseVLModel):
             return "Error: Model failed to load. Cannot perform prediction."
             
         try:
+            # Aggressive memory cleanup before inference
+            gc.collect()
+            torch.cuda.empty_cache()
+            
             # Measure memory before inference
             print("Memory before inference:")
             self._print_memory_usage()
@@ -231,37 +238,39 @@ class InternVL2_5_4BModelWrapper(BaseVLModel):
                 # Generate response
                 print(f"Generating response with InternVL2_5-4B...")
                 
-                # Configure generation parameters
+                # Configure generation parameters - reduced for memory efficiency
                 generation_config = {
-                    "max_new_tokens": 128,
-                    "do_sample": True,
-                    "temperature": 0.7,
-                    "top_p": 0.9,
+                    "max_new_tokens": 64,  # Reduced from 128
+                    "do_sample": False,    # Disable sampling for memory efficiency
+                    "num_beams": 1,        # Single beam for memory efficiency
                 }
                 
                 # Generate response using the model's chat method
-                # Handle conversation history if available
-                if hasattr(self, 'history') and self.history:
-                    response, new_history = self.model.chat(
-                        self.tokenizer,
-                        pixel_values,
-                        formatted_question,
-                        generation_config,
-                        history=self.history,
-                        return_history=True
-                    )
-                    self.history = new_history  # Update history for potential future use
+                # Always use fresh history to avoid memory accumulation
+                # Handle variable return values safely
+                chat_result = self.model.chat(
+                    self.tokenizer,
+                    pixel_values,
+                    formatted_question,
+                    generation_config,
+                    history=None,  # Always use None to prevent memory accumulation
+                    return_history=False  # Don't return history to save memory
+                )
+                
+                # Extract response safely regardless of return format
+                print(f"DEBUG: chat_result type: {type(chat_result)}")
+                print(f"DEBUG: chat_result length: {len(chat_result) if hasattr(chat_result, '__len__') and not isinstance(chat_result, str) else 'N/A'}")
+                
+                if isinstance(chat_result, (list, tuple)):
+                    response = chat_result[0]  # First element is always the response
+                    print(f"DEBUG: Extracted response from position 0: {response[:100] if isinstance(response, str) else response}")
                 else:
-                    # First interaction or no history tracking
-                    response, new_history = self.model.chat(
-                        self.tokenizer,
-                        pixel_values,
-                        formatted_question,
-                        generation_config,
-                        history=None,
-                        return_history=True
-                    )
-                    self.history = new_history  # Store for potential future use
+                    response = chat_result  # Single value returned
+                    print(f"DEBUG: Using direct response: {response[:100] if isinstance(response, str) else response}")
+                
+                # Immediate cleanup after generation
+                del pixel_values
+                torch.cuda.empty_cache()
             
             # Measure memory after inference
             print("Memory after inference:")
@@ -273,6 +282,11 @@ class InternVL2_5_4BModelWrapper(BaseVLModel):
             print(f"Error in InternVL2_5-4B prediction: {e}")
             import traceback
             traceback.print_exc()
+            
+            # Emergency memory cleanup on error
+            gc.collect()
+            torch.cuda.empty_cache()
+            
             return f"Error: {str(e)}"
     
     def cleanup(self):

@@ -15,6 +15,9 @@ from local_model.model_utils import (
     memory_efficient
 )
 
+# Set PyTorch memory management for fragmentation fix
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
+
 class Phi35VisionModelWrapper(BaseVLModel):
     """Wrapper class for the Microsoft Phi-3.5-vision-instruct model with 4-bit quantization"""
     

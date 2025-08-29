@@ -78,8 +78,8 @@ The project implements 17 adversarial attacks against VLMs, all executable via a
 
 ### 4. Evaluation Framework
 Located in `scripts/`, this module handles model evaluation and result analysis:
-- `model_inference_pipeline.py`: Generates model responses for specific tasks
-- `vqa_metrics_evaluator.py`: Analyzes results and calculates accuracy metrics
+- `model_inference.py`: Generates model responses for specific tasks
+- `model_evaluator.py`: Analyzes results and calculates accuracy metrics
 - `adversarial_attack_config.py`: Handles attack selection and configuration
 - `metrics_persistence_manager.py`: Stores evaluation results in a SQLite database for efficient querying and analysis
 
@@ -144,18 +144,24 @@ pip install -r requirements_step1.txt  && pip install -r requirements_step2.txt
 
 To run all attacks sequentially:
 ```bash
-chmod +x scripts/adversarial_attack_runner.sh
-./scripts/adversarial_attack_runner.sh
+chmod +x scripts/attack_runner.sh
+./scripts/attack_runner.sh
 ```
 
 ### 3. Evaluate Model Performance
 
 ```bash
-# Run model evaluation on adversarial images
-python scripts/model_inference_pipeline.py
+# For Florence-2 models (Florence2_pt23B, Florence2_pt77B)
+source venv_florence/bin/activate
+python scripts/model_inference.py
+
+# For all other models
+source venv_MM/bin/activate
+python scripts/model_inference.py
 
 # Calculate accuracy metrics
-python scripts/vqa_metrics_evaluator.py
+source venv_MM/bin/activate
+python scripts/model_evaluation.py
 ```
 
 ## Attack Comparison Results

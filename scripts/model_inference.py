@@ -5,6 +5,7 @@ from mimetypes import guess_type
 import sys
 import torch
 import gc
+from datetime import datetime
 
 # Add proper paths for imports when running from different directories
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -288,7 +289,9 @@ def run_evaluation(engine, send_chat_request_azure, task, random_count, output_f
                     for data in data_items:
                         data['metadata'] = {
                             "adversarial": attack_name != "Original (No Attack)",
-                            "task": task
+                            "task": task,
+                            "attack_type": attack_name.lower().replace(" ", "_").replace("(", "").replace(")", ""),
+                            "timestamp": datetime.now().isoformat() + "Z"
                         }
                 
                 # Use the VLM batch orchestrator for clean processing
