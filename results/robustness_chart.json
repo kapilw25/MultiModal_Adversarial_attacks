@@ -4398,6 +4398,246 @@
           "cache_hit_ratio": 1.0,
           "total_questions": 81
         }
+      },
+      "CW-L2": {
+        "accuracy": 29.63,
+        "change": -1.23,
+        "effect": "Degradation",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.791923475854191,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.402633101852,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
+      },
+      "CW-L0": {
+        "accuracy": 28.4,
+        "change": -2.47,
+        "effect": "Degradation",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.766288071502874,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.448929398148,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
+      },
+      "CW-L\u221e": {
+        "accuracy": 29.63,
+        "change": -1.23,
+        "effect": "Degradation",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.7648553907135387,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.539978780864,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
+      },
+      "L-BFGS": {
+        "accuracy": 28.4,
+        "change": -2.47,
+        "effect": "Degradation",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.761841512020723,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.55078125,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
+      },
+      "JSMA": {
+        "accuracy": 29.63,
+        "change": -1.23,
+        "effect": "Degradation",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.753197572849415,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.641830632716,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
+      },
+      "DeepFool": {
+        "accuracy": 28.4,
+        "change": -2.47,
+        "effect": "Degradation",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.7737361825542686,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.678867669753,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
+      },
+      "Square": {
+        "accuracy": 23.46,
+        "change": -7.41,
+        "effect": "Degradation",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.7791074411368664,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.678288966049,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
+      },
+      "HopSkipJump": {
+        "accuracy": 20.99,
+        "change": -9.88,
+        "effect": "Degradation",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.8417306535037947,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.592447916667,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
+      },
+      "Pixel": {
+        "accuracy": 22.22,
+        "change": -8.64,
+        "effect": "Degradation",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.778610470854206,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.67578125,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
+      },
+      "SimBA": {
+        "accuracy": 23.46,
+        "change": -7.41,
+        "effect": "Degradation",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.807070967591839,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.67578125,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
+      },
+      "Spatial": {
+        "accuracy": 20.99,
+        "change": -9.88,
+        "effect": "Degradation",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.7477581236097546,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.677324459876,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
+      },
+      "Query-Efficient BB": {
+        "accuracy": 32.1,
+        "change": 1.23,
+        "effect": "Improvement",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.7580561843919167,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.67578125,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
+      },
+      "ZOO": {
+        "accuracy": 27.16,
+        "change": -3.7,
+        "effect": "Degradation",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.802797011387201,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.67578125,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
+      },
+      "Boundary": {
+        "accuracy": 23.46,
+        "change": -7.41,
+        "effect": "Degradation",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.7969181331587425,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.762201003086,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
+      },
+      "GeoDA": {
+        "accuracy": 18.52,
+        "change": -12.35,
+        "effect": "Degradation",
+        "performance_metrics": {
+          "avg_inference_time_seconds": 2.836668759216497,
+          "avg_gpu_memory_allocated_mb": 4105.81591796875,
+          "avg_gpu_memory_peak_mb": 5683.58740234375,
+          "avg_gpu_memory_reserved_mb": 5669.950617283951,
+          "total_gpu_memory_mb": 7967.375,
+          "avg_cpu_memory_mb": 5573.920138888889,
+          "model_loading_time_seconds": 0.0,
+          "cache_hit_ratio": 1.0,
+          "total_questions": 81
+        }
       }
     }
   },
