@@ -2,8 +2,8 @@
 # URL: https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local
 
 # Core PyTorch dependencies with CUDA support - MUST be installed before other packages
-torch>=2.2.0+cu121
-torchvision>=0.18.0+cu121
+torch>=2.0.0
+torchvision>=0.15.0
 --extra-index-url https://download.pytorch.org/whl/cu121
 git+https://github.com/huggingface/transformers.git
 flash-attn
@@ -11,6 +11,7 @@ timm
 
 absl-py>=2.1.0
 adversarial-robustness-toolbox>=1.15.0
+adjustText>=1.3.0
 albumentations>=1.3.1
 annotated-types>=0.7.0
 anyio>=4.3.0
@@ -40,7 +41,7 @@ lpips>=0.1.4
 MarkupSafe>=2.1.5
 matplotlib>=3.8.0
 nltk>=3.8.1
-numpy>=1.26.4
+numpy==1.26.4
 num2words>=0.5.14
 opencv-python>=4.8.0
 openai>=1.30.1

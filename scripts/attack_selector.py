@@ -153,92 +153,92 @@ def select_attack(engine, task, random_count, auto_choice=None):
         {
             "name": "Original (No Attack)",
             "suffix": "",
-            "img_dir": "data/test_extracted/"
+            "img_dir": "data/clean/"
         },
         {
             "name": "PGD Attack",
             "suffix": "_BB_pgd",
-            "img_dir": "data/test_BB_pgd/"
+            "img_dir": "data/adversarial/whitebox/pgd/"
         },
         {
             "name": "FGSM Attack",
             "suffix": "_BB_fgsm",
-            "img_dir": "data/test_BB_fgsm/"
+            "img_dir": "data/adversarial/whitebox/fgsm/"
         },
         {
             "name": "CW-L2 Attack",
             "suffix": "_BB_cw_l2",
-            "img_dir": "data/test_BB_cw_l2/"
+            "img_dir": "data/adversarial/whitebox/cw_l2/"
         },
         {
             "name": "CW-L0 Attack",
             "suffix": "_BB_cw_l0",
-            "img_dir": "data/test_BB_cw_l0/"
+            "img_dir": "data/adversarial/whitebox/cw_l0/"
         },
         {
             "name": "CW-L∞ Attack",
             "suffix": "_BB_cw_linf",
-            "img_dir": "data/test_BB_cw_linf/"
+            "img_dir": "data/adversarial/whitebox/cw_linf/"
         },
         {
             "name": "L-BFGS Attack",
             "suffix": "_BB_lbfgs",
-            "img_dir": "data/test_BB_lbfgs/"
+            "img_dir": "data/adversarial/whitebox/lbfgs/"
         },
         {
             "name": "JSMA Attack",
             "suffix": "_BB_jsma",
-            "img_dir": "data/test_BB_jsma/"
+            "img_dir": "data/adversarial/whitebox/jsma/"
         },
         {
             "name": "DeepFool Attack",
             "suffix": "_BB_deepfool",
-            "img_dir": "data/test_BB_deepfool/"
+            "img_dir": "data/adversarial/whitebox/deepfool/"
         },
         {
             "name": "Square Attack",
             "suffix": "_BB_square",
-            "img_dir": "data/test_BB_square/"
+            "img_dir": "data/adversarial/whitebox/square/"
         },
         {
             "name": "HopSkipJump Attack",
             "suffix": "_BB_hop_skip_jump",
-            "img_dir": "data/test_BB_hop_skip_jump/"
+            "img_dir": "data/adversarial/whitebox/hop_skip_jump/"
         },
         {
             "name": "Pixel Attack",
             "suffix": "_BB_pixel",
-            "img_dir": "data/test_BB_pixel/"
+            "img_dir": "data/adversarial/whitebox/pixel/"
         },
         {
             "name": "SimBA Attack",
             "suffix": "_BB_simba",
-            "img_dir": "data/test_BB_simba/"
+            "img_dir": "data/adversarial/whitebox/simba/"
         },
         {
             "name": "Spatial Transformation Attack",
             "suffix": "_BB_spatial",
-            "img_dir": "data/test_BB_spatial/"
+            "img_dir": "data/adversarial/whitebox/spatial/"
         },
         {
             "name": "Query-Efficient Black-box Attack",
             "suffix": "_BB_query_efficient_bb",
-            "img_dir": "data/test_BB_query_efficient_bb/"
+            "img_dir": "data/adversarial/whitebox/query_efficient_bb/"
         },
         {
             "name": "ZOO Attack",
             "suffix": "_BB_zoo",
-            "img_dir": "data/test_BB_zoo/"
+            "img_dir": "data/adversarial/whitebox/zoo/"
         },
         {
             "name": "Boundary Attack",
             "suffix": "_BB_boundary",
-            "img_dir": "data/test_BB_boundary/"
+            "img_dir": "data/adversarial/whitebox/boundary/"
         },
         {
             "name": "GeoDA Attack",
             "suffix": "_BB_geoda",
-            "img_dir": "data/test_BB_geoda/"
+            "img_dir": "data/adversarial/whitebox/geoda/"
         }
     ]
     

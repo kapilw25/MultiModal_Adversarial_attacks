@@ -16,7 +16,7 @@ from nltk.corpus import wordnet as wn
 
 def update_database_from_json(json_path):
     """
-    Update the SQLite database by importing and running database_manager functions
+    Update the SQLite database by calling database_manager.main() directly
     
     Args:
         json_path (str): Path to the JSON file to process
@@ -31,26 +31,13 @@ def update_database_from_json(json_path):
         
         print(f"🔄 Updating database with {json_path}...")
         
-        # Run the database update process
-        database_manager.ensure_db_directory()
-        
-        # Backup existing database before creating fresh one
-        backup_files = database_manager.backup_existing_files()
-        if backup_files:
-            print(f"📁 Created {len(backup_files)} backup files")
-        
-        data = database_manager.load_results_from_json()
-        if data:
-            database_manager.create_database()
-            conn = database_manager.sqlite3.connect(database_manager.DB_PATH)
-            id_maps = database_manager.populate_dimension_tables(data, conn)
-            database_manager.store_results(data, id_maps, conn)
-            database_manager.store_performance_metrics(data, id_maps, conn)
-            database_manager.create_attack_effectiveness_table(data, conn)
-            conn.close()
-            print("✅ Database updated successfully")
-        else:
-            print("⚠️  No data found in JSON file")
+        # Run the full database manager main() function
+        # This will handle everything including:
+        # - Directory setup and backups
+        # - Database creation and population  
+        # - Attack parameters integration
+        # - View creation and verification
+        database_manager.main()
             
         # Restore original path
         database_manager.JSON_PATH = original_path
@@ -70,6 +57,13 @@ def update_database_from_json(json_path):
             
     except Exception as e:
         print(f"❌ Error updating database: {e}")
+        
+        # Restore original path in case of error
+        try:
+            from scripts import database_manager
+            database_manager.JSON_PATH = original_path
+        except:
+            pass
 
 def are_synonyms(word1, word2):
     synsets1 = wn.synsets(word1)

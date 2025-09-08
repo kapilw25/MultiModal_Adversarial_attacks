@@ -333,7 +333,7 @@ def prepare_ground_truth_files():
     os.makedirs('results/ground_truth', exist_ok=True)
     
     # Check if the main eval_all.json file exists
-    all_data_file = 'data/test_extracted/benchmark/eval_all.json'
+    all_data_file = 'data/clean/benchmark/eval_all.json'
     if not os.path.exists(all_data_file):
         print(f"Error: Main data file not found at {all_data_file}")
         return False
