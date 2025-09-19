@@ -107,7 +107,12 @@ def validate_json_file(file_path, expected_count):
         safe_delete_file(file_path, f"Error during validation: {e}")
         return False
 
-def generate_output_path(engine, task, num_samples, attack):
+def generate_output_path(engine, task, attack):
+    """Generate output file path using database-driven question count - NO HARDCODING"""
+    from centralized_database import CentralizedDB
+    db = CentralizedDB()
+    questions = db.get_ground_truth_questions(task_type=task)
+    num_samples = len(questions)  # Use actual database count
     """
     Generate output file path following the new directory structure:
     results/inference/{engine}/[clean|adversarial/{attack_type}/{attack_name}/ssim_{threshold}]/{task}/eval_{engine}_{task}_{num_samples}.json
@@ -180,18 +185,19 @@ def select_ssim_threshold(auto_choice=None):
             except ValueError:
                 print("Please enter a valid number")
 
-def select_attack(engine, task, num_samples, auto_choice=None):
+def select_attack(engine, task, auto_choice=None, user_ssim_selection=None):
     """
     Interactive function to select attack type and determine output file and image path.
     Also checks if output files already exist to avoid redundant processing.
     Uses processed_images.json to determine which images to process.
-    
+
     Args:
         engine (str): The model engine being used (e.g., 'gpt4o', 'Qwen25_VL_3B')
         task (str): The task type (e.g., 'chart')
         num_samples (int): Number of samples
         auto_choice (int, optional): If provided, automatically select this option without prompting
-        
+        user_ssim_selection (list, optional): User's SSIM threshold selection to avoid auto override
+
     Returns:
         list: List of tuples (output_file, img_path, attack_name) or None if user wants to skip
     """
@@ -325,20 +331,41 @@ def select_attack(engine, task, num_samples, auto_choice=None):
 
     # Get SSIM threshold selection only if needed
     if need_ssim:
-        if auto_choice is not None:
-            # Auto mode: use ALL SSIM thresholds for comprehensive evaluation
-            ssim_selection = select_ssim_threshold(auto_choice=4)  # Use ALL thresholds
-            print("Auto mode: Using ALL SSIM thresholds (0.85, 0.90, 0.95)")
+        if user_ssim_selection is not None:
+            # Use the user's SSIM selection (passed from model_inference.py)
+            # Convert from [0.85, 0.90] format to ["ssim_085", "ssim_090"] format
+            if isinstance(user_ssim_selection, list) and len(user_ssim_selection) > 0:
+                if isinstance(user_ssim_selection[0], float):
+                    # Convert float values to ssim_dir format
+                    ssim_dirs = [f"ssim_{val:.2f}".replace(".", "") for val in user_ssim_selection]
+                else:
+                    # Already in correct format
+                    ssim_dirs = user_ssim_selection
+                print(f"Using user-selected SSIM thresholds: {user_ssim_selection}")
+                print(f"Will process {len(ssim_dirs)} SSIM thresholds: {', '.join([s.replace('ssim_0', '0.') for s in ssim_dirs])}")
+            else:
+                # Fallback to interactive selection
+                ssim_selection = select_ssim_threshold()
+                if isinstance(ssim_selection, list):
+                    ssim_dirs = ssim_selection
+                else:
+                    ssim_dirs = [ssim_selection]
+        elif auto_choice is not None:
+            # Auto mode: ask for SSIM selection normally (don't force ALL)
+            ssim_selection = select_ssim_threshold()
+            if isinstance(ssim_selection, list):
+                ssim_dirs = ssim_selection
+                print(f"Will process {len(ssim_dirs)} SSIM thresholds: {', '.join([s.replace('ssim_0', '0.') for s in ssim_dirs])}")
+            else:
+                ssim_dirs = [ssim_selection]
         else:
             # Interactive mode: ask user for SSIM selection
             ssim_selection = select_ssim_threshold()
-
-        # Handle ALL SSIM thresholds case
-        if isinstance(ssim_selection, list):
-            ssim_dirs = ssim_selection
-            print(f"Will process {len(ssim_dirs)} SSIM thresholds: {', '.join([s.replace('ssim_0', '0.') for s in ssim_dirs])}")
-        else:
-            ssim_dirs = [ssim_selection]
+            if isinstance(ssim_selection, list):
+                ssim_dirs = ssim_selection
+                print(f"Will process {len(ssim_dirs)} SSIM thresholds: {', '.join([s.replace('ssim_0', '0.') for s in ssim_dirs])}")
+            else:
+                ssim_dirs = [ssim_selection]
     else:
         # Clean attack only - no SSIM needed
         ssim_dirs = ["ssim_085"]  # Default, won't be used
@@ -349,10 +376,14 @@ def select_attack(engine, task, num_samples, auto_choice=None):
         for attack in attacks[:-1]:  # Exclude the ALL ATTACKS option itself
             if attack['attack_type'] == 'clean':
                 # Clean attack - no SSIM dependency
-                output_file = generate_output_path(engine, task, num_samples, attack)
+                output_file = generate_output_path(engine, task, attack)
 
                 # Check if file already exists and is valid
-                if validate_json_file(output_file, num_samples):
+                # Get database question count for validation
+                from centralized_database import CentralizedDB
+                db = CentralizedDB()
+                question_count = len(db.get_ground_truth_questions(task_type=task))
+                if validate_json_file(output_file, question_count):
                     print(f"Skipping {attack['name']} - Valid output file already exists: {output_file}")
                     continue
 
@@ -381,31 +412,35 @@ def select_attack(engine, task, num_samples, auto_choice=None):
                     attack_with_ssim = attack.copy()
                     attack_with_ssim['img_dir'] = f"{attack['img_dir']}{ssim_dir}/"
 
-                    output_file = generate_output_path(engine, task, num_samples, attack_with_ssim)
+                    output_file = generate_output_path(engine, task, attack_with_ssim)
 
                     # Check if file already exists and is valid
-                    if validate_json_file(output_file, num_samples):
-                        print(f"Skipping {attack['name']} ({ssim_dir}) - Valid output file already exists: {output_file}")
-                        continue
+                    # Get database question count for validation
+                from centralized_database import CentralizedDB
+                db = CentralizedDB()
+                question_count = len(db.get_ground_truth_questions(task_type=task))
+                if validate_json_file(output_file, question_count):
+                    print(f"Skipping {attack['name']} ({ssim_dir}) - Valid output file already exists: {output_file}")
+                    continue
 
-                    # Check if image directory exists
-                    if not os.path.exists(attack_with_ssim['img_dir']):
-                        print(f"Skipping {attack['name']} ({ssim_dir}) - Image directory not found: {attack_with_ssim['img_dir']}")
-                        continue
+                # Check if image directory exists
+                if not os.path.exists(attack_with_ssim['img_dir']):
+                    print(f"Skipping {attack['name']} ({ssim_dir}) - Image directory not found: {attack_with_ssim['img_dir']}")
+                    continue
 
-                    # Verify that the processed images exist in this attack directory
-                    missing_images = []
-                    for img_path in processed_images[task]:
-                        full_path = os.path.join(attack_with_ssim['img_dir'], img_path)
-                        if not os.path.exists(full_path):
-                            missing_images.append(img_path)
+                # Verify that the processed images exist in this attack directory
+                missing_images = []
+                for img_path in processed_images[task]:
+                    full_path = os.path.join(attack_with_ssim['img_dir'], img_path)
+                    if not os.path.exists(full_path):
+                        missing_images.append(img_path)
 
-                    if missing_images:
-                        print(f"Skipping {attack['name']} ({ssim_dir}) - {len(missing_images)} images not found in {attack_with_ssim['img_dir']}")
-                        print(f"   Expected path structure: {attack_with_ssim['img_dir']}{task}/{{image}}")
-                        continue
+                if missing_images:
+                    print(f"Skipping {attack['name']} ({ssim_dir}) - {len(missing_images)} images not found in {attack_with_ssim['img_dir']}")
+                    print(f"   Expected path structure: {attack_with_ssim['img_dir']}{task}/{{image}}")
+                    continue
 
-                    results.append((output_file, attack_with_ssim['img_dir'], attack['name']))
+                results.append((output_file, attack_with_ssim['img_dir'], attack['name']))
 
         return results
     
@@ -416,10 +451,14 @@ def select_attack(engine, task, num_samples, auto_choice=None):
 
         if attack['attack_type'] == 'clean':
             # Clean attack - no SSIM dependency
-            output_file = generate_output_path(engine, task, num_samples, attack)
+            output_file = generate_output_path(engine, task, attack)
 
             # Check if file already exists and is valid
-            if validate_json_file(output_file, num_samples):
+            # Get database question count for validation
+            from centralized_database import CentralizedDB
+            db = CentralizedDB()
+            question_count = len(db.get_ground_truth_questions(task_type=task))
+            if validate_json_file(output_file, question_count):
                 print(f"Valid output file already exists: {output_file}")
                 if auto_choice is None:  # Only ask if not in auto mode
                     retry = input("Do you want to overwrite? (y/n): ").lower()
@@ -467,10 +506,14 @@ def select_attack(engine, task, num_samples, auto_choice=None):
                 attack_with_ssim = attack.copy()
                 attack_with_ssim['img_dir'] = f"{attack['img_dir']}{ssim_dir}/"
 
-                output_file = generate_output_path(engine, task, num_samples, attack_with_ssim)
+                output_file = generate_output_path(engine, task, attack_with_ssim)
 
                 # Check if file already exists and is valid
-                if validate_json_file(output_file, num_samples):
+                # Get database question count for validation
+                from centralized_database import CentralizedDB
+                db = CentralizedDB()
+                question_count = len(db.get_ground_truth_questions(task_type=task))
+                if validate_json_file(output_file, question_count):
                     print(f"Valid output file already exists: {output_file}")
                     if auto_choice is None:  # Only ask if not in auto mode
                         retry = input(f"Do you want to overwrite {attack['name']} ({ssim_dir})? (y/n): ").lower()

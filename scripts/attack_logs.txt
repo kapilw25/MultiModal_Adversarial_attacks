@@ -1,12 +1,12 @@
 === Universal Attack Execution Started ===
-Execution ID: universal_run_20250918_165047
-Timestamp: 2025-09-18T16:50:47.390351
+Execution ID: universal_run_20250918_191027
+Timestamp: 2025-09-18T19:10:27.663760
 
 
 ################################################################################
 ### NEW ATTACK SESSION STARTED ###
-Timestamp: 2025-09-18 16:50:47
-Execution ID: universal_run_20250918_165047
+Timestamp: 2025-09-18 19:10:27
+Execution ID: universal_run_20250918_191027
 Target SSIM: 0.85
 ################################################################################
 
@@ -16,7 +16,7 @@ Target SSIM: 0.85
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:50:56,535] A new study created in memory with name: no-name-9bd1bb66-9b11-4caa-a593-df3ba18dee38
+[I 2025-09-18 19:10:46,477] A new study created in memory with name: no-name-90abb544-afd4-4ade-a9fe-878801b71895
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -60,9 +60,9 @@ Attack: FGSM completed successfully
 ============================================================
 === FGSM WHITEBOX ATTACK ===
 Image: data/clean/chart/20231107140031466140.png
-Start: 2025-09-18 16:50:53
-End: 2025-09-18 16:50:58
-Duration: 5 seconds
+Start: 2025-09-18 19:10:43
+End: 2025-09-18 19:10:48
+Duration: 4 seconds
 Success: True
 Return Code: 0
 Command: ./venv_MM/bin/python3 attack_models/white_box_universal.py --image_path data/clean/chart/20231107140031466140.png --attack_type fgsm --ssim_threshold 0.85 --optimization_method universal --max_trials 5 --trial_number 1
@@ -74,7 +74,7 @@ STDOUT:
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:50:56,535] A new study created in memory with name: no-name-9bd1bb66-9b11-4caa-a593-df3ba18dee38
+[I 2025-09-18 19:10:46,477] A new study created in memory with name: no-name-90abb544-afd4-4ade-a9fe-878801b71895
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -122,7 +122,7 @@ Attack: FGSM completed successfully
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:01,534] A new study created in memory with name: no-name-ec4aaaa7-f2f5-4dad-9d0a-b20cd523f8ce
+[I 2025-09-18 19:10:51,491] A new study created in memory with name: no-name-b37b7c6c-cb00-4d61-bac5-7addab36abeb
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -164,8 +164,8 @@ Attack: FGSM completed successfully
 ============================================================
 === FGSM WHITEBOX ATTACK ===
 Image: data/clean/chart/20231107141554953383.png
-Start: 2025-09-18 16:50:58
-End: 2025-09-18 16:51:03
+Start: 2025-09-18 19:10:48
+End: 2025-09-18 19:10:53
 Duration: 4 seconds
 Success: True
 Return Code: 0
@@ -178,7 +178,7 @@ STDOUT:
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:01,534] A new study created in memory with name: no-name-ec4aaaa7-f2f5-4dad-9d0a-b20cd523f8ce
+[I 2025-09-18 19:10:51,491] A new study created in memory with name: no-name-b37b7c6c-cb00-4d61-bac5-7addab36abeb
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -224,7 +224,7 @@ Attack: FGSM completed successfully
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:06,188] A new study created in memory with name: no-name-6781ee89-d503-4ec5-88f2-257d5046398a
+[I 2025-09-18 19:10:56,207] A new study created in memory with name: no-name-235e2211-2160-483f-9656-e7a92463f944
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -268,8 +268,8 @@ Attack: FGSM completed successfully
 ============================================================
 === FGSM WHITEBOX ATTACK ===
 Image: data/clean/chart/20231108143642918671.png
-Start: 2025-09-18 16:51:03
-End: 2025-09-18 16:51:07
+Start: 2025-09-18 19:10:53
+End: 2025-09-18 19:10:57
 Duration: 4 seconds
 Success: True
 Return Code: 0
@@ -282,7 +282,7 @@ STDOUT:
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:06,188] A new study created in memory with name: no-name-6781ee89-d503-4ec5-88f2-257d5046398a
+[I 2025-09-18 19:10:56,207] A new study created in memory with name: no-name-235e2211-2160-483f-9656-e7a92463f944
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -330,7 +330,7 @@ Attack: FGSM completed successfully
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:10,825] A new study created in memory with name: no-name-038a10d3-fbc4-48ed-8773-b3f01397b6fd
+[I 2025-09-18 19:11:00,880] A new study created in memory with name: no-name-98b571e2-55ec-4e72-912c-bfe2a293a197
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -374,8 +374,8 @@ Attack: FGSM completed successfully
 ============================================================
 === FGSM WHITEBOX ATTACK ===
 Image: data/clean/chart/20231114102825506748.png
-Start: 2025-09-18 16:51:07
-End: 2025-09-18 16:51:12
+Start: 2025-09-18 19:10:57
+End: 2025-09-18 19:11:02
 Duration: 4 seconds
 Success: True
 Return Code: 0
@@ -388,7 +388,7 @@ STDOUT:
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:10,825] A new study created in memory with name: no-name-038a10d3-fbc4-48ed-8773-b3f01397b6fd
+[I 2025-09-18 19:11:00,880] A new study created in memory with name: no-name-98b571e2-55ec-4e72-912c-bfe2a293a197
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -436,7 +436,7 @@ Attack: FGSM completed successfully
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:15,524] A new study created in memory with name: no-name-1fef0a80-df2b-4c42-b9ff-c2a744bb0dcb
+[I 2025-09-18 19:11:05,610] A new study created in memory with name: no-name-36c5c170-daf2-49b4-bb9a-a450421e0c34
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -478,8 +478,8 @@ Attack: FGSM completed successfully
 ============================================================
 === FGSM WHITEBOX ATTACK ===
 Image: data/clean/chart/20231107140031466140.png
-Start: 2025-09-18 16:51:12
-End: 2025-09-18 16:51:17
+Start: 2025-09-18 19:11:02
+End: 2025-09-18 19:11:07
 Duration: 4 seconds
 Success: True
 Return Code: 0
@@ -492,7 +492,7 @@ STDOUT:
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:15,524] A new study created in memory with name: no-name-1fef0a80-df2b-4c42-b9ff-c2a744bb0dcb
+[I 2025-09-18 19:11:05,610] A new study created in memory with name: no-name-36c5c170-daf2-49b4-bb9a-a450421e0c34
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -538,7 +538,7 @@ Attack: FGSM completed successfully
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:20,399] A new study created in memory with name: no-name-df126edd-0a64-4abd-9e6a-58f8415a452d
+[I 2025-09-18 19:11:10,502] A new study created in memory with name: no-name-0a20ee32-5b60-43a2-bb7c-6500036632d5
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -582,8 +582,8 @@ Attack: FGSM completed successfully
 ============================================================
 === FGSM WHITEBOX ATTACK ===
 Image: data/clean/chart/20231107141554953383.png
-Start: 2025-09-18 16:51:17
-End: 2025-09-18 16:51:22
+Start: 2025-09-18 19:11:07
+End: 2025-09-18 19:11:12
 Duration: 4 seconds
 Success: True
 Return Code: 0
@@ -596,7 +596,7 @@ STDOUT:
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:20,399] A new study created in memory with name: no-name-df126edd-0a64-4abd-9e6a-58f8415a452d
+[I 2025-09-18 19:11:10,502] A new study created in memory with name: no-name-0a20ee32-5b60-43a2-bb7c-6500036632d5
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -644,7 +644,7 @@ Attack: FGSM completed successfully
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:25,182] A new study created in memory with name: no-name-8e46e96e-c366-4bf3-9544-da25e3d08d11
+[I 2025-09-18 19:11:15,259] A new study created in memory with name: no-name-a162f39a-fcb3-409e-8ff6-29349655b109
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -688,8 +688,8 @@ Attack: FGSM completed successfully
 ============================================================
 === FGSM WHITEBOX ATTACK ===
 Image: data/clean/chart/20231108143642918671.png
-Start: 2025-09-18 16:51:22
-End: 2025-09-18 16:51:26
+Start: 2025-09-18 19:11:12
+End: 2025-09-18 19:11:16
 Duration: 4 seconds
 Success: True
 Return Code: 0
@@ -702,7 +702,7 @@ STDOUT:
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:25,182] A new study created in memory with name: no-name-8e46e96e-c366-4bf3-9544-da25e3d08d11
+[I 2025-09-18 19:11:15,259] A new study created in memory with name: no-name-a162f39a-fcb3-409e-8ff6-29349655b109
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -750,7 +750,7 @@ Attack: FGSM completed successfully
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:29,821] A new study created in memory with name: no-name-874a5e42-cf50-4784-acc5-94f60037211d
+[I 2025-09-18 19:11:19,920] A new study created in memory with name: no-name-7b6f6ab0-0d82-4b64-9b3b-2ed86a1878d0
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -794,8 +794,8 @@ Attack: FGSM completed successfully
 ============================================================
 === FGSM WHITEBOX ATTACK ===
 Image: data/clean/chart/20231114102825506748.png
-Start: 2025-09-18 16:51:26
-End: 2025-09-18 16:51:31
+Start: 2025-09-18 19:11:16
+End: 2025-09-18 19:11:21
 Duration: 4 seconds
 Success: True
 Return Code: 0
@@ -808,7 +808,7 @@ STDOUT:
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:29,821] A new study created in memory with name: no-name-874a5e42-cf50-4784-acc5-94f60037211d
+[I 2025-09-18 19:11:19,920] A new study created in memory with name: no-name-7b6f6ab0-0d82-4b64-9b3b-2ed86a1878d0
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -856,7 +856,7 @@ Attack: FGSM completed successfully
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:34,551] A new study created in memory with name: no-name-943f3707-052a-4075-b446-f8d550aa942b
+[I 2025-09-18 19:11:24,688] A new study created in memory with name: no-name-2c8c7017-e40f-415a-9ee5-6be15437274d
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -900,8 +900,8 @@ Attack: FGSM completed successfully
 ============================================================
 === FGSM WHITEBOX ATTACK ===
 Image: data/clean/chart/20231107140031466140.png
-Start: 2025-09-18 16:51:31
-End: 2025-09-18 16:51:36
+Start: 2025-09-18 19:11:21
+End: 2025-09-18 19:11:26
 Duration: 4 seconds
 Success: True
 Return Code: 0
@@ -914,7 +914,7 @@ STDOUT:
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:34,551] A new study created in memory with name: no-name-943f3707-052a-4075-b446-f8d550aa942b
+[I 2025-09-18 19:11:24,688] A new study created in memory with name: no-name-2c8c7017-e40f-415a-9ee5-6be15437274d
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -962,7 +962,7 @@ Attack: FGSM completed successfully
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:39,540] A new study created in memory with name: no-name-06d6604b-8967-4e97-b6f9-95f042c1c564
+[I 2025-09-18 19:11:29,665] A new study created in memory with name: no-name-8482f656-4da1-4633-af2d-d770d9b81d72
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -1006,8 +1006,8 @@ Attack: FGSM completed successfully
 ============================================================
 === FGSM WHITEBOX ATTACK ===
 Image: data/clean/chart/20231107141554953383.png
-Start: 2025-09-18 16:51:36
-End: 2025-09-18 16:51:41
+Start: 2025-09-18 19:11:26
+End: 2025-09-18 19:11:31
 Duration: 4 seconds
 Success: True
 Return Code: 0
@@ -1020,7 +1020,7 @@ STDOUT:
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:39,540] A new study created in memory with name: no-name-06d6604b-8967-4e97-b6f9-95f042c1c564
+[I 2025-09-18 19:11:29,665] A new study created in memory with name: no-name-8482f656-4da1-4633-af2d-d770d9b81d72
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -1068,7 +1068,7 @@ Attack: FGSM completed successfully
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:44,315] A new study created in memory with name: no-name-71394683-09a0-4840-9934-8d224b5cf519
+[I 2025-09-18 19:11:34,439] A new study created in memory with name: no-name-ead0a805-efaf-4bf8-87f3-9fd827dd3125
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -1112,8 +1112,8 @@ Attack: FGSM completed successfully
 ============================================================
 === FGSM WHITEBOX ATTACK ===
 Image: data/clean/chart/20231108143642918671.png
-Start: 2025-09-18 16:51:41
-End: 2025-09-18 16:51:45
+Start: 2025-09-18 19:11:31
+End: 2025-09-18 19:11:35
 Duration: 4 seconds
 Success: True
 Return Code: 0
@@ -1126,7 +1126,7 @@ STDOUT:
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:44,315] A new study created in memory with name: no-name-71394683-09a0-4840-9934-8d224b5cf519
+[I 2025-09-18 19:11:34,439] A new study created in memory with name: no-name-ead0a805-efaf-4bf8-87f3-9fd827dd3125
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -1174,7 +1174,7 @@ Attack: FGSM completed successfully
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:48,945] A new study created in memory with name: no-name-520c7694-806c-4536-b92e-210f3e6651b7
+[I 2025-09-18 19:11:39,105] A new study created in memory with name: no-name-9540044a-67c7-429f-8790-efc7092609d4
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
@@ -1218,8 +1218,8 @@ Attack: FGSM completed successfully
 ============================================================
 === FGSM WHITEBOX ATTACK ===
 Image: data/clean/chart/20231114102825506748.png
-Start: 2025-09-18 16:51:45
-End: 2025-09-18 16:51:50
+Start: 2025-09-18 19:11:35
+End: 2025-09-18 19:11:40
 Duration: 4 seconds
 Success: True
 Return Code: 0
@@ -1232,7 +1232,7 @@ STDOUT:
   warnings.warn(msg)
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
 INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
-[I 2025-09-18 16:51:48,945] A new study created in memory with name: no-name-520c7694-806c-4536-b92e-210f3e6651b7
+[I 2025-09-18 19:11:39,105] A new study created in memory with name: no-name-9540044a-67c7-429f-8790-efc7092609d4
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
 INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
 INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.

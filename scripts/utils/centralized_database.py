@@ -97,9 +97,10 @@ def create_centralized_schema():
         adversarial BOOLEAN NOT NULL,
         task TEXT NOT NULL,
         attack_type TEXT NOT NULL,
-        ssim REAL NOT NULL,
-        image_path TEXT NOT NULL,
-        original_image_path TEXT NOT NULL,
+        ssim_target REAL NOT NULL,           -- Target SSIM value (goal)
+        ssim_actual REAL NOT NULL,           -- Actual achieved SSIM value
+        inference_image_path TEXT NOT NULL,  -- Image fed to model (clean or adversarial)
+        clean_image_path TEXT NOT NULL,      -- Original unperturbed reference
         timestamp TEXT NOT NULL,
         -- Performance Metrics
         inference_time_seconds REAL,
@@ -344,36 +345,68 @@ class CentralizedDB:
 
         return ssim_mapping
 
+    def generate_industry_standard_id(self, model_name: str, adversarial_image_path: str, question_id: str) -> str:
+        """Generate industry-standard deterministic result_id using content-based hashing
+
+        Args:
+            model_name: Name of the model (e.g., "Qwen25_VL_3B")
+            adversarial_image_path: Path to adversarial image (e.g., "data/adversarial/whitebox/fgsm/ssim_085/chart/20231107140031466140.png")
+            question_id: Question identifier for uniqueness
+
+        Returns:
+            12-character deterministic hash (industry standard)
+
+        Example:
+            SAME INPUT = SAME HASH = SAME ID = REPLACEMENT
+            - Qwen25_VL_3B + fgsm/085/chart/image1.png + q001 → a1b2c3d4e5f6
+            - Re-run same combo → Same hash → Replaces record
+        """
+        import hashlib
+
+        # Create deterministic content hash
+        content = f"{model_name}_{adversarial_image_path}_{question_id}"
+        hash_obj = hashlib.sha256(content.encode())
+
+        # Take first 12 characters (industry standard for short IDs)
+        return hash_obj.hexdigest()[:12]
+
     def save_simple_inference_result(self, inference_data: Dict[str, Any]):
         """Save simple inference result for model_inference.py compatibility"""
         conn = self.get_connection()
         cursor = conn.cursor()
 
-        # Create a result_id from the provided evaluation_id or generate one
-        result_id = inference_data.get('evaluation_id', f"result_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+        # Extract data for industry-standard ID generation
+        model_name = inference_data.get('model_name', 'unknown')
+        adversarial_image_path = inference_data.get('image_path', '')
+        # Use evaluation_id (path-based format) as PRIMARY KEY result_id
+        result_id = inference_data.get('evaluation_id', f"q_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]}")
+
+        # Extract question identifier for question_id field
+        question_id = result_id.split('_')[-1] if '_q' in result_id else result_id
 
         cursor.execute('''
         INSERT OR REPLACE INTO inference_results (
             result_id, question_id, prompt, model_response, ground_truth, question_type, answer_id, markers,
             model_id, adversarial, task, attack_type,
-            ssim, image_path, original_image_path, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ssim_target, ssim_actual, inference_image_path, clean_image_path, timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             result_id,
-            inference_data.get('evaluation_id', ''),  # question_id
+            question_id,                               # question_id (for traceability)
             inference_data.get('question', ''),        # prompt
             inference_data.get('model_response', ''),  # model_response
             inference_data.get('ground_truth', ''),    # ground_truth
             inference_data.get('task_type', ''),       # question_type
             '',                                        # answer_id
             '[]',                                      # markers (empty JSON array)
-            inference_data.get('model_name', ''),      # model_id
+            model_name,                                # model_id
             inference_data.get('adversarial', False),  # adversarial
             inference_data.get('task_type', ''),       # task
             inference_data.get('attack_type', ''),     # attack_type
-            inference_data.get('ssim', 0.0),           # ssim
-            inference_data.get('image_path', ''),      # image_path
-            inference_data.get('image_path', ''),      # original_image_path (same for now)
+            inference_data.get('ssim_target', 1.0),   # ssim_target (goal)
+            inference_data.get('ssim_actual', 0.0),   # ssim_actual (achieved)
+            adversarial_image_path,                    # inference_image_path (full path for inference)
+            inference_data.get('clean_image_path', ''), # clean_image_path (original unperturbed reference)
             inference_data.get('timestamp', datetime.now().isoformat() + 'Z')  # timestamp
         ))
 
@@ -444,7 +477,7 @@ class CentralizedDB:
 
         query = '''
         SELECT question_id, prompt, model_response, ground_truth, question_type,
-               attack_type, adversarial, ssim, image_path, original_image_path,
+               attack_type, adversarial, ssim_target, ssim_actual, inference_image_path, clean_image_path,
                inference_time_seconds, gpu_peak_mb, was_cached, loading_time_seconds
         FROM inference_results
         '''
@@ -476,13 +509,14 @@ class CentralizedDB:
                 'type': row[4],
                 'attack_type': row[5],
                 'adversarial': row[6],
-                'ssim': row[7],
-                'image_path': row[8],
-                'original_image_path': row[9],
-                'inference_time_seconds': row[10],
-                'gpu_peak_mb': row[11],
-                'was_cached': row[12],
-                'loading_time_seconds': row[13]
+                'ssim_target': row[7],
+                'ssim_actual': row[8],
+                'inference_image_path': row[9],
+                'clean_image_path': row[10],
+                'inference_time_seconds': row[11],
+                'gpu_peak_mb': row[12],
+                'was_cached': row[13],
+                'loading_time_seconds': row[14]
             })
 
         return inference_results

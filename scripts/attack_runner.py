@@ -810,9 +810,14 @@ class AttackOrchestrator:
             image_path, attack_name, target_ssim, is_blackbox
         )
 
+        # Generate execution_id from adversarial_image_path pattern
+        # Convert: data/adversarial/whitebox/fgsm/ssim_085/chart/20231107140031466140.png
+        # To: data_adversarial_whitebox_fgsm_ssim_085_chart_20231107140031466140
+        execution_id = adversarial_image_path.replace('/', '_').replace('.png', '').replace('.jpg', '').replace('.jpeg', '')
+
         # Construct execution data for database
         execution_data = {
-            'execution_id': f"{self.execution_id}_{attack_name}_{image_name}_ssim_{target_ssim}",
+            'execution_id': execution_id,
             'attack_name': attack_name,
             'attack_category': attack_category,
             'image_path': image_path,

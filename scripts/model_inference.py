@@ -20,6 +20,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
 
 from attack_selector import select_attack
 from batch_processor import create_batch_processor
+from ground_truth_populator import populate_ground_truth_questions
 
 # Set memory configuration for PyTorch
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
@@ -135,7 +136,9 @@ def get_ssim_for_image(image_path, attack_name, ssim_mapping, img_dir):
     else:
         # Normal case: image_path is original path like "chart/file.png"
         orig_path = f"data/clean/{image_path}"
-        adv_path = f"{img_dir.rstrip('/')}/{image_path}"
+        # Extract just the filename from image_path since img_dir already contains the full path
+        filename = os.path.basename(image_path)
+        adv_path = f"{img_dir.rstrip('/')}/{filename}"
 
     # Direct lookup using composite key from attack_executions table
     composite_key = (orig_path, adv_path)
@@ -430,7 +433,7 @@ def select_overwrite_policy():
             print("Please enter a valid number.")
 
 
-def generate_attack_configs_from_selection(engine, task, num_samples, attack_type_selection, overwrite_policy):
+def generate_attack_configs_from_selection(engine, task, attack_type_selection, overwrite_policy, selected_ssim_thresholds=None):
     """
     Generate attack configurations based on user's attack type selection.
 
@@ -440,6 +443,7 @@ def generate_attack_configs_from_selection(engine, task, num_samples, attack_typ
         num_samples (int): Number of evaluation samples
         attack_type_selection (str): Selected attack type
         overwrite_policy (str): 'skip' or 'overwrite'
+        selected_ssim_thresholds (list, optional): User's selected SSIM thresholds
 
     Returns:
         list: List of tuples (output_file, img_dir, attack_name)
@@ -482,7 +486,7 @@ def generate_attack_configs_from_selection(engine, task, num_samples, attack_typ
 
         all_configs = []
         for choice in attack_choices:
-            configs = select_attack(engine, task, num_samples, auto_choice=choice)
+            configs = select_attack(engine, task, auto_choice=choice, user_ssim_selection=selected_ssim_thresholds)
             if configs:
                 all_configs.extend(configs)
 
@@ -498,9 +502,9 @@ def generate_attack_configs_from_selection(engine, task, num_samples, attack_typ
             return filtered_configs
     else:
         # Single attack or ALL attacks
-        auto_choice = attack_mapping.get(attack_type_selection)
+        auto_choice = attack_mapping.get(attack_type_selection.lower())
         if auto_choice:
-            configs = select_attack(engine, task, num_samples, auto_choice=auto_choice)
+            configs = select_attack(engine, task, auto_choice=auto_choice, user_ssim_selection=selected_ssim_thresholds)
             if configs:
                 # Apply overwrite policy
                 if overwrite_policy == 'overwrite':
@@ -519,26 +523,10 @@ def generate_attack_configs_from_selection(engine, task, num_samples, attack_typ
 
 
 def get_task_question_count(task):
-    """Return the actual question count by reading from the centralized database"""
-    try:
-        db = CentralizedDB()
-        questions = db.get_ground_truth_questions(task_type=task)
-        return len(questions)
-    except Exception as e:
-        print(f"⚠️  Warning: Could not load ground truth from database: {e}")
-        # Fallback to hardcoded estimates if database fails
-        task_counts_per_image = {
-            'chart': 27,
-            'table': 22,
-            'road_map': 1,
-            'dashboard': 20,
-            'flowchart': 20,
-            'relation_graph': 19,
-            'planar_layout': 24,
-            'visual_puzzle': 6
-        }
-        questions_per_image = task_counts_per_image.get(task, 10)
-        return questions_per_image * 3
+    """Return the actual question count by reading from the centralized database - NO FALLBACKS per CLAUDE.md"""
+    db = CentralizedDB()
+    questions = db.get_ground_truth_questions(task_type=task)
+    return len(questions)
 
 
 def ensure_model_directories(engine):
@@ -548,7 +536,7 @@ def ensure_model_directories(engine):
     print(f"Ensured directory exists: {model_dir}")
 
 
-def run_evaluation(engine, send_chat_request_azure, task, random_count, output_file, img_dir, attack_name):
+def run_evaluation(engine, send_chat_request_azure, task, output_file, img_dir, attack_name):
     """Run evaluation for a specific attack type using intelligent batch processing"""
     print(f"\nRunning evaluation for {attack_name} on task: {task}")
 
@@ -625,8 +613,9 @@ def run_evaluation(engine, send_chat_request_azure, task, random_count, output_f
                 
             print(f"Found {len(filtered_eval_data)} evaluation items for task '{task}' after filtering")
             
-            # Use up to random_count items
-            human_select = filtered_eval_data[:random_count]
+            # Use ALL filtered items (no artificial limit that causes loops)
+            human_select = filtered_eval_data
+            print(f"📊 Processing {len(human_select)} questions for {len(unique_images_found)} images")
             
             # Ensure output directory exists
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -693,13 +682,73 @@ def run_evaluation(engine, send_chat_request_azure, task, random_count, output_f
                     img_dir=img_dir
                 )
                 
+                # Unified path-to-ID conversion function
+                def convert_path_to_execution_id(image_path: str, question_id: str = "") -> str:
+                    """Convert image path to standardized execution_id format matching attack_runner.py
+
+                    Args:
+                        image_path: Path like "data/adversarial/whitebox/fgsm/ssim_085/chart/20231107140031466140.png"
+                                   or "data/clean/chart/20231107140031466140.png"
+                        question_id: Question identifier like "20231107140031466140_0"
+
+                    Returns:
+                        Standardized ID like "data_adversarial_whitebox_fgsm_ssim_085_chart_20231107140031466140_q0"
+                    """
+                    # Remove file extension and convert slashes to underscores
+                    base_id = image_path.replace('/', '_').replace('.png', '').replace('.jpg', '').replace('.jpeg', '')
+
+                    if question_id:
+                        # Extract question number from question_id (e.g., "20231107140031466140_0" -> "q0")
+                        question_num = question_id.split('_')[-1] if '_' in question_id else question_id
+                        return f"{base_id}_q{question_num}"
+                    return base_id
+
                 # Save all results to database
                 try:
                     db = CentralizedDB()
                     for result in res_list:
                         # Save to database
+                        # Construct evaluation_id using attack_runner pattern (not hardcoded)
+                        def construct_adversarial_path_for_id(original_image_path: str, attack_type: str,
+                                                             ssim_threshold: float, is_blackbox: bool = False) -> str:
+                            """Reuse attack_runner logic to construct adversarial path"""
+                            import os
+                            filename = os.path.basename(original_image_path)
+
+                            # Extract task from image path (data/clean/task/image.png)
+                            path_parts = original_image_path.split('/')
+                            if len(path_parts) >= 3 and path_parts[1] == 'clean':
+                                task_extracted = path_parts[2]
+                            else:
+                                # Fallback: extract task from image path
+                                task_extracted = os.path.dirname(original_image_path).split('/')[-1]
+
+                            # Build output path: data/adversarial/{blackbox|whitebox}/{attack_type}/ssim_{threshold}/{task}/{filename}
+                            box_type = 'blackbox' if is_blackbox else 'whitebox'
+                            ssim_dir = f"ssim_{ssim_threshold:.2f}".replace(".", "")  # 0.85 -> ssim_085
+
+                            return f"data/adversarial/{box_type}/{attack_type}/{ssim_dir}/{task_extracted}/{filename}"
+
+                        # Get data from result
+                        image_path = result.get('metadata', {}).get('image_path', '')  # chart/20231114102825506748.png
+                        question_id = result.get('question_id', '')  # 20231114102825506748_0
+                        ssim_val = result.get('metadata', {}).get('ssim', 0.0)
+
+                        # Reconstruct clean image path
+                        clean_image_path = f"data/clean/{image_path}" if image_path else ""
+
+                        # Generate standardized evaluation_id using unified function
+                        if clean_image_path:
+                            # For adversarial images: construct adversarial path then convert to standard format
+                            adversarial_path = construct_adversarial_path_for_id(clean_image_path, attack_name, ssim_val)
+                            complete_path = convert_path_to_execution_id(adversarial_path, question_id)
+                        else:
+                            # Fallback if no image path (use clean image pattern)
+                            fallback_path = f"data/clean/{task}/{question_id}"
+                            complete_path = convert_path_to_execution_id(fallback_path, question_id)
+
                         inference_data = {
-                            'evaluation_id': f"{engine}_{task}_{attack_name}_{result.get('id', '')}",
+                            'evaluation_id': complete_path,
                             'model_name': engine,
                             'task_type': task,
                             'image_path': result.get('metadata', {}).get('image_path', ''),
@@ -768,93 +817,11 @@ def run_evaluation(engine, send_chat_request_azure, task, random_count, output_f
 
 
 def prepare_ground_truth_files():
-    """Prepare ground truth data in centralized database from eval_all.json, filtered by processed_images.json"""
-    # Check if the main eval_all.json file exists
-    all_data_file = 'data/clean/benchmark/eval_all.json'
-    if not os.path.exists(all_data_file):
-        print(f"Error: Main data file not found at {all_data_file}")
-        return False
-
-    # Load processed images
-    processed_images = load_processed_images()
-    if not processed_images:
-        print("Error loading processed_images.json")
-        return False
-
-    # Initialize database
-    db = CentralizedDB()
-
-    # List of all task types
-    task_types = [
-        'chart', 'table', 'road_map', 'dashboard',
-        'flowchart', 'relation_graph', 'planar_layout', 'visual_puzzle'
-    ]
-
-    try:
-        # Read all data
-        with open(all_data_file, 'r') as f:
-            all_data = [json.loads(line) for line in f]
-
-        # Group data by task type - FILTER BY PROCESSED IMAGES ONLY
-        task_data = {task: [] for task in task_types}
-
-        # Create set of processed image paths for efficient lookup
-        processed_images_set = set()
-        for task_images in processed_images.values():
-            processed_images_set.update(task_images)
-
-        print(f"🔍 Filtering {len(all_data)} questions to match {len(processed_images_set)} processed images")
-
-        for item in all_data:
-            task_type = item.get('type')
-            image_path = item.get('image', '')
-
-            # Only include questions for images that are in processed_images.json
-            if task_type in task_types and image_path in processed_images_set:
-                task_data[task_type].append(item)
-
-        # Save ground truth data to database instead of JSON files (FILTERED)
-        total_saved = 0
-        filtered_count = 0
-        for task, data in task_data.items():
-            if not data:
-                print(f"⚠️ Warning: No ground truth data found for task '{task}' after filtering by processed_images.json")
-                continue
-
-            # Save each question to database
-            for idx, item in enumerate(data):
-                # Make question_id unique by appending index (original has duplicates per image)
-                original_qid = item.get('question_id', item.get('id', f"{task}_{item.get('image', '').split('/')[-1]}"))
-                unique_question_id = f"{original_qid}_{idx}"
-
-                question_data = {
-                    'question_id': unique_question_id,
-                    'image': item.get('image', ''),
-                    'text': item.get('text', ''),
-                    'answer': item.get('answer', ''),
-                    'type': item.get('type', task),
-                    'markers': item.get('markers', [])
-                }
-                db.save_ground_truth_question(question_data)
-                total_saved += 1
-
-            filtered_count += len(data)
-            print(f"✅ Saved ground truth data for {task} with {len(data)} items to database (filtered)")
-
-        print(f"\n📊 FILTERING SUMMARY:")
-        print(f"   Original questions in eval_all.json: {len(all_data)}")
-        print(f"   Target images in processed_images.json: {len(processed_images_set)}")
-        print(f"   Questions matched to processed images: {total_saved}")
-        print(f"   Filtering ratio: {total_saved}/{len(all_data)} = {(total_saved/len(all_data)*100):.1f}%")
-        print(f"✅ Total {total_saved} FILTERED ground truth questions saved to centralized database")
-        return True
-
-    except Exception as e:
-        print(f"Error preparing ground truth data: {e}")
-        return False
+    """Prepare ground truth data using standalone populator script"""
+    return populate_ground_truth_questions(overwrite=False)
 
 
-def run_cross_attack_evaluation(engine, send_chat_request_azure, task, random_count, attack_configs):
+def run_cross_attack_evaluation(engine, send_chat_request_azure, task, attack_configs):
     """Run cross-attack evaluation using intelligent batch processing for maximum GPU utilization"""
     print(f"\n🚀 Cross-Attack Batch Processing for task: {task}")
     print(f"Processing {len(attack_configs)} attacks simultaneously")
@@ -938,8 +905,9 @@ def run_cross_attack_evaluation(engine, send_chat_request_azure, task, random_co
 
         print(f"Found {len(filtered_eval_data)} evaluation items for task '{task}' after filtering")
 
-        # Use up to random_count items
-        human_select = filtered_eval_data[:random_count]
+        # Use ALL filtered items (no artificial limit that causes loops)
+        human_select = filtered_eval_data
+        print(f"📊 Processing {len(human_select)} questions for {len(unique_images_found)} images")
 
         try:
             # Use cross-attack batch processing
@@ -959,12 +927,63 @@ def run_cross_attack_evaluation(engine, send_chat_request_azure, task, random_co
                 if attack_name in attack_results:
                         results = attack_results[attack_name]
 
+                        # Unified path-to-ID conversion function (duplicate for this scope)
+                        def convert_path_to_execution_id(image_path: str, question_id: str = "") -> str:
+                            """Convert image path to standardized execution_id format matching attack_runner.py"""
+                            # Remove file extension and convert slashes to underscores
+                            base_id = image_path.replace('/', '_').replace('.png', '').replace('.jpg', '').replace('.jpeg', '')
+
+                            if question_id:
+                                # Extract question number from question_id (e.g., "20231107140031466140_0" -> "q0")
+                                question_num = question_id.split('_')[-1] if '_' in question_id else question_id
+                                return f"{base_id}_q{question_num}"
+                            return base_id
+
                         # Save to database
                         try:
                             db = CentralizedDB()
                             for result in results:
+                                # Construct evaluation_id using attack_runner pattern (not hardcoded)
+                                def construct_adversarial_path_for_id(original_image_path: str, attack_type: str,
+                                                                     ssim_threshold: float, is_blackbox: bool = False) -> str:
+                                    """Reuse attack_runner logic to construct adversarial path"""
+                                    import os
+                                    filename = os.path.basename(original_image_path)
+
+                                    # Extract task from image path (data/clean/task/image.png)
+                                    path_parts = original_image_path.split('/')
+                                    if len(path_parts) >= 3 and path_parts[1] == 'clean':
+                                        task_extracted = path_parts[2]
+                                    else:
+                                        # Fallback: extract task from image path
+                                        task_extracted = os.path.dirname(original_image_path).split('/')[-1]
+
+                                    # Build output path: data/adversarial/{blackbox|whitebox}/{attack_type}/ssim_{threshold}/{task}/{filename}
+                                    box_type = 'blackbox' if is_blackbox else 'whitebox'
+                                    ssim_dir = f"ssim_{ssim_threshold:.2f}".replace(".", "")  # 0.85 -> ssim_085
+
+                                    return f"data/adversarial/{box_type}/{attack_type}/{ssim_dir}/{task_extracted}/{filename}"
+
+                                # Get data from result
+                                image_path = result.get('metadata', {}).get('image_path', '')  # chart/20231114102825506748.png
+                                question_id = result.get('question_id', '')  # 20231114102825506748_0
+                                ssim_val = result.get('metadata', {}).get('ssim', 0.0)
+
+                                # Reconstruct clean image path
+                                clean_image_path = f"data/clean/{image_path}" if image_path else ""
+
+                                # Generate standardized evaluation_id using unified function
+                                if clean_image_path:
+                                    # For adversarial images: construct adversarial path then convert to standard format
+                                    adversarial_path = construct_adversarial_path_for_id(clean_image_path, attack_name, ssim_val)
+                                    complete_path = convert_path_to_execution_id(adversarial_path, question_id)
+                                else:
+                                    # Fallback if no image path (use clean image pattern)
+                                    fallback_path = f"data/clean/{task}/{question_id}"
+                                    complete_path = convert_path_to_execution_id(fallback_path, question_id)
+
                                 inference_data = {
-                                    'evaluation_id': f"{engine}_{task}_{attack_name}_{result.get('id', '')}",
+                                    'evaluation_id': complete_path,
                                     'model_name': engine,
                                     'task_type': task,
                                     'image_path': result.get('metadata', {}).get('image_path', ''),
@@ -997,7 +1016,7 @@ def run_cross_attack_evaluation(engine, send_chat_request_azure, task, random_co
             # Fallback to sequential processing
             print("🔄 Falling back to sequential processing...")
             for output_file, img_dir, attack_name in attack_configs:
-                run_evaluation(engine, send_chat_request_azure, task, random_count, output_file, img_dir, attack_name)
+                run_evaluation(engine, send_chat_request_azure, task, output_file, img_dir, attack_name)
 
     except Exception as e:
         print(f"Error: Failed to load ground truth data from database: {e}")
@@ -1094,11 +1113,8 @@ if __name__ == '__main__':
         for task in selected_tasks:
             print(f"\n{'-'*20} Task: {task} {'-'*20}")
             
-            # Get appropriate question count for this task
-            random_count = get_task_question_count(task)
-
             # Generate attack configurations based on user's selection
-            attack_configs = generate_attack_configs_from_selection(engine, task, random_count, attack_type_selection, overwrite_policy)
+            attack_configs = generate_attack_configs_from_selection(engine, task, attack_type_selection, overwrite_policy, selected_ssim_thresholds)
             
             if not attack_configs:
                 print(f"No attacks selected or all selected attacks already have output files for {engine} on task {task}. Skipping.")
@@ -1107,11 +1123,11 @@ if __name__ == '__main__':
             # Check if we should use cross-attack batching optimization
             if len(attack_configs) > 1:
                 print(f"\n🚀 Cross-Attack Batching: Processing {len(attack_configs)} attacks simultaneously for maximum GPU utilization!")
-                run_cross_attack_evaluation(engine, send_chat_request_azure, task, random_count, attack_configs)
+                run_cross_attack_evaluation(engine, send_chat_request_azure, task, attack_configs)
             else:
                 # Single attack - use normal processing
                 for output_file, img_dir, attack_name in attack_configs:
-                    run_evaluation(engine, send_chat_request_azure, task, random_count, output_file, img_dir, attack_name)
+                    run_evaluation(engine, send_chat_request_azure, task, output_file, img_dir, attack_name)
     
     print("\n✅ All evaluations completed!")
     

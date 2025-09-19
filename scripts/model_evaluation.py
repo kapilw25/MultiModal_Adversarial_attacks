@@ -13,9 +13,37 @@ import tabulate
 # Add utils directory to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
 
+# Import ground truth populator for ensuring data exists
+from ground_truth_populator import populate_ground_truth_questions
+
 # Download wordnet if not already downloaded
 nltk.download('wordnet', quiet=True)
 from nltk.corpus import wordnet as wn
+
+def ensure_ground_truth_data():
+    """Ensure ground truth data exists in database before evaluation"""
+    from centralized_database import CentralizedDB
+
+    try:
+        db = CentralizedDB()
+        questions = db.get_ground_truth_questions()
+
+        if not questions:
+            print("⚠️  No ground truth data found in database. Populating from source files...")
+            if populate_ground_truth_questions(overwrite=False):
+                print("✅ Ground truth data populated successfully")
+                return True
+            else:
+                print("❌ Failed to populate ground truth data")
+                return False
+        else:
+            print(f"✅ Found {len(questions)} ground truth questions in database")
+            return True
+    except Exception as e:
+        print(f"⚠️  Error checking ground truth data: {e}")
+        # Try to populate anyway
+        print("🔄 Attempting to populate ground truth data...")
+        return populate_ground_truth_questions(overwrite=False)
 
 def update_database_from_json(json_path):
     """
@@ -711,6 +739,12 @@ def save_results_to_json(engine, task, change_data, performance_metrics=None):
 
 
 if __name__ == "__main__":
+    # Ensure ground truth data exists before evaluation
+    print("🔍 Checking ground truth data availability...")
+    if not ensure_ground_truth_data():
+        print("❌ Cannot proceed without ground truth data. Exiting.")
+        sys.exit(1)
+
     # Select engine(s)
     engines = select_engine()
     

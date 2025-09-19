@@ -10,5 +10,5 @@
 >> re-read ALL lines of current version of code, before making any modification 
 >> do NOT HARDCODE or do NOT use FALLBACK [e.g - CPU, if OOM on GPU] mechanism at any cost
     >> [if its difficult to implement, user's requirement, explicitly say so]
->> for RESULTS section >> goal : keep variable names as same as in given in [ results/roubustnes.db ] & avoid creating new variables
 >> create TEST file in [ unit_test/ ] ONLY existing directory  so that i cant test it manually outside claude terminal, if execution_time > 2 mins
+>> do not be YES MAN >>  give me PROS and CONS of atleast 3  approaches 
