@@ -3,10 +3,12 @@ from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor, Bits
 from qwen_vl_utils import process_vision_info
 from local_model.base_model import BaseVLModel
 from local_model.model_utils import (
-    cleanup_memory, 
-    get_device, 
+    cleanup_memory,
+    get_device,
     time_inference,
-    model_cleanup
+    model_cleanup,
+    robust_generate_with_cuda_handling,
+    safe_move_inputs_to_device
 )
 import time
 import psutil
@@ -160,19 +162,22 @@ class Qwen25VL7BModelWrapper(BaseVLModel):
                     padding=True,
                     return_tensors="pt",
                 )
-                inputs = inputs.to(self.device)
+                # Safely move inputs to device with centralized error handling
+                inputs = safe_move_inputs_to_device(inputs, self.device, self.model_name)
                 
                 # Clear cache again before generation
                 torch.cuda.empty_cache()
                 
-                # Generate response with extreme memory-efficient settings
-                print(f"Generating response with {self.model_name}...")
-                generated_ids = self.model.generate(
-                    **inputs,
-                    max_new_tokens=64,  # Reduced from 128 to save memory
-                    do_sample=False,    # Disable sampling to save memory
-                    num_beams=1,        # Disable beam search to save memory
-                    use_cache=True,
+                # Generate response with centralized CUDA error handling
+                generated_ids = robust_generate_with_cuda_handling(
+                    model=self.model,
+                    inputs=inputs,
+                    processor=self.processor,
+                    model_name=self.model_name,
+                    max_new_tokens=64,
+                    do_sample=False,
+                    num_beams=1,
+                    use_cache=True
                 )
             
             # Process output

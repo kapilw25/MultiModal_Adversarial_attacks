@@ -193,44 +193,73 @@ The following tables provide qualitative descriptions of the attacks and their c
 | ZOO | High | Zeroth-order optimization to estimate gradients | Coordinate-wise updates with Adam optimizer | SSIM=0.85 through binary search |
 | Boundary | High | Decision-based attack that walks along the decision boundary | Starts from a large perturbation and gradually reduces it | SSIM=0.85 through binary search |
 
-## Database Structure
+## Codebase Structure
+  project/
+  ├── data/                    # Raw and processed datasets
+  ├── experiments/             # Experiment configurations and logs
+  ├── results/                 # All experimental outputs
+  │   ├── inference/          # Model inference outputs (what model_inference.py generates)
+  │   ├── evaluation/         # Analysis, metrics, scores (what you're thinking)
+  │   ├── robustness/         # Robustness analysis (your existing .db and .json files)
+  │   └── visualization/      # Plots, charts, figures
+  ├── models/                 # Trained model weights/checkpoints
+  └── scripts/                # Code and utilities
 
-The evaluation results are stored in a SQLite database (`results/robustness.db`) designed for scalability and efficient querying. The database is structured to accommodate future expansion to multiple models, tasks, and evaluation scenarios.
+## Recommended Reorganization for Your Project:
+  results/
+  ├── inference/              # Raw model outputs (from model_inference.py)
+  │   ├── LLAVA_1pt5_7B/
+  │   │   ├── clean/
+  │   │   │   ├── chart/
+  │   │   │   └── ...
+  │   │   └── adversarial/
+  │   │       ├── whitebox/
+  │   │       │   ├── fgsm/
+  │   │       │   │   ├── ssim_085/
+  │   │       │   │   │   ├── chart/
+  │   │       │   │   │   └── ...
+  │   │       │   │   ├── ssim_090/
+  │   │       │   │   └── ssim_095/
+  │   │       │   └── ...
+  │   │       └── blackbox/
+  │   └── ...other_models/
+  ├── evaluation/             # Processed metrics and analysis
+  │   ├── accuracy_scores/
+  │   ├── attack_success_rates/
+  │   ├── comparative_analysis/
+  │   └── statistical_reports/
+  ├── robustness/             # Your existing robustness analysis
+  │   ├── robustness.db
+  │   ├── robustness_chart.json
+  │   ├── robustness_table.json
+  │   └── ...
+  └── visualization/          # Research plots and figures
+      ├── attack_comparisons/
+      ├── model_performance/
+      └── robustness_heatmaps
 
-### Schema Design
 
-The main table `attack_comparison` has the following structure:
+ ## Recommended [scripts/] Structure:
 
-```
-+----------------+----------+
-| Column         | Type     |
-+================+==========+
-| id             | INTEGER  |
-| task_name      | TEXT     |
-| attack_type    | TEXT     |
-| gpt4o_accuracy | REAL     |
-| gpt4o_change   | REAL     |
-| qwen_accuracy  | REAL     |
-| qwen_change    | REAL     |
-| gemma_accuracy | REAL     |
-| gemma_change   | REAL     |
-| timestamp      | TIMESTAMP|
-+----------------+----------+
-```
+  scripts/
+  ├── main/                     # Main executable scripts
+  │   ├── attack_runner.py
+  │   ├── model_inference.py
+  │   ├── model_evaluation.py
+  │   ├── database_manager.py
+  │   └── model_analysis_visualizer.py
+  ├── utils/                    # Utility and helper functions
+  │   ├── attack_selector.py
+  │   ├── batch_processor.py
+  │   ├── text_cleaner.py
+  │   ├── fix_filenames.py
+  │   └── __init__.py
+  ├── clients/                  # External service clients
+  │   ├── vlm_local_client.py
+  │   ├── vlm_cloud_client.py
+  │   └── __init__.py
+  ├── config/                   # Configuration and data files
+  │   ├── corrupted_images_blacklist.py
+  │   └── __init__.py
+  └── __init__.py
 
-### Scalability Features
-
-The database is designed to scale to:
-- 30+ VLM models (by adding additional model columns)
-- Multiple tasks (chart, dashboard, etc.) via the `task_name` field
-- All 17 attack types (already supported)
-- 5000+ questions (via related tables if needed)
-
-### Usage
-
-To store evaluation results in the database:
-```bash
-python scripts/metrics_persistence_manager.py
-```
-
-This creates or updates the SQLite database with the latest evaluation results, providing a centralized repository for all robustness metrics.

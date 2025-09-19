@@ -2,14 +2,16 @@ import torch
 from transformers import PaliGemmaForConditionalGeneration, AutoProcessor
 from local_model.base_model import BaseVLModel
 from local_model.model_utils import (
-    cleanup_memory, 
-    get_device, 
+    cleanup_memory,
+    get_device,
     get_quantization_config,
     load_model_with_timing,
     time_inference,
     get_processor_with_pixel_settings,
     model_cleanup,
-    memory_efficient
+    memory_efficient,
+    robust_generate_with_cuda_handling,
+    safe_move_inputs_to_device
 )
 
 class PaliGemmaModelWrapper(BaseVLModel):
@@ -95,15 +97,13 @@ class PaliGemmaModelWrapper(BaseVLModel):
             
             # Process inputs
             model_inputs = self.processor(
-                text=prompt, 
-                images=image, 
+                text=prompt,
+                images=image,
                 return_tensors="pt"
             )
-            
-            # Explicitly move inputs to the same device as the model
-            for key in model_inputs:
-                if isinstance(model_inputs[key], torch.Tensor):
-                    model_inputs[key] = model_inputs[key].to(self.device)
+
+            # Safely move inputs to device with centralized error handling
+            model_inputs = safe_move_inputs_to_device(model_inputs, self.device, self.model_name)
             
             input_len = model_inputs["input_ids"].shape[-1]
             
@@ -114,9 +114,13 @@ class PaliGemmaModelWrapper(BaseVLModel):
             cleanup_memory()
             
             with torch.inference_mode():
-                generation = self.model.generate(
-                    **model_inputs, 
-                    max_new_tokens=100, 
+                # Generate response with centralized CUDA error handling
+                generation = robust_generate_with_cuda_handling(
+                    model=self.model,
+                    inputs=model_inputs,
+                    processor=self.processor,
+                    model_name=self.model_name,
+                    max_new_tokens=100,
                     do_sample=False
                 )
                 generation = generation[0][input_len:]

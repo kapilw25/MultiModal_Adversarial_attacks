@@ -2,14 +2,16 @@ import torch
 from transformers import Gemma3ForConditionalGeneration
 from local_model.base_model import BaseVLModel
 from local_model.model_utils import (
-    cleanup_memory, 
-    get_device, 
+    cleanup_memory,
+    get_device,
     get_quantization_config,
     load_model_with_timing,
     time_inference,
     get_processor_with_pixel_settings,
     model_cleanup,
-    memory_efficient
+    memory_efficient,
+    robust_generate_with_cuda_handling,
+    safe_move_inputs_to_device
 )
 
 class GemmaVLModelWrapper(BaseVLModel):
@@ -75,12 +77,19 @@ class GemmaVLModelWrapper(BaseVLModel):
             
             # Process inputs with memory-efficient settings
             inputs = self.processor.apply_chat_template(
-                messages, 
-                add_generation_prompt=True, 
+                messages,
+                add_generation_prompt=True,
                 tokenize=True,
-                return_dict=True, 
+                return_dict=True,
                 return_tensors="pt"
-            ).to(self.device, dtype=torch.bfloat16)
+            )
+
+            # Safely move inputs to device with centralized error handling
+            inputs = safe_move_inputs_to_device(inputs, self.device, self.model_name)
+            if hasattr(inputs, 'to'):
+                inputs = inputs.to(dtype=torch.bfloat16)
+            else:
+                inputs = {k: v.to(dtype=torch.bfloat16) if v.dtype == torch.float32 else v for k, v in inputs.items()}
             
             # Generate response with aggressive memory optimization
             print(f"Generating response with {self.model_name}...")
@@ -91,15 +100,17 @@ class GemmaVLModelWrapper(BaseVLModel):
             torch.cuda.empty_cache()
             
             with torch.inference_mode():
-                # Use memory-efficient generation settings
-                generation = self.model.generate(
-                    **inputs, 
-                    max_new_tokens=64,        # Reduced from 128 to save memory
-                    do_sample=False,          # Deterministic generation uses less memory
-                    num_beams=1,              # Greedy search (least memory)
-                    use_cache=False,          # Disable KV cache to save memory
+                # Generate response with centralized CUDA error handling
+                generation = robust_generate_with_cuda_handling(
+                    model=self.model,
+                    inputs=inputs,
+                    processor=self.processor,
+                    model_name=self.model_name,
+                    max_new_tokens=64,
+                    do_sample=False,
+                    num_beams=1,
+                    use_cache=False,
                     pad_token_id=self.processor.tokenizer.eos_token_id,
-                    # Memory optimization flags
                     output_attentions=False,
                     output_hidden_states=False,
                     return_dict_in_generate=False

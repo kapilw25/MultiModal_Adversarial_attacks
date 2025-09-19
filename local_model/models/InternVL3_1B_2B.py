@@ -11,10 +11,12 @@ from torchvision.transforms.functional import InterpolationMode
 from transformers import AutoTokenizer, AutoModel, BitsAndBytesConfig, AutoConfig
 from local_model.base_model import BaseVLModel
 from local_model.model_utils import (
-    cleanup_memory, 
-    get_device, 
+    cleanup_memory,
+    get_device,
     time_inference,
-    model_cleanup
+    model_cleanup,
+    robust_chat_with_cuda_handling,
+    safe_move_inputs_to_device
 )
 import time
 import psutil
@@ -231,7 +233,12 @@ class InternVL3ModelWrapper(BaseVLModel):
             self._print_memory_usage()
             
             # Load and preprocess image
-            pixel_values = self.load_image(image_path).to(torch.bfloat16).to(self.device)
+            pixel_values = self.load_image(image_path).to(torch.bfloat16)
+
+            # Safely move inputs to device with centralized error handling
+            pixel_values = safe_move_inputs_to_device(
+                {'pixel_values': pixel_values}, self.device, self.model_name
+            )['pixel_values']
             
             # Format question with image placeholder
             formatted_question = "<image>\n" + question
@@ -252,29 +259,20 @@ class InternVL3ModelWrapper(BaseVLModel):
                     "top_p": 0.9,
                 }
                 
-                # Generate response using the model's chat method
-                # Handle conversation history if available
-                if hasattr(self, 'history') and self.history:
-                    response, new_history = self.model.chat(
-                        self.tokenizer,
-                        pixel_values,
-                        formatted_question,
-                        generation_config,
-                        history=self.history,
-                        return_history=True
-                    )
-                    self.history = new_history  # Update history for potential future use
-                else:
-                    # First interaction or no history tracking
-                    response, new_history = self.model.chat(
-                        self.tokenizer,
-                        pixel_values,
-                        formatted_question,
-                        generation_config,
-                        history=None,
-                        return_history=True
-                    )
-                    self.history = new_history  # Store for potential future use
+                # Generate response using centralized CUDA error handling
+                # Always use fresh history to prevent memory accumulation
+                response, new_history = robust_chat_with_cuda_handling(
+                    model=self.model,
+                    tokenizer=self.tokenizer,
+                    pixel_values=pixel_values,
+                    question=formatted_question,
+                    generation_config=generation_config,
+                    model_name=self.model_name,
+                    history=None,  # Always use None to prevent memory accumulation
+                    return_history=True
+                )
+                # Store history but clear it after inference to prevent memory accumulation
+                self.history = new_history
             
             # Measure memory after inference
             print("Memory after inference:")

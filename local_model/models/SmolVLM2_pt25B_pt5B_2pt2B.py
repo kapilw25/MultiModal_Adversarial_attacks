@@ -7,11 +7,13 @@ import torch
 from transformers import AutoProcessor, AutoModelForImageTextToText, BitsAndBytesConfig
 from local_model.base_model import BaseVLModel
 from local_model.model_utils import (
-    cleanup_memory, 
-    get_device, 
+    cleanup_memory,
+    get_device,
     get_quantization_config,
     time_inference,
-    model_cleanup
+    model_cleanup,
+    robust_generate_with_cuda_handling,
+    safe_move_inputs_to_device
 )
 import time
 import psutil
@@ -177,8 +179,10 @@ class SmolVLM2ModelWrapper(BaseVLModel):
                     return_tensors="pt",
                 )
                 
-                # Move inputs to device with appropriate dtype to match model
-                inputs = {k: v.to(self.device, dtype=self.dtype if torch.is_floating_point(v) else None) 
+                # Safely move inputs to device with centralized error handling
+                inputs = safe_move_inputs_to_device(inputs, self.device, self.model_name)
+                # Apply appropriate dtype to match model
+                inputs = {k: v.to(dtype=self.dtype) if torch.is_floating_point(v) else v
                          for k, v in inputs.items()}
                 
                 # Clear cache again before generation
@@ -196,12 +200,16 @@ class SmolVLM2ModelWrapper(BaseVLModel):
                     # Can generate slightly more with largest model
                     max_tokens = 64
                 
-                generated_ids = self.model.generate(
-                    **inputs,
-                    do_sample=False,  # Deterministic to save memory
+                # Generate response with centralized CUDA error handling
+                generated_ids = robust_generate_with_cuda_handling(
+                    model=self.model,
+                    inputs=inputs,
+                    processor=self.processor,
+                    model_name=self.model_name,
+                    do_sample=False,
                     max_new_tokens=max_tokens,
-                    num_beams=1,  # No beam search to save memory
-                    use_cache=True,
+                    num_beams=1,
+                    use_cache=True
                 )
             
             # Process output

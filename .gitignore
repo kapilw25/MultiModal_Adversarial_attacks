@@ -25,3 +25,5 @@ __pycache__
 build/
 dist/
 
+2d_dct_basis_10_224.npy
+

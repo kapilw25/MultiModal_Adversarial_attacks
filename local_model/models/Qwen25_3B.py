@@ -4,13 +4,15 @@ from transformers import Qwen2_5_VLForConditionalGeneration
 from qwen_vl_utils import process_vision_info
 from local_model.base_model import BaseVLModel
 from local_model.model_utils import (
-    cleanup_memory, 
-    get_device, 
-    get_quantization_config, 
+    cleanup_memory,
+    get_device,
+    get_quantization_config,
     load_model_with_timing,
     time_inference,
     get_processor_with_pixel_settings,
-    model_cleanup
+    model_cleanup,
+    robust_generate_with_cuda_handling,
+    safe_move_inputs_to_device
 )
 
 class QwenVLModelWrapper(BaseVLModel):
@@ -73,37 +75,20 @@ class QwenVLModelWrapper(BaseVLModel):
                 return_tensors="pt",
             )
             
-            # Safely move inputs to device with error handling
-            try:
-                inputs = inputs.to(self.device)
-            except RuntimeError as e:
-                if "CUDA error: device-side assert triggered" in str(e):
-                    print(f"⚠️  CUDA device-side assert error detected. Skipping corrupted input.")
-                    print(f"Error details: {e}")
-                    return "ERROR: CUDA device-side assert - corrupted input data"
-                else:
-                    raise e
-            
-            # Generate response with CUDA error handling
-            print(f"Generating response with {self.model_name}...")
-            try:
-                with torch.inference_mode():
-                    generated_ids = self.model.generate(
-                        **inputs, 
-                        max_new_tokens=128,
-                        do_sample=True,
-                        temperature=0.3,  # Lower temperature to prevent invalid probabilities
-                        top_p=0.95,       # Higher top_p for more stable sampling
-                        pad_token_id=self.processor.tokenizer.eos_token_id,  # Explicit pad token
-                        eos_token_id=self.processor.tokenizer.eos_token_id,  # Explicit eos token
-                    )
-            except RuntimeError as e:
-                if "CUDA error: device-side assert triggered" in str(e):
-                    print(f"⚠️  CUDA device-side assert during generation. Input may be corrupted.")
-                    print(f"Error details: {e}")
-                    return "ERROR: CUDA device-side assert during generation - corrupted input"
-                else:
-                    raise e
+            # Safely move inputs to device with centralized error handling
+            inputs = safe_move_inputs_to_device(inputs, self.device, self.model_name)
+
+            # Generate response with centralized CUDA error handling
+            generated_ids = robust_generate_with_cuda_handling(
+                model=self.model,
+                inputs=inputs,
+                processor=self.processor,
+                model_name=self.model_name,
+                max_new_tokens=128,
+                do_sample=True,
+                temperature=0.3,
+                top_p=0.95
+            )
             
             # Process output
             print("Processing output...")

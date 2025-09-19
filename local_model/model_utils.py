@@ -49,6 +49,279 @@ def clear_model_memory_if_needed(engine, model_instance=None):
     
     return False
 
+
+def robust_generate_with_cuda_handling(model, inputs, processor, model_name="Unknown", **generation_config):
+    """
+    Centralized robust generation with CUDA error handling for all VLM models.
+
+    This function provides retry logic with progressively more conservative parameters
+    to handle CUDA device-side assertion errors caused by probability tensor corruption.
+
+    Args:
+        model: The model instance with generate() method
+        inputs: Preprocessed model inputs (tokenized, moved to device)
+        processor: Model processor for tokenization
+        model_name: Human-readable model name for logging
+        **generation_config: Generation parameters (max_new_tokens, temperature, etc.)
+
+    Returns:
+        torch.Tensor: Generated token IDs
+
+    Raises:
+        RuntimeError: If all retry attempts fail or non-CUDA errors occur
+    """
+    print(f"Generating response with {model_name}...")
+
+    generation_attempts = 0
+    max_attempts = 3
+
+    # Default generation config
+    default_config = {
+        "max_new_tokens": 128,
+        "do_sample": True,
+        "temperature": 0.3,
+        "top_p": 0.95,
+        "pad_token_id": processor.tokenizer.eos_token_id if hasattr(processor, 'tokenizer') else None,
+        "eos_token_id": processor.tokenizer.eos_token_id if hasattr(processor, 'tokenizer') else None,
+        "repetition_penalty": 1.1,
+        "num_beams": 1,
+        "early_stopping": True,
+        "use_cache": True
+    }
+
+    # Merge with provided config
+    final_config = {**default_config, **generation_config}
+
+    while generation_attempts < max_attempts:
+        try:
+            with torch.inference_mode():
+                # Adjust parameters based on retry attempt
+                if generation_attempts > 0:
+                    # Make parameters more conservative on retries
+                    final_config["temperature"] = max(0.1, 0.3 - generation_attempts * 0.1)
+                    final_config["top_p"] = min(0.99, 0.95 + generation_attempts * 0.02)
+
+                # On final attempt, use deterministic generation to avoid probability issues
+                if generation_attempts == max_attempts - 1:
+                    print("⚠️  Using deterministic generation as fallback")
+                    final_config.update({
+                        "do_sample": False,
+                        "temperature": None,
+                        "top_p": None,
+                        "num_beams": 1
+                    })
+
+                # Clean None values from config
+                clean_config = {k: v for k, v in final_config.items() if v is not None}
+
+                generated_ids = model.generate(**inputs, **clean_config)
+                return generated_ids  # Success, return result
+
+        except RuntimeError as e:
+            error_msg = str(e)
+            is_cuda_probability_error = (
+                "probability tensor contains either `inf`, `nan` or element < 0" in error_msg or
+                "CUDA error: device-side assert triggered" in error_msg
+            )
+
+            if is_cuda_probability_error:
+                generation_attempts += 1
+                print(f"⚠️  CUDA device-side assert detected (attempt {generation_attempts}/{max_attempts})")
+                print(f"Error details: {e}")
+
+                if generation_attempts >= max_attempts:
+                    print(f"⚠️  All generation attempts failed. Returning error response.")
+                    raise RuntimeError("ERROR: CUDA device-side assert - probability tensor corruption")
+
+                # Clear CUDA cache before retry
+                torch.cuda.empty_cache()
+                print(f"🔄 Retrying with more conservative generation parameters...")
+
+            else:
+                # Re-raise non-CUDA errors immediately
+                raise e
+
+    # This should never be reached due to the raise above, but added for completeness
+    raise RuntimeError("ERROR: Maximum retry attempts exceeded")
+
+
+def robust_chat_with_cuda_handling(model, tokenizer, pixel_values, question, generation_config, model_name="Unknown", **chat_kwargs):
+    """
+    Centralized robust chat method with CUDA error handling for InternVL-style models.
+
+    This function provides retry logic with progressively more conservative parameters
+    to handle CUDA device-side assertion errors during the chat method.
+
+    Args:
+        model: The model instance with chat() method
+        tokenizer: Model tokenizer
+        pixel_values: Preprocessed image tensors
+        question: Text question/prompt
+        generation_config: Generation parameters dict
+        model_name: Human-readable model name for logging
+        **chat_kwargs: Additional chat method parameters (history, return_history, etc.)
+
+    Returns:
+        Tuple: (response, history) or just response depending on return_history parameter
+
+    Raises:
+        RuntimeError: If all retry attempts fail or non-CUDA errors occur
+    """
+    print(f"Generating response with {model_name} using chat method...")
+
+    generation_attempts = 0
+    max_attempts = 3
+
+    # Default generation config for chat methods
+    default_config = {
+        "max_new_tokens": 128,
+        "do_sample": True,
+        "temperature": 0.3,
+        "top_p": 0.95
+    }
+
+    # Merge with provided config
+    final_config = {**default_config, **generation_config}
+
+    while generation_attempts < max_attempts:
+        try:
+            with torch.inference_mode():
+                # Adjust parameters based on retry attempt
+                if generation_attempts > 0:
+                    # Make parameters more conservative on retries
+                    final_config["temperature"] = max(0.1, 0.3 - generation_attempts * 0.1)
+                    final_config["top_p"] = min(0.99, 0.95 + generation_attempts * 0.02)
+
+                # On final attempt, use deterministic generation to avoid probability issues
+                if generation_attempts == max_attempts - 1:
+                    print("⚠️  Using deterministic generation as fallback")
+                    final_config.update({
+                        "do_sample": False,
+                        "temperature": 0.1,  # Use minimal temperature instead of None for chat
+                        "top_p": 0.99
+                    })
+
+                chat_result = model.chat(
+                    tokenizer,
+                    pixel_values,
+                    question,
+                    final_config,
+                    **chat_kwargs
+                )
+                return chat_result  # Success, return result
+
+        except RuntimeError as e:
+            error_msg = str(e)
+            is_cuda_probability_error = (
+                "probability tensor contains either `inf`, `nan` or element < 0" in error_msg or
+                "CUDA error: device-side assert triggered" in error_msg
+            )
+
+            if is_cuda_probability_error:
+                generation_attempts += 1
+                print(f"⚠️  CUDA device-side assert detected in chat method (attempt {generation_attempts}/{max_attempts})")
+                print(f"Error details: {e}")
+
+                if generation_attempts >= max_attempts:
+                    print(f"⚠️  All chat attempts failed. Returning error response.")
+                    raise RuntimeError("ERROR: CUDA device-side assert - probability tensor corruption in chat")
+
+                # Clear CUDA cache before retry
+                torch.cuda.empty_cache()
+                print(f"🔄 Retrying chat with more conservative generation parameters...")
+
+            else:
+                # Re-raise non-CUDA errors immediately
+                raise e
+
+    # This should never be reached due to the raise above, but added for completeness
+    raise RuntimeError("ERROR: Maximum chat retry attempts exceeded")
+
+
+def robust_query_with_cuda_handling(model, image, question, model_name="Unknown", **query_kwargs):
+    """
+    Centralized robust query method with CUDA error handling for Moondream-style models.
+
+    This function provides retry logic to handle CUDA device-side assertion errors
+    during the query method.
+
+    Args:
+        model: The model instance with query() method
+        image: PIL Image object
+        question: Text question/prompt
+        model_name: Human-readable model name for logging
+        **query_kwargs: Additional query method parameters
+
+    Returns:
+        Dict: Query result (typically contains 'answer' key)
+
+    Raises:
+        RuntimeError: If all retry attempts fail or non-CUDA errors occur
+    """
+    print(f"Generating response with {model_name} using query method...")
+
+    generation_attempts = 0
+    max_attempts = 3
+
+    while generation_attempts < max_attempts:
+        try:
+            with torch.inference_mode():
+                query_result = model.query(image, question, **query_kwargs)
+                return query_result  # Success, return result
+
+        except RuntimeError as e:
+            error_msg = str(e)
+            is_cuda_probability_error = (
+                "probability tensor contains either `inf`, `nan` or element < 0" in error_msg or
+                "CUDA error: device-side assert triggered" in error_msg
+            )
+
+            if is_cuda_probability_error:
+                generation_attempts += 1
+                print(f"⚠️  CUDA device-side assert detected in query method (attempt {generation_attempts}/{max_attempts})")
+                print(f"Error details: {e}")
+
+                if generation_attempts >= max_attempts:
+                    print(f"⚠️  All query attempts failed. Returning error response.")
+                    raise RuntimeError("ERROR: CUDA device-side assert - probability tensor corruption in query")
+
+                # Clear CUDA cache before retry
+                torch.cuda.empty_cache()
+                print(f"🔄 Retrying query with CUDA recovery...")
+
+            else:
+                # Re-raise non-CUDA errors immediately
+                raise e
+
+    # This should never be reached due to the raise above, but added for completeness
+    raise RuntimeError("ERROR: Maximum query retry attempts exceeded")
+
+
+def safe_move_inputs_to_device(inputs, device, model_name="Unknown"):
+    """
+    Safely move model inputs to device with CUDA error handling.
+
+    Args:
+        inputs: Model inputs to move to device
+        device: Target device (usually 'cuda')
+        model_name: Human-readable model name for logging
+
+    Returns:
+        Moved inputs or raises error if CUDA corruption detected
+
+    Raises:
+        RuntimeError: If CUDA device-side assertion occurs during input movement
+    """
+    try:
+        return inputs.to(device)
+    except RuntimeError as e:
+        if "CUDA error: device-side assert triggered" in str(e):
+            print(f"⚠️  CUDA device-side assert error detected while moving inputs for {model_name}")
+            print(f"Error details: {e}")
+            raise RuntimeError("ERROR: CUDA device-side assert - corrupted input data")
+        else:
+            raise e
+
 def get_device():
     """Get the appropriate device (CUDA or CPU)"""
     return "cuda" if torch.cuda.is_available() else "cpu"

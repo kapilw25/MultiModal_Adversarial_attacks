@@ -21,7 +21,7 @@ from local_model.manager_environment import EnvironmentManager
 from local_model.model_classes import create_model
 
 # Hardcoded image path and question
-IMAGE_PATH = "data/test_extracted/chart/20231114102825506748.png"
+IMAGE_PATH = "data/clean/chart/20231114102825506748.png"
 QUESTION = "What is shown in this chart?"
 
 # Global flag to control the monitoring thread

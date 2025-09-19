@@ -7,11 +7,12 @@ import torch
 from transformers import AutoModelForCausalLM
 from local_model.base_model import BaseVLModel
 from local_model.model_utils import (
-    cleanup_memory, 
-    get_device, 
+    cleanup_memory,
+    get_device,
     get_quantization_config,
     time_inference,
-    model_cleanup
+    model_cleanup,
+    robust_query_with_cuda_handling
 )
 import time
 import psutil
@@ -134,11 +135,13 @@ class Moondream2ModelWrapper(BaseVLModel):
                 # Clear cache before heavy operations
                 torch.cuda.empty_cache()
                 
-                # Use the model's query method for visual question answering
-                print(f"Generating response with {self.model_path}...")
-                
-                # Get the answer using the model's query method
-                result = self.model.query(image, question)
+                # Use centralized CUDA error handling for query method
+                result = robust_query_with_cuda_handling(
+                    model=self.model,
+                    image=image,
+                    question=question,
+                    model_name=self.model_name
+                )
                 answer = result["answer"]
                 
                 # If the answer is very short, try to get a more detailed response

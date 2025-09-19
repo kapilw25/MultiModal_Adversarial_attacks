@@ -4,10 +4,12 @@ from deepseek_vl.models import VLChatProcessor
 from deepseek_vl.utils.io import load_pil_images
 from local_model.base_model import BaseVLModel
 from local_model.model_utils import (
-    cleanup_memory, 
-    get_device, 
+    cleanup_memory,
+    get_device,
     time_inference,
-    model_cleanup
+    model_cleanup,
+    robust_generate_with_cuda_handling,
+    safe_move_inputs_to_device
 )
 import time
 import psutil
@@ -148,7 +150,10 @@ class DeepSeekVL7BModelWrapper(BaseVLModel):
                 conversations=conversation,
                 images=pil_images,
                 force_batchify=True
-            ).to(self.device)
+            )
+
+            # Safely move inputs to device with centralized error handling
+            prepare_inputs = safe_move_inputs_to_device(prepare_inputs, self.device, self.model_name)
             
             # Run image encoder to get the image embeddings with memory optimization
             with torch.inference_mode():  # Use inference_mode to save memory
@@ -161,18 +166,27 @@ class DeepSeekVL7BModelWrapper(BaseVLModel):
                 # Clear cache again before generation
                 torch.cuda.empty_cache()
                 
-                # Generate response with extreme memory-efficient settings
+                # Generate response with centralized CUDA error handling
                 print(f"Generating response with {self.model_name}...")
-                outputs = self.model.language_model.generate(
-                    inputs_embeds=inputs_embeds,
-                    attention_mask=prepare_inputs.attention_mask,
+
+                # Prepare inputs for robust generation
+                generation_inputs = {
+                    'inputs_embeds': inputs_embeds,
+                    'attention_mask': prepare_inputs.attention_mask
+                }
+
+                outputs = robust_generate_with_cuda_handling(
+                    model=self.model.language_model,
+                    inputs=generation_inputs,
+                    processor=self.processor,
+                    model_name=self.model_name,
                     pad_token_id=self.tokenizer.eos_token_id,
                     bos_token_id=self.tokenizer.bos_token_id,
                     eos_token_id=self.tokenizer.eos_token_id,
-                    max_new_tokens=32,  # Extremely reduced from 512 to save memory
+                    max_new_tokens=32,
                     do_sample=False,
                     use_cache=True,
-                    num_beams=1,  # Disable beam search to save memory
+                    num_beams=1
                 )
             
             # Decode output

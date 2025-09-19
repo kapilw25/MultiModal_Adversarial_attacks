@@ -11,10 +11,12 @@ from torchvision.transforms.functional import InterpolationMode
 from transformers import AutoTokenizer, AutoModel, BitsAndBytesConfig, AutoConfig
 from local_model.base_model import BaseVLModel
 from local_model.model_utils import (
-    cleanup_memory, 
-    get_device, 
+    cleanup_memory,
+    get_device,
     time_inference,
-    model_cleanup
+    model_cleanup,
+    robust_chat_with_cuda_handling,
+    safe_move_inputs_to_device
 )
 import time
 import psutil
@@ -225,7 +227,12 @@ class InternVL2_5_4BModelWrapper(BaseVLModel):
             self._print_memory_usage()
             
             # Load and preprocess image
-            pixel_values = self.load_image(image_path).to(torch.bfloat16).to(self.device)
+            pixel_values = self.load_image(image_path).to(torch.bfloat16)
+
+            # Safely move inputs to device with centralized error handling
+            pixel_values = safe_move_inputs_to_device(
+                {'pixel_values': pixel_values}, self.device, self.model_name
+            )['pixel_values']
             
             # Format question with image placeholder
             formatted_question = "<image>\n" + question
@@ -245,14 +252,14 @@ class InternVL2_5_4BModelWrapper(BaseVLModel):
                     "num_beams": 1,        # Single beam for memory efficiency
                 }
                 
-                # Generate response using the model's chat method
-                # Always use fresh history to avoid memory accumulation
-                # Handle variable return values safely
-                chat_result = self.model.chat(
-                    self.tokenizer,
-                    pixel_values,
-                    formatted_question,
-                    generation_config,
+                # Generate response using centralized CUDA error handling
+                chat_result = robust_chat_with_cuda_handling(
+                    model=self.model,
+                    tokenizer=self.tokenizer,
+                    pixel_values=pixel_values,
+                    question=formatted_question,
+                    generation_config=generation_config,
+                    model_name=self.model_name,
                     history=None,  # Always use None to prevent memory accumulation
                     return_history=False  # Don't return history to save memory
                 )

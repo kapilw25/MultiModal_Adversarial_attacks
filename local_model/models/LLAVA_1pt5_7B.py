@@ -7,12 +7,14 @@ import torch
 from transformers import AutoProcessor, LlavaForConditionalGeneration
 from local_model.base_model import BaseVLModel
 from local_model.model_utils import (
-    cleanup_memory, 
-    get_device, 
+    cleanup_memory,
+    get_device,
     get_quantization_config,
     time_inference,
     model_cleanup,
-    measure_memory_usage
+    measure_memory_usage,
+    robust_generate_with_cuda_handling,
+    safe_move_inputs_to_device
 )
 import time
 import gc
@@ -128,22 +130,27 @@ class LLAVA15ModelWrapper(BaseVLModel):
                 
                 # Process inputs - following working script pattern
                 inputs = self.processor(
-                    images=image, 
-                    text=prompt, 
+                    images=image,
+                    text=prompt,
                     return_tensors='pt'
-                ).to(self.device, self.dtype)
-                
+                )
+
+                # Safely move inputs to device with centralized error handling
+                inputs = safe_move_inputs_to_device(inputs, self.device, self.model_name)
+                inputs = {k: v.to(self.dtype) if v.dtype == torch.float32 else v for k, v in inputs.items()}
+
                 # Clear cache again before generation
                 cleanup_memory()
-                
-                # Generate response with memory-efficient settings
-                print(f"Generating response with LLAVA 1.5 7B...")
-                
-                generated_ids = self.model.generate(
-                    **inputs,
+
+                # Generate response with centralized CUDA error handling
+                generated_ids = robust_generate_with_cuda_handling(
+                    model=self.model,
+                    inputs=inputs,
+                    processor=self.processor,
+                    model_name=self.model_name,
                     max_new_tokens=64,
-                    do_sample=False,  # Following working script pattern
-                    num_beams=1,  # No beam search to save memory
+                    do_sample=False,
+                    num_beams=1
                 )
             
             # Process output - use proper token handling for LLAVA 1.5

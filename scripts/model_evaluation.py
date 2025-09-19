@@ -10,6 +10,9 @@ import spacy
 import nltk
 import tabulate
 
+# Add utils directory to path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
+
 # Download wordnet if not already downloaded
 nltk.download('wordnet', quiet=True)
 from nltk.corpus import wordnet as wn
@@ -23,7 +26,7 @@ def update_database_from_json(json_path):
     """
     try:
         # Import database manager functions
-        from scripts import database_manager
+        import database_manager
         
         # Temporarily update the JSON_PATH in the database_manager module
         original_path = database_manager.JSON_PATH
@@ -46,7 +49,7 @@ def update_database_from_json(json_path):
         print("❌ Could not import database_manager - falling back to subprocess")
         # Fallback to subprocess if import fails
         try:
-            result = subprocess.run([sys.executable, "scripts/database_manager.py"], 
+            result = subprocess.run([sys.executable, "scripts/utils/database_manager.py"], 
                                   capture_output=True, text=True)
             if result.returncode == 0:
                 print("✅ Database updated successfully (subprocess)")
@@ -60,7 +63,7 @@ def update_database_from_json(json_path):
         
         # Restore original path in case of error
         try:
-            from scripts import database_manager
+            import database_manager
             database_manager.JSON_PATH = original_path
         except:
             pass
@@ -250,43 +253,29 @@ def evaluator(path):
         else:
             bad_results.append(result)
     
-    # Determine file type based on filename
-    if "_BB_cw_l2" in path:
-        file_type = "CW-L2 Adversarial"
-    elif "_BB_cw_l0" in path:
-        file_type = "CW-L0 Adversarial"
-    elif "_BB_cw_linf" in path:
-        file_type = "CW-L∞ Adversarial"
-    elif "_BB_fgsm" in path:
-        file_type = "FGSM Adversarial"
-    elif "_BB_lbfgs" in path:
-        file_type = "L-BFGS Adversarial"
-    elif "_BB_jsma" in path:
-        file_type = "JSMA Adversarial"
-    elif "_BB_deepfool" in path:
-        file_type = "DeepFool Adversarial"
-    elif "_BB_pgd" in path:
+    # Determine file type based on file path structure (NEW approach)
+    if "/adversarial/whitebox/pgd/" in path:
         file_type = "PGD Adversarial"
-    elif "_BB_square" in path:
+    elif "/adversarial/whitebox/fgsm/" in path:
+        file_type = "FGSM Adversarial"
+    elif "/adversarial/whitebox/cw_linf/" in path:
+        file_type = "CW-L∞ Adversarial"
+    elif "/adversarial/whitebox/deepfool/" in path:
+        file_type = "DeepFool Adversarial"
+    elif "/adversarial/blackbox/square/" in path:
         file_type = "Square Adversarial"
-    elif "_BB_hop_skip_jump" in path:
-        file_type = "HopSkipJump Adversarial"
-    elif "_BB_pixel" in path:
-        file_type = "Pixel Adversarial"
-    elif "_BB_simba" in path:
+    elif "/adversarial/blackbox/simba/" in path:
         file_type = "SimBA Adversarial"
-    elif "_BB_spatial" in path:
-        file_type = "Spatial Transformation Adversarial"
-    elif "_BB_query_efficient_bb" in path:
-        file_type = "Query-Efficient Black-box Adversarial"
-    elif "_BB_zoo" in path:
-        file_type = "ZOO Adversarial"
-    elif "_BB_boundary" in path:
+    elif "/adversarial/blackbox/boundary/" in path:
         file_type = "Boundary Adversarial"
-    elif "_BB_geoda" in path:
-        file_type = "GeoDA Adversarial"
-    else:
+    elif "/adversarial/blackbox/pixel/" in path:
+        file_type = "Pixel Adversarial"
+    elif "/adversarial/blackbox/spatial/" in path:
+        file_type = "Spatial Transformation Adversarial"
+    elif "/clean/" in path:
         file_type = "Original"
+    else:
+        file_type = "Unknown"
     
     if len(eval_file) - summary_cnt > 0:
         accuracy = len(ok_results) / (len(eval_file) - summary_cnt) * 100
@@ -421,43 +410,29 @@ def aggregate_performance_metrics(file_paths):
     for path in file_paths:
         file_name = os.path.basename(path)
         
-        # Determine attack type from filename
-        if "_BB_pgd" in file_name:
+        # Determine attack type from file path structure (NEW approach)
+        if "/adversarial/whitebox/pgd/" in path:
             attack_type = "PGD"
-        elif "_BB_fgsm" in file_name:
+        elif "/adversarial/whitebox/fgsm/" in path:
             attack_type = "FGSM"
-        elif "_BB_cw_l2" in file_name:
-            attack_type = "CW-L2"
-        elif "_BB_cw_l0" in file_name:
-            attack_type = "CW-L0"
-        elif "_BB_cw_linf" in file_name:
+        elif "/adversarial/whitebox/cw_linf/" in path:
             attack_type = "CW-L∞"
-        elif "_BB_lbfgs" in file_name:
-            attack_type = "L-BFGS"
-        elif "_BB_jsma" in file_name:
-            attack_type = "JSMA"
-        elif "_BB_deepfool" in file_name:
+        elif "/adversarial/whitebox/deepfool/" in path:
             attack_type = "DeepFool"
-        elif "_BB_square" in file_name:
+        elif "/adversarial/blackbox/square/" in path:
             attack_type = "Square"
-        elif "_BB_hop_skip_jump" in file_name:
-            attack_type = "HopSkipJump"
-        elif "_BB_pixel" in file_name:
-            attack_type = "Pixel"
-        elif "_BB_simba" in file_name:
+        elif "/adversarial/blackbox/simba/" in path:
             attack_type = "SimBA"
-        elif "_BB_spatial" in file_name:
-            attack_type = "Spatial"
-        elif "_BB_query_efficient_bb" in file_name:
-            attack_type = "Query-Efficient BB"
-        elif "_BB_zoo" in file_name:
-            attack_type = "ZOO"
-        elif "_BB_boundary" in file_name:
+        elif "/adversarial/blackbox/boundary/" in path:
             attack_type = "Boundary"
-        elif "_BB_geoda" in file_name:
-            attack_type = "GeoDA"
-        else:
+        elif "/adversarial/blackbox/pixel/" in path:
+            attack_type = "Pixel"
+        elif "/adversarial/blackbox/spatial/" in path:
+            attack_type = "Spatial"
+        elif "/clean/" in path:
             attack_type = "Original"
+        else:
+            attack_type = "Unknown"
         
         # Read individual JSON lines and extract performance metrics
         try:
@@ -518,22 +493,42 @@ def evaluate_all_files(engine, task, random_count=None):
     if random_count is None:
         random_count = get_task_question_count(task)
     
-    # Base directory for results
-    dir_path = f'results/models/{engine}'
+    # NEW: Updated base directory for results (matches model_inference.py output)
+    base_dir = f'results/inference/{engine}'
     
-    # Pattern for finding all relevant files
-    pattern = f'eval_{engine}_{task}_{random_count}*.json'
+    # Find clean (original) files
+    clean_pattern = f'{base_dir}/clean/{task}/eval_{engine}_{task}_{random_count}*.json'
+    clean_files = glob.glob(clean_pattern)
     
-    # Find all matching files
-    file_paths = glob.glob(os.path.join(dir_path, pattern))
+    # Find adversarial files
+    adversarial_files = []
+    adversarial_base = f'{base_dir}/adversarial'
+    
+    # Check for whitebox attacks
+    whitebox_dir = f'{adversarial_base}/whitebox'
+    if os.path.exists(whitebox_dir):
+        for attack in ['pgd', 'fgsm', 'cw_linf', 'deepfool']:
+            attack_pattern = f'{whitebox_dir}/{attack}/ssim_085/{task}/eval_{engine}_{task}_{random_count}*.json'
+            adversarial_files.extend(glob.glob(attack_pattern))
+    
+    # Check for blackbox attacks  
+    blackbox_dir = f'{adversarial_base}/blackbox'
+    if os.path.exists(blackbox_dir):
+        for attack in ['square', 'simba', 'boundary', 'pixel', 'spatial']:
+            attack_pattern = f'{blackbox_dir}/{attack}/ssim_085/{task}/eval_{engine}_{task}_{random_count}*.json'
+            adversarial_files.extend(glob.glob(attack_pattern))
+    
+    # Combine all files
+    file_paths = clean_files + adversarial_files
     
     if not file_paths:
-        print(f"No evaluation files found matching pattern: {pattern}")
+        print(f"No evaluation files found for {engine} on task '{task}'")
+        print(f"Searched in: {base_dir}")
         return
     
     print(f"Found {len(file_paths)} evaluation files for task '{task}':")
     for i, path in enumerate(file_paths):
-        print(f"  [{i+1}] {os.path.basename(path)}")
+        print(f"  [{i+1}] {os.path.relpath(path, 'results/inference')}")
     
     # Aggregate performance metrics from all files
     print(f"Aggregating performance metrics for {engine}...")
@@ -548,70 +543,59 @@ def evaluate_all_files(engine, task, random_count=None):
         results[file_name] = accuracy
         file_types[file_name] = file_type
     
-    # Print comparison if we have multiple results
-    if len(results) > 1:
-        # Find the original file (the one without any attack suffix)
-        # This is more reliable than checking for "_adv" which might not be present
-        orig_file = next((f for f in results.keys() if all(attack not in f for attack in 
-                                                          ["_BB_pgd", "_BB_fgsm", "_BB_cw_l2", "_BB_cw_l0", 
-                                                           "_BB_cw_linf", "_BB_lbfgs", "_BB_jsma", "_BB_deepfool", 
-                                                           "_BB_square", "_BB_hop_skip_jump", "_BB_pixel", "_BB_simba",
-                                                           "_BB_spatial", "_BB_query_efficient_bb", "_BB_zoo",
-                                                           "_BB_boundary", "_BB_geoda"])), None)
+    # Generate outputs even with only clean files
+    if len(results) >= 1:
+        # Find the original file (clean file)
+        orig_file = next((f for f in results.keys() if "/clean/" in f), None)
         
-        if orig_file:
-            orig_acc = results[orig_file]
-            
-            print(f"\n=== ACCURACY CHANGES FOR {engine.upper()} ON {task.upper()} ===")
-            change_data = []
-            
-            # Add the original row as baseline reference
-            change_data.append(["Original", f"{orig_acc:.2f}%", f"{orig_acc:.2f}%", "0.00%", "Baseline"])
-            
-            # Check for all attack types
-            attack_types = {
-                "PGD": next((f for f in results.keys() if "_BB_pgd" in f), None),
-                "FGSM": next((f for f in results.keys() if "_BB_fgsm" in f), None),
-                "CW-L2": next((f for f in results.keys() if "_BB_cw_l2" in f), None),
-                "CW-L0": next((f for f in results.keys() if "_BB_cw_l0" in f), None),
-                "CW-L∞": next((f for f in results.keys() if "_BB_cw_linf" in f), None),
-                "L-BFGS": next((f for f in results.keys() if "_BB_lbfgs" in f), None),
-                "JSMA": next((f for f in results.keys() if "_BB_jsma" in f), None),
-                "DeepFool": next((f for f in results.keys() if "_BB_deepfool" in f), None),
-                "Square": next((f for f in results.keys() if "_BB_square" in f), None),
-                "HopSkipJump": next((f for f in results.keys() if "_BB_hop_skip_jump" in f), None),
-                "Pixel": next((f for f in results.keys() if "_BB_pixel" in f), None),
-                "SimBA": next((f for f in results.keys() if "_BB_simba" in f), None),
-                "Spatial": next((f for f in results.keys() if "_BB_spatial" in f), None),
-                "Query-Efficient BB": next((f for f in results.keys() if "_BB_query_efficient_bb" in f), None),
-                "ZOO": next((f for f in results.keys() if "_BB_zoo" in f), None),
-                "Boundary": next((f for f in results.keys() if "_BB_boundary" in f), None),
-                "GeoDA": next((f for f in results.keys() if "_BB_geoda" in f), None)
-            }
-            
-            for attack_name, attack_file in attack_types.items():
-                if attack_file:
-                    attack_acc = results[attack_file]
-                    diff = attack_acc - orig_acc
+        if not orig_file:
+            # Fallback: use the first file if no clean file found
+            orig_file = list(results.keys())[0]
+        
+        orig_acc = results[orig_file]
+        
+        print(f"\n=== ACCURACY RESULTS FOR {engine.upper()} ON {task.upper()} ===")
+        change_data = []
+        
+        # Add the original row as baseline reference
+        change_data.append(["Original", f"{orig_acc:.2f}%", f"{orig_acc:.2f}%", "0.00%", "Baseline"])
+        
+        # Check for all attack types (only add if files exist)
+        attack_types = {
+            "PGD": next((f for f in results.keys() if "/adversarial/whitebox/pgd/" in f), None),
+            "FGSM": next((f for f in results.keys() if "/adversarial/whitebox/fgsm/" in f), None),
+            "CW-L∞": next((f for f in results.keys() if "/adversarial/whitebox/cw_linf/" in f), None),
+            "DeepFool": next((f for f in results.keys() if "/adversarial/whitebox/deepfool/" in f), None),
+            "Square": next((f for f in results.keys() if "/adversarial/blackbox/square/" in f), None),
+            "SimBA": next((f for f in results.keys() if "/adversarial/blackbox/simba/" in f), None),
+            "Boundary": next((f for f in results.keys() if "/adversarial/blackbox/boundary/" in f), None),
+            "Pixel": next((f for f in results.keys() if "/adversarial/blackbox/pixel/" in f), None),
+            "Spatial": next((f for f in results.keys() if "/adversarial/blackbox/spatial/" in f), None),
+        }
+        
+        for attack_name, attack_file in attack_types.items():
+            if attack_file:
+                attack_acc = results[attack_file]
+                diff = attack_acc - orig_acc
+                
+                if diff > 0:
+                    change_type = "Improvement"
+                    change_str = f"+{abs(diff):.2f}%"
+                elif diff < 0:
+                    change_type = "Degradation"
+                    change_str = f"-{abs(diff):.2f}%"
+                else:
+                    change_type = "No Change"
+                    change_str = "0.00%"
                     
-                    if diff > 0:
-                        change_type = "Improvement"
-                        change_str = f"+{abs(diff):.2f}%"
-                    elif diff < 0:
-                        change_type = "Degradation"
-                        change_str = f"-{abs(diff):.2f}%"
-                    else:
-                        change_type = "No Change"
-                        change_str = "0.00%"
-                        
-                    change_data.append([attack_name, f"{orig_acc:.2f}%", f"{attack_acc:.2f}%", change_str, change_type])
-            
-            print(tabulate.tabulate(change_data, 
-                          headers=["Attack Type", f"{engine} Original", f"{engine} Attack", "Change", "Effect"], 
-                          tablefmt="grid"))
-            
-            # Save results to JSON file for database storage
-            save_results_to_json(engine, task, change_data, performance_metrics)
+                change_data.append([attack_name, f"{orig_acc:.2f}%", f"{attack_acc:.2f}%", change_str, change_type])
+        
+        print(tabulate.tabulate(change_data, 
+                      headers=["Attack Type", f"{engine} Original", f"{engine} Attack", "Change", "Effect"], 
+                      tablefmt="grid"))
+        
+        # Save results to JSON file for database storage
+        save_results_to_json(engine, task, change_data, performance_metrics)
 
 
 def save_results_to_json(engine, task, change_data, performance_metrics=None):

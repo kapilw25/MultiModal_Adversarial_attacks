@@ -1,4 +1,5 @@
->> note: for every modified code, run [py_compile, function calling, etc] tests >> View the results >> before making any claim about improvements
+>> create a TODO list when working on complex tasks to track progress and remain on track
+>> note: for every modified code, run [py_compile, function calling, IMPORT calling, Redundancy, etc] tests >> View the results >> before making any claim about improvements
 >> do not LIE / HALLUCINATE / be LAZY
 >> in virtual environment, dont install packages individually at any cost
     >> note: example modify [ requirements.txt ] >> numpy==1.26.
@@ -10,3 +11,4 @@
 >> do NOT HARDCODE or do NOT use FALLBACK [e.g - CPU, if OOM on GPU] mechanism at any cost
     >> [if its difficult to implement, user's requirement, explicitly say so]
 >> for RESULTS section >> goal : keep variable names as same as in given in [ results/roubustnes.db ] & avoid creating new variables
+>> create TEST file in [ unit_test/ ] ONLY existing directory  so that i cant test it manually outside claude terminal, if execution_time > 2 mins
