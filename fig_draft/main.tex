@@ -1,0 +1,86 @@
+\documentclass[10pt,twocolumn]{article}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{url}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\title{How Robust Are Small Vision-Language Models? A Benchmark of Adversarial Attacks Across 16 VLMs and 9 Attack Types}
+
+\author{Kapil Wanaskar, Gaytri Jena, Gunjan Mahindre, Aman Chadha, Vinija Jain, Amitava Das}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\input{sections/abstract}
+\end{abstract}
+
+\noindent\textbf{Keywords:} Vision-Language Models, Adversarial Robustness, Multimodal Security, Benchmark Evaluation, Attack Transferability
+
+\section{Introduction}
+\input{sections/introduction}
+
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Vision-Language Models}
+Vision-Language Models (VLMs) have emerged as a critical component in multimodal AI systems, combining computer vision and natural language processing capabilities. Recent architectures include transformer-based models like LLaVA \cite{liu2023visual}, Qwen-VL \cite{bai2023qwen}, and InternVL \cite{chen2023internvl}, which demonstrate strong performance across various multimodal tasks.
+
+\subsection{Adversarial Attacks on Vision Models}
+Adversarial attacks on deep neural networks have been extensively studied since the seminal work of Szegedy et al. \cite{szegedy2013intriguing}. The Fast Gradient Sign Method (FGSM) \cite{goodfellow2014explaining} and Projected Gradient Descent (PGD) \cite{madry2017towards} established fundamental white-box attack paradigms. Black-box approaches like Square Attack \cite{andriushchenko2020square} and SimBA \cite{guo2019simple} have shown effectiveness without model access.
+
+\subsection{Multimodal Adversarial Examples}
+Limited work has addressed adversarial robustness in multimodal settings. Recent studies \cite{zhang2023multimodal, zhao2024adversarial} explore cross-modal attacks, but comprehensive benchmarking across model architectures remains underexplored.
+
+\section{Methodology}
+\input{sections/methodology}
+
+\section{Experimental Setup}
+\label{sec:experimental}
+
+\subsection{Hardware Configuration}
+Experiments were conducted on NVIDIA GPU systems with 7.6GB memory constraints, requiring careful memory management for model evaluation. The epsilon-based attack framework was implemented using PyTorch and the Adversarial Robustness Toolbox (ART) \cite{art2018}. Our Adversarial Attack Orchestration Framework coordinates all attack scenarios through specialized Attack Generation Modules, while the Experimental Data Management System ensures reproducible experimental protocols.
+
+\subsection{Database-Driven Pipeline}
+The Experimental Data Management System maintains a centralized SQLite database that manages all experimental data, ensuring reproducibility and efficient data access across the evaluation pipeline. This component replaces traditional JSON-based approaches with ACID-compliant transaction handling and integrates seamlessly with the VLM Inference Pipeline and Robustness Assessment Engine.
+
+\subsection{Evaluation Metrics}
+Model responses were evaluated using multiple methodologies:
+\begin{itemize}
+    \item \textbf{Numerical Accuracy}: ±5\% tolerance for quantitative answers
+    \item \textbf{ROUGE-L Scores}: For summary-type responses
+    \item \textbf{Exact Match}: For multiple-choice and categorical answers
+    \item \textbf{Semantic Similarity}: Using WordNet synonyms
+\end{itemize}
+
+\section{Results}
+\input{sections/results}
+
+\section{Discussion}
+\label{sec:discussion}
+
+Our comprehensive evaluation reveals several key insights into VLM robustness patterns:
+
+\subsection{Architecture-Specific Vulnerabilities}
+Different model families exhibit distinct vulnerability profiles. Smaller models (< 1B parameters) show higher variance in robustness, while larger models demonstrate more consistent but still significant degradation under adversarial perturbations.
+
+\subsection{Attack Transferability}
+White-box attacks generally achieve higher success rates than black-box methods, with PGD and AutoPGD showing the most consistent effectiveness across model architectures. However, black-box attacks like Square Attack demonstrate surprising transferability across model families.
+
+\subsection{Memory-Performance Trade-offs}
+The relationship between model size and GPU memory usage reveals non-linear patterns, suggesting optimization opportunities for deployment in resource-constrained environments.
+
+\section{Conclusion and Future Work}
+\input{sections/conclusion}
+
+\section*{Acknowledgment}
+We acknowledge the computational resources provided for this comprehensive evaluation and the open-source community for developing the tools that enabled this research.
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}

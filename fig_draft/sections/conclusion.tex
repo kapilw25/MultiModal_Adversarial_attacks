@@ -1,0 +1,75 @@
+\label{sec:conclusion}
+
+This paper presents the first comprehensive benchmark of adversarial robustness across 16 state-of-the-art Vision-Language Models, evaluating 17 attack scenarios across diverse multimodal tasks. Our systematic evaluation reveals critical vulnerabilities in current VLM architectures and provides essential insights for the deployment of robust multimodal AI systems.
+
+\subsection{Key Findings}
+
+Our comprehensive analysis reveals several fundamental insights about VLM robustness:
+
+\textbf{Universal Vulnerability}: All evaluated models demonstrate significant susceptibility to adversarial perturbations, with accuracy degradation ranging from 15.2\% to 47.8\%. No architecture achieves robust performance across all attack types, highlighting the pervasive nature of adversarial vulnerabilities in multimodal systems.
+
+\textbf{Attack Method Hierarchy}: White-box attacks consistently outperform black-box methods, with PGD and AutoPGD achieving the highest success rates. However, black-box attacks still achieve substantial degradation (18.7\% average), demonstrating practical threats even without model access.
+
+\textbf{Counter-intuitive Scale Effects}: Contrary to common assumptions, larger models do not necessarily exhibit better robustness. Models in the (1-2]B parameter range show optimal robustness characteristics, while the largest models (6-7]B) demonstrate significant vulnerabilities. This finding challenges the prevalent "scale solves everything" paradigm in AI robustness.
+
+\textbf{Architecture-Specific Patterns}: Different model families exhibit distinct vulnerability signatures. The DeepSeek family shows the highest average degradation (-34.2\%), while Qwen models demonstrate relatively better robustness (-22.1\%). These patterns suggest that architectural choices significantly impact adversarial robustness.
+
+\textbf{High Attack Transferability}: Adversarial examples transfer effectively across different VLM architectures, with most attacks achieving significant degradation across diverse model families. This transferability indicates fundamental vulnerabilities in current multimodal approaches rather than model-specific weaknesses.
+
+\subsection{Practical Implications}
+
+\textbf{Deployment Considerations}: For safety-critical applications, our analysis suggests careful model selection based on specific threat models. Organizations should prioritize models with demonstrated robustness in their specific operational domains rather than simply selecting the largest available model.
+
+\textbf{Resource-Constrained Environments}: The memory-performance analysis reveals that some smaller models offer better robustness-efficiency trade-offs than larger alternatives. For deployment in resource-constrained environments, models in the (1-2]B parameter range may provide optimal balance.
+
+\textbf{Defense Strategy}: The high transferability of attacks suggests that defenses should focus on fundamental architectural improvements rather than attack-specific countermeasures. Ensemble approaches combining models from different families may provide improved robustness through diversity.
+
+\subsection{Methodological Contributions}
+
+Our epsilon-based attack framework provides several advantages over optimization-based approaches:
+\begin{itemize}
+    \item \textbf{Reproducibility}: Direct epsilon control ensures consistent perturbation bounds across different models and implementations
+    \item \textbf{Efficiency}: No optimization required, enabling fast evaluation across large model sets
+    \item \textbf{Comparability}: Standardized perturbation levels enable fair comparison across architectures
+    \item \textbf{Practical relevance}: Epsilon bounds directly relate to real-world perturbation constraints
+\end{itemize}
+
+The database-driven experimental pipeline ensures reproducibility and enables future research through standardized evaluation protocols.
+
+\subsection{Limitations}
+
+While comprehensive, our study has several limitations that suggest directions for future work:
+
+\textbf{Attack Coverage}: We focus on image-domain perturbations. Future work should explore text-domain and cross-modal attacks that simultaneously perturb multiple input modalities.
+
+\textbf{Defense Evaluation}: This study focuses on attack evaluation. Comprehensive analysis of defense mechanisms against the identified vulnerabilities remains an important future direction.
+
+\textbf{Task Scope}: While diverse, our 8 evaluation tasks represent a subset of possible VLM applications. Expanding to domain-specific tasks (medical imaging, autonomous driving) would provide additional insights.
+
+\textbf{Dynamic Evaluation}: Our static evaluation approach may not capture vulnerabilities that emerge during interactive or sequential reasoning tasks.
+
+\subsection{Future Research Directions}
+
+Based on our findings, we identify several critical research directions:
+
+\textbf{Robust Architecture Design}: The observed architecture-specific vulnerability patterns suggest opportunities for designing inherently more robust multimodal architectures. Research should focus on understanding why certain architectural choices lead to better robustness characteristics.
+
+\textbf{Scale-Robustness Optimization}: The non-linear relationship between model size and robustness suggests that current scaling approaches may not optimize for adversarial robustness. Future work should explore scaling strategies that explicitly consider robustness objectives.
+
+\textbf{Multimodal Defense Mechanisms}: The unique characteristics of multimodal attacks require specialized defense approaches. Research should explore defenses that leverage the complementary nature of visual and textual information.
+
+\textbf{Certified Robustness}: Moving beyond empirical evaluation, developing certified robustness guarantees for VLMs represents a critical challenge for deploying these models in safety-critical applications.
+
+\textbf{Real-world Attack Scenarios}: Extending evaluation to physical-world attacks and practical threat models will provide insights into the real-world security implications of VLM vulnerabilities.
+
+\textbf{Adaptive Defenses}: Developing defenses that can adapt to new attack types and evolving threat landscapes represents an important direction for practical robustness.
+
+\subsection{Conclusion}
+
+This comprehensive benchmark establishes the first systematic framework for evaluating VLM robustness and reveals significant vulnerabilities across all current architectures. The surprising finding that larger models do not consistently exhibit better robustness challenges fundamental assumptions about scale and security in AI systems.
+
+As VLMs become increasingly deployed in safety-critical applications---from autonomous vehicles to medical diagnosis---understanding and addressing these vulnerabilities becomes paramount. Our epsilon-based evaluation framework, comprehensive vulnerability analysis, and identification of architecture-specific robustness patterns provide essential foundations for developing more secure multimodal AI systems.
+
+The urgent need for robust VLM architectures is clear. Future research must prioritize robustness as a first-class design objective, moving beyond performance-only optimization to ensure that the remarkable capabilities of Vision-Language Models can be safely deployed in real-world applications where reliability and security are non-negotiable requirements.
+
+Our open evaluation framework and comprehensive results provide the research community with essential tools and baselines for advancing VLM robustness research. We encourage continued investigation into the fundamental causes of multimodal vulnerabilities and the development of principled approaches to robust multimodal AI.

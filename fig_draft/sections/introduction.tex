@@ -1,0 +1,44 @@
+\label{sec:introduction}
+
+Vision-Language Models (VLMs) have revolutionized multimodal artificial intelligence by demonstrating unprecedented capabilities in understanding and reasoning about visual and textual information simultaneously. From autonomous vehicles interpreting traffic signs to medical AI systems analyzing radiology reports with corresponding images, VLMs are increasingly deployed in safety-critical applications where reliability and robustness are paramount.
+
+Recent advances in VLM architectures, including LLaVA \cite{liu2023visual}, Qwen-VL \cite{bai2023qwen}, and InternVL \cite{chen2023internvl}, have achieved remarkable performance across diverse benchmarks. However, the robustness of these models against adversarial perturbations---small, often imperceptible modifications to input data designed to cause misclassification---remains largely unexplored. This gap is particularly concerning given the demonstrated vulnerabilities of unimodal vision models \cite{goodfellow2014explaining, madry2017towards} and the potential for compound effects in multimodal settings.
+
+\subsection{Problem Statement}
+
+Despite the growing deployment of VLMs in real-world applications, several critical questions about their adversarial robustness remain unanswered:
+
+\begin{itemize}
+    \item \textbf{Cross-Architecture Vulnerability}: How do different VLM architectures (transformer-based, CNN-hybrid, attention mechanisms) respond to adversarial attacks?
+    \item \textbf{Scale-Robustness Relationship}: Does increasing model size inherently improve robustness, or do scaling patterns vary across attack types?
+    \item \textbf{Multimodal Attack Transferability}: Do adversarial examples transfer effectively across different VLM families and sizes?
+    \item \textbf{Task-Dependent Vulnerabilities}: Are certain vision-language tasks (e.g., spatial reasoning, numerical extraction) more susceptible to adversarial manipulation?
+\end{itemize}
+
+\subsection{Research Gap}
+
+While adversarial robustness has been extensively studied for single-modality models, the multimodal domain presents unique challenges. Existing work on VLM robustness is limited in scope, typically evaluating only one or two model architectures against a narrow set of attacks \cite{zhang2023multimodal, zhao2024adversarial}. No comprehensive benchmark exists that systematically evaluates robustness across diverse model families, attack types, and vision-language tasks.
+
+Furthermore, current evaluation methodologies often rely on optimization-based attack generation, which can be computationally expensive and may not provide consistent perturbation bounds across different models. This inconsistency makes it difficult to compare robustness across architectures and hinders reproducible research.
+
+\subsection{Contributions}
+
+This paper makes the following key contributions:
+
+\begin{enumerate}
+    \item \textbf{Comprehensive Benchmark}: We present the first systematic evaluation of adversarial robustness across 16 state-of-the-art VLMs spanning six major model families, with parameters ranging from 256M to 8.3B.
+
+    \item \textbf{Novel Epsilon-Based Framework}: We introduce a direct epsilon-based attack framework that provides precise perturbation control without optimization, enabling fast and reproducible adversarial evaluation across all 9 attack types (5 white-box and 4 black-box methods).
+
+    \item \textbf{Multi-Task Evaluation}: We conduct adversarial robustness evaluation across 8 diverse vision-language tasks, including chart interpretation, table extraction, spatial reasoning, and visual puzzle solving, revealing task-dependent vulnerability patterns.
+
+    \item \textbf{Architecture Vulnerability Insights}: Our analysis reveals architecture-specific robustness patterns and identifies critical vulnerabilities that vary significantly across model families and sizes.
+
+    \item \textbf{Practical Deployment Guidance}: We provide memory-performance trade-off analysis and practical recommendations for selecting robust VLMs in resource-constrained environments.
+
+    \item \textbf{Reproducible Research Infrastructure}: Our database-driven experimental pipeline ensures reproducibility and enables future research through standardized evaluation protocols.
+\end{enumerate}
+
+\subsection{Paper Organization}
+
+The remainder of this paper is organized as follows: Section~\ref{sec:related} reviews related work on VLM architectures and adversarial robustness. Section~\ref{sec:methodology} presents our experimental methodology, including the epsilon-based attack framework and evaluation protocol. Section~\ref{sec:experimental} describes the experimental setup and implementation details. Section~\ref{sec:results} presents comprehensive results across all evaluation dimensions. Section~\ref{sec:discussion} discusses key findings and their implications, and we conclude with future research directions.
