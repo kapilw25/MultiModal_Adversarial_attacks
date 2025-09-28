@@ -1,0 +1,51 @@
+# Frozen requirements for exact environment reproduction
+# Generated from working environment on 2025-09-28
+
+# Core PyTorch with exact versions
+torch==2.8.0
+torchvision==0.23.0
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+# Transformers (development version)
+git+https://github.com/huggingface/transformers.git@main
+
+# Critical ML libraries with exact versions
+numpy==1.26.4
+pillow==11.3.0
+opencv-python==4.11.0.86
+scikit-image==0.25.2
+scikit-learn==1.7.1
+matplotlib==3.10.5
+seaborn==0.13.2
+pandas==2.3.2
+
+# Adversarial attack libraries
+adversarial-robustness-toolbox==1.20.1
+optuna==4.5.0
+
+# HuggingFace ecosystem
+accelerate==1.10.0
+datasets==4.0.0
+tokenizers==0.22.0
+safetensors==0.6.2
+huggingface-hub==0.34.4
+
+# GPU optimization
+flash-attn==2.8.3
+bitsandbytes==0.47.0
+autoawq==0.2.9
+peft==0.17.1
+
+# VLM-specific dependencies
+qwen-vl-utils==0.0.8
+timm==1.0.19
+einops==0.8.1
+
+# Git dependencies
+git+https://github.com/openai/CLIP.git
+git+https://github.com/deepseek-ai/DeepSeek-VL.git
+
+# System utilities
+psutil==7.0.0
+tqdm==4.67.1
+requests==2.32.5
