@@ -18,7 +18,7 @@ def create_centralized_schema():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    # 1. Attack Executions (replaces attack_parameters.json)
+    # 1. Attack Executions (replaces attack_parameters.json) - EPSILON ONLY
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS attack_executions (
         execution_id TEXT PRIMARY KEY,
@@ -31,9 +31,10 @@ def create_centralized_schema():
         execution_time_seconds INTEGER NOT NULL,
         success BOOLEAN NOT NULL,
         timestamp TEXT NOT NULL,
-        -- Parameters
-        ssim_target REAL,
-        ssim REAL,
+        -- Epsilon Parameters (SSIM removed)
+        epsilon_level TEXT,
+        epsilon_target REAL,
+        epsilon_actual REAL,
         mean_perturbation REAL,
         max_perturbation REAL,
         l2_norm REAL,
@@ -81,7 +82,7 @@ def create_centralized_schema():
     )
     ''')
 
-    # 4. Model Inference Results (replaces inference JSON files)
+    # 4. Model Inference Results (replaces inference JSON files) - EPSILON ONLY
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS inference_results (
         result_id TEXT PRIMARY KEY,
@@ -93,12 +94,12 @@ def create_centralized_schema():
         answer_id TEXT,
         markers TEXT,  -- JSON string
         model_id TEXT NOT NULL,
-        -- Metadata
+        -- Metadata (EPSILON ONLY - SSIM removed)
         adversarial BOOLEAN NOT NULL,
         task TEXT NOT NULL,
         attack_type TEXT NOT NULL,
-        ssim_target REAL NOT NULL,           -- Target SSIM value (goal)
-        ssim_actual REAL NOT NULL,           -- Actual achieved SSIM value
+        epsilon_target REAL NOT NULL,        -- Target epsilon value (goal)
+        epsilon_actual REAL NOT NULL,        -- Actual achieved epsilon value
         inference_image_path TEXT NOT NULL,  -- Image fed to model (clean or adversarial)
         clean_image_path TEXT NOT NULL,      -- Original unperturbed reference
         timestamp TEXT NOT NULL,
@@ -176,7 +177,7 @@ class CentralizedDB:
 
         cursor.execute('''
         INSERT OR REPLACE INTO attack_executions VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         ''', (
             execution_data['execution_id'],
@@ -189,8 +190,9 @@ class CentralizedDB:
             execution_data['execution_time_seconds'],
             execution_data['success'],
             execution_data['timestamp'],
-            execution_data['parameters']['ssim_target'],
-            execution_data['parameters']['ssim'],
+            execution_data['parameters']['epsilon_level'],
+            execution_data['parameters']['epsilon_target'],
+            execution_data['parameters']['epsilon_actual'],
             execution_data['parameters']['mean_perturbation'],
             execution_data['parameters']['max_perturbation'],
             execution_data['parameters']['l2_norm'],
@@ -250,7 +252,7 @@ class CentralizedDB:
 
         cursor.execute('''
         INSERT OR REPLACE INTO inference_results VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         ''', (
             result_id,
@@ -265,7 +267,8 @@ class CentralizedDB:
             result_data['metadata']['adversarial'],
             result_data['metadata']['task'],
             result_data['metadata']['attack_type'],
-            result_data['metadata']['ssim'],
+            result_data['metadata'].get('epsilon_target', 0.0),
+            result_data['metadata'].get('epsilon_actual', 0.0),
             result_data['metadata']['image_path'],
             result_data['metadata']['original_image_path'],
             result_data['metadata']['timestamp'],
@@ -318,12 +321,12 @@ class CentralizedDB:
         conn.close()
 
     def get_attack_parameters(self) -> Dict[str, Any]:
-        """Get attack parameters data (replaces reading attack_parameters.json)"""
+        """Get attack parameters data with epsilon tracking (replaces reading attack_parameters.json)"""
         conn = self.get_connection()
         cursor = conn.cursor()
 
         query = '''
-        SELECT image_path, adversarial_image_path, ssim, ssim_target, attack_name, attack_category
+        SELECT image_path, adversarial_image_path, epsilon_actual, epsilon_target, epsilon_level, attack_name, attack_category
         FROM attack_executions
         WHERE success = 1
         '''
@@ -332,25 +335,26 @@ class CentralizedDB:
         conn.close()
 
         # Create mapping compatible with existing code
-        ssim_mapping = {}
+        epsilon_mapping = {}
         for row in results:
             composite_key = (row[0], row[1])  # (image_path, adversarial_image_path)
-            ssim_mapping[composite_key] = {
-                'ssim': row[2],
-                'ssim_target': row[3],
+            epsilon_mapping[composite_key] = {
+                'epsilon_actual': row[2],
+                'epsilon_target': row[3],
+                'epsilon_level': row[4],
                 'adversarial_image_path': row[1],
-                'attack_type': row[4],
-                'attack_category': row[5]
+                'attack_type': row[5],
+                'attack_category': row[6]
             }
 
-        return ssim_mapping
+        return epsilon_mapping
 
     def generate_industry_standard_id(self, model_name: str, adversarial_image_path: str, question_id: str) -> str:
         """Generate industry-standard deterministic result_id using content-based hashing
 
         Args:
             model_name: Name of the model (e.g., "Qwen25_VL_3B")
-            adversarial_image_path: Path to adversarial image (e.g., "data/adversarial/whitebox/fgsm/ssim_085/chart/20231107140031466140.png")
+            adversarial_image_path: Path to adversarial image (e.g., "data/adversarial/whitebox/fgsm/eps_050/chart/20231107140031466140.png")
             question_id: Question identifier for uniqueness
 
         Returns:

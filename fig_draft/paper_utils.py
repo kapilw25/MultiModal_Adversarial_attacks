@@ -68,6 +68,11 @@ class PaperManager:
             ],
             "exclude_from_zip": [
                 "*.pdf", "figure0_ranking_all_LMM.png"
+            ],
+            "exclude_from_overleaf": [
+                "*.pdf", "*.aux", "*.bbl", "*.blg", "*.log", "*.out",
+                "*.toc", "*.lof", "*.lot", "*.fls", "*.fdb_latexmk",
+                "*.synctex.gz", "paper_utils.py", "figure0_ranking_all_LMM.png"
             ]
         }
 
@@ -383,12 +388,18 @@ class PaperManager:
         self.print_status(f"Section test log saved to: {test_log}")
         return results
 
-    def create_zip_package(self, include_pdf: bool = False) -> Optional[Path]:
+    def create_zip_package(self, include_pdf: bool = False, overleaf_only: bool = False) -> Optional[Path]:
         """Create ZIP package for Overleaf upload"""
-        self.print_status("Creating ZIP package for Overleaf...")
+        if overleaf_only:
+            self.print_status("Creating lightweight ZIP package for Overleaf compilation...")
+        else:
+            self.print_status("Creating ZIP package for Overleaf...")
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        zip_name = f"VLM_Robustness_Paper_{timestamp}.zip"
+        if overleaf_only:
+            zip_name = f"VLM_Paper_Overleaf_{timestamp}.zip"
+        else:
+            zip_name = f"VLM_Robustness_Paper_{timestamp}.zip"
         zip_path = self.logs_dir / zip_name
 
         try:
@@ -403,14 +414,20 @@ class PaperManager:
 
                         # Exclude auxiliary files
                         for pattern in self.config["aux_extensions"]:
-                            if file_path.match(pattern.replace('*', file_path.name)):
+                            if file_path.match(pattern):
                                 should_exclude = True
                                 break
 
-                        # Exclude specific files
-                        if not include_pdf:
+                        # Exclude specific files based on package type
+                        if overleaf_only:
+                            # For Overleaf, exclude more files for lighter package
+                            for pattern in self.config["exclude_from_overleaf"]:
+                                if file_path.match(pattern) or file_path.name == pattern:
+                                    should_exclude = True
+                                    break
+                        elif not include_pdf:
                             for pattern in self.config["exclude_from_zip"]:
-                                if file_path.match(pattern.replace('*', file_path.name)):
+                                if file_path.match(pattern) or file_path.name == pattern:
                                     should_exclude = True
                                     break
 
@@ -432,11 +449,17 @@ class PaperManager:
                     print(f"  ... and {len(file_list) - 20} more files")
 
             # Create latest symlink
-            latest_link = self.logs_dir / "VLM_Robustness_Paper_latest.zip"
+            if overleaf_only:
+                latest_link = self.logs_dir / "VLM_Paper_Overleaf_latest.zip"
+                symlink_name = "VLM_Paper_Overleaf_latest.zip"
+            else:
+                latest_link = self.logs_dir / "VLM_Robustness_Paper_latest.zip"
+                symlink_name = "VLM_Robustness_Paper_latest.zip"
+
             if latest_link.exists():
                 latest_link.unlink()
             latest_link.symlink_to(zip_name)
-            self.print_success("Latest package linked as: VLM_Robustness_Paper_latest.zip")
+            self.print_success(f"Latest package linked as: {symlink_name}")
 
             return zip_path
 
@@ -482,13 +505,14 @@ Examples:
   python paper_utils.py compile      # Just compile the main document
   python paper_utils.py all          # Full validation and packaging
   python paper_utils.py package      # Create ZIP for Overleaf upload
+  python paper_utils.py overleaf     # Create lightweight ZIP for Overleaf
   python paper_utils.py test         # Test individual section files
         """
     )
 
     parser.add_argument(
         'action',
-        choices=['compile', 'test', 'validate', 'package', 'clean', 'all', 'help'],
+        choices=['compile', 'test', 'validate', 'package', 'overleaf', 'clean', 'all', 'help'],
         default='help',
         nargs='?',
         help='Action to perform'
@@ -498,6 +522,12 @@ Examples:
         '--include-pdf',
         action='store_true',
         help='Include PDF files in ZIP package'
+    )
+
+    parser.add_argument(
+        '--overleaf-only',
+        action='store_true',
+        help='Create lightweight package for Overleaf (excludes PDF and auxiliary files)'
     )
 
     parser.add_argument(
@@ -541,7 +571,11 @@ Examples:
 
         elif args.action == 'package':
             success = (paper_manager.validate_file_structure()[0] and
-                      paper_manager.create_zip_package(args.include_pdf) is not None)
+                      paper_manager.create_zip_package(args.include_pdf, args.overleaf_only) is not None)
+
+        elif args.action == 'overleaf':
+            success = (paper_manager.validate_file_structure()[0] and
+                      paper_manager.create_zip_package(include_pdf=False, overleaf_only=True) is not None)
 
         elif args.action == 'clean':
             success = paper_manager.clean_aux_files()
