@@ -39,8 +39,18 @@ from dataclasses import dataclass
 project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
-# Import centralized database
+# Import centralized database and query counter
 from scripts.utils.centralized_database import CentralizedDB
+
+# Import query counter for metrics tracking
+try:
+    from attack_models.utils import query_counter
+except ImportError:
+    # Fallback if import fails
+    class DummyCounter:
+        def reset(self): pass
+        def get_count(self): return 0
+    query_counter = DummyCounter()
 
 # Configure logging
 logging.basicConfig(
@@ -65,22 +75,22 @@ class AttackConfig:
 class AttackOrchestrator:
     """Main orchestrator for adversarial attacks"""
 
-    # Epsilon level mapping for direct perturbation control
+    # Epsilon level mapping for direct perturbation control - Standard Research Values
     EPSILON_LEVELS = {
-        'subtle': {
-            'epsilon': 0.02,
-            'description': 'Small perturbations (ε=0.02)',
-            'strength': 'Low'
+        'minimal': {
+            'epsilon': 4/255,  # ≈ 0.016 - ImageNet standard
+            'description': 'ImageNet standard (ε=4/255≈0.016)',
+            'strength': 'Minimal - Barely perceptible'
+        },
+        'standard': {
+            'epsilon': 8/255,  # ≈ 0.031 - CIFAR-10 standard
+            'description': 'CIFAR-10 standard (ε=8/255≈0.031)',
+            'strength': 'Standard - Imperceptible'
         },
         'moderate': {
-            'epsilon': 0.05,
-            'description': 'Medium perturbations (ε=0.05)',
-            'strength': 'Medium'
-        },
-        'strong': {
-            'epsilon': 0.08,
-            'description': 'Large perturbations (ε=0.08)',
-            'strength': 'High'
+            'epsilon': 16/255,  # ≈ 0.063 - Higher but invisible
+            'description': 'Higher perturbations (ε=16/255≈0.063)',
+            'strength': 'Moderate - Still invisible'
         }
     }
 
@@ -209,9 +219,9 @@ class AttackOrchestrator:
     def select_epsilon_level(self) -> List[str]:
         """Interactive epsilon level selection"""
         print("\nSelect epsilon level(s) for adversarial attacks:")
-        print("  [1] Subtle (ε = 0.02) - Small perturbations")
-        print("  [2] Moderate (ε = 0.05) - Medium perturbations")
-        print("  [3] Strong (ε = 0.08) - Large perturbations")
+        print("  [1] Minimal (ε = 4/255 ≈ 0.016) - ImageNet standard, barely perceptible")
+        print("  [2] Standard (ε = 8/255 ≈ 0.031) - CIFAR-10 standard, imperceptible")
+        print("  [3] Moderate (ε = 16/255 ≈ 0.063) - Higher but still invisible perturbations")
         print("  [4] ALL levels (Subtle + Moderate + Strong)")
         print("  [5] Custom epsilon (enter manually)")
         print("\n✅ DIRECT EPSILON CONTROL:")
@@ -225,17 +235,17 @@ class AttackOrchestrator:
             try:
                 choice = int(input("Enter your choice (1-5): "))
                 if choice == 1:
-                    print("✅ Selected epsilon: Subtle (ε = 0.02)")
-                    return ['subtle']
+                    print("✅ Selected epsilon: Minimal (ε = 4/255 ≈ 0.016)")
+                    return ['minimal']
                 elif choice == 2:
-                    print("✅ Selected epsilon: Moderate (ε = 0.05)")
-                    return ['moderate']
+                    print("✅ Selected epsilon: Standard (ε = 8/255 ≈ 0.031)")
+                    return ['standard']
                 elif choice == 3:
-                    print("✅ Selected epsilon: Strong (ε = 0.08)")
-                    return ['strong']
+                    print("✅ Selected epsilon: Moderate (ε = 16/255 ≈ 0.063)")
+                    return ['moderate']
                 elif choice == 4:
-                    print("✅ Selected ALL epsilon levels: [Subtle, Moderate, Strong]")
-                    return ['subtle', 'moderate', 'strong']
+                    print("✅ Selected ALL epsilon levels: [Minimal, Standard, Moderate]")
+                    return ['minimal', 'standard', 'moderate']
                 elif choice == 5:
                     while True:
                         try:
@@ -469,19 +479,26 @@ class AttackOrchestrator:
         """Extract metrics from attack log output"""
         metrics = {
             'epsilon_target': 0.0,
-            'epsilon_actual': 0.0,
+            'epsilon_l_inf': 0.0,
             'mean_perturbation': 0.0,
-            'max_perturbation': 0.0
+            'max_perturbation': 0.0,
+            'l2_norm': 0.0,
+            'l0_norm': 0,
+            'total_queries': 0
         }
 
-        # Extract epsilon values - target and actual
+        # Extract epsilon values - target and post-processed L∞ epsilon
         epsilon_target_match = re.search(r'Target epsilon:\s*([0-9.-]+)', log_content)
         if epsilon_target_match:
             metrics['epsilon_target'] = float(epsilon_target_match.group(1))
 
-        epsilon_actual_match = re.search(r'Actual epsilon:\s*([0-9.-]+)', log_content)
-        if epsilon_actual_match:
-            metrics['epsilon_actual'] = float(epsilon_actual_match.group(1))
+        # Extract post-processed Epsilon (L∞) from print_attack_info - this is the ONLY true final epsilon
+        epsilon_linf_match = re.search(r'Epsilon \(L∞\):\s*([0-9.-]+)', log_content)
+        if epsilon_linf_match:
+            metrics['epsilon_l_inf'] = float(epsilon_linf_match.group(1))
+        else:
+            # If Epsilon (L∞) not found, attack likely failed
+            metrics['epsilon_l_inf'] = 0.0
 
         # Extract mean perturbation
         mean_pert_match = re.search(r'Mean perturbation[^:]*:\s*([0-9.-]+)', log_content)
@@ -492,6 +509,21 @@ class AttackOrchestrator:
         max_pert_match = re.search(r'Max perturbation[^:]*:\s*([0-9.-]+)', log_content)
         if max_pert_match:
             metrics['max_perturbation'] = float(max_pert_match.group(1))
+
+        # Extract L2 norm
+        l2_match = re.search(r'L2 norm:\s*([0-9.-]+)', log_content)
+        if l2_match:
+            metrics['l2_norm'] = float(l2_match.group(1))
+
+        # Extract L0 norm
+        l0_match = re.search(r'L0 norm:\s*([0-9]+)', log_content)
+        if l0_match:
+            metrics['l0_norm'] = int(l0_match.group(1))
+
+        # Extract total queries
+        queries_match = re.search(r'Total queries:\s*([0-9]+)', log_content)
+        if queries_match:
+            metrics['total_queries'] = int(queries_match.group(1))
 
         return metrics
 
@@ -533,7 +565,7 @@ class AttackOrchestrator:
                 else:
                     self.failure_count += 1
 
-    def check_epsilon_success(self, target_epsilon: float, actual_epsilon: float, tolerance_percent: float = 10.0) -> bool:
+    def check_epsilon_success(self, target_epsilon: float, actual_epsilon: float, tolerance_percent: float = 5.0) -> bool:
         """
         Check if actual epsilon is within tolerance of target epsilon
 
@@ -555,6 +587,9 @@ class AttackOrchestrator:
     def run_whitebox_attack(self, image_path: str, attack_type: str,
                            attack_num: int, total_attacks: int, epsilon_level: str = None, trial_number: int = 1) -> bool:
         """Execute a whitebox attack"""
+        # Reset query counter before each attack
+        query_counter.reset()
+
         # Use provided epsilon level or fall back to config default
         current_epsilon_level = epsilon_level if epsilon_level is not None else self.config.epsilon_levels[0]
         epsilon_value = self.get_epsilon_from_level(current_epsilon_level)
@@ -619,13 +654,13 @@ class AttackOrchestrator:
             metrics = self.extract_metrics_from_log(log_content)
 
             # For epsilon-based attacks, success requires both process completion AND epsilon tolerance
-            epsilon_success = self.check_epsilon_success(epsilon_value, metrics.get('epsilon_actual', 0))
+            epsilon_success = self.check_epsilon_success(epsilon_value, metrics.get('epsilon_l_inf', 0))
             success = process_success and epsilon_success
 
             if process_success and not epsilon_success:
                 target_eps = epsilon_value
-                actual_eps = metrics.get('epsilon_actual', 0)
-                tolerance = target_eps * 0.10  # 10% tolerance
+                actual_eps = metrics.get('epsilon_l_inf', 0)
+                tolerance = target_eps * 0.05  # 5% tolerance
                 print(f"⚠️  Process completed but epsilon target not met:")
                 print(f"   Target: {target_eps:.6f}, Actual: {actual_eps:.6f}, Tolerance: ±{tolerance:.6f}")
                 print(f"   Deviation: {abs(actual_eps - target_eps):.6f} (should be ≤ {tolerance:.6f})")
@@ -642,7 +677,10 @@ class AttackOrchestrator:
             )
 
             if success:
+                target_eps = epsilon_value
+                actual_eps = metrics.get('epsilon_l_inf', 0)
                 print(f"✅ {attack_type} whitebox attack completed successfully!")
+                print(f"🎯 Epsilon tolerance achieved: Target={target_eps:.6f}, Actual={actual_eps:.6f} (±5%)")
                 return True
             else:
                 print(f"❌ {attack_type} whitebox attack failed!")
@@ -658,6 +696,9 @@ class AttackOrchestrator:
     def run_blackbox_attack(self, image_path: str, attack_type: str,
                           attack_num: int, total_attacks: int, epsilon_level: str = None, trial_number: int = 1) -> bool:
         """Execute a blackbox attack"""
+        # Reset query counter before each attack
+        query_counter.reset()
+
         # Use provided epsilon level or fall back to config default
         current_epsilon_level = epsilon_level if epsilon_level is not None else self.config.epsilon_levels[0]
         epsilon_value = self.get_epsilon_from_level(current_epsilon_level)
@@ -722,13 +763,13 @@ class AttackOrchestrator:
             metrics = self.extract_metrics_from_log(log_content)
 
             # For epsilon-based attacks, success requires both process completion AND epsilon tolerance
-            epsilon_success = self.check_epsilon_success(epsilon_value, metrics.get('epsilon_actual', 0))
+            epsilon_success = self.check_epsilon_success(epsilon_value, metrics.get('epsilon_l_inf', 0))
             success = process_success and epsilon_success
 
             if process_success and not epsilon_success:
                 target_eps = epsilon_value
-                actual_eps = metrics.get('epsilon_actual', 0)
-                tolerance = target_eps * 0.10  # 10% tolerance
+                actual_eps = metrics.get('epsilon_l_inf', 0)
+                tolerance = target_eps * 0.05  # 5% tolerance
                 print(f"⚠️  Process completed but epsilon target not met:")
                 print(f"   Target: {target_eps:.6f}, Actual: {actual_eps:.6f}, Tolerance: ±{tolerance:.6f}")
                 print(f"   Deviation: {abs(actual_eps - target_eps):.6f} (should be ≤ {tolerance:.6f})")
@@ -745,7 +786,10 @@ class AttackOrchestrator:
             )
 
             if success:
+                target_eps = epsilon_value
+                actual_eps = metrics.get('epsilon_l_inf', 0)
                 print(f"✅ {attack_type} blackbox attack completed successfully!")
+                print(f"🎯 Epsilon tolerance achieved: Target={target_eps:.6f}, Actual={actual_eps:.6f} (±5%)")
                 return True
             else:
                 print(f"❌ {attack_type} blackbox attack failed!")
@@ -817,7 +861,7 @@ class AttackOrchestrator:
             'parameters': {
                 'epsilon_level': epsilon_level,
                 'epsilon_target': metrics.get('epsilon_target', epsilon_value),
-                'epsilon_actual': metrics.get('epsilon_actual', 0.0),
+                'epsilon_l_inf': metrics.get('epsilon_l_inf', 0.0),
                 'mean_perturbation': metrics.get('mean_perturbation'),
                 'max_perturbation': metrics.get('max_perturbation'),
                 'l2_norm': metrics.get('l2_norm'),
@@ -832,7 +876,7 @@ class AttackOrchestrator:
         # Save to database instead of JSON
         self.db.save_attack_execution(execution_data)
 
-        logger.info(f"[{attack_name.upper()}] Saved to DB: Epsilon={metrics.get('epsilon_actual', 0.0):.4f}, "
+        logger.info(f"[{attack_name.upper()}] Saved to DB: Epsilon={metrics.get('epsilon_l_inf', 0.0):.4f}, "
                    f"Mean_Pert={metrics.get('mean_perturbation', 0.0):.4f}, Success={success}")
 
     def execute_attacks(self, category: str, attack_name: str,
@@ -994,7 +1038,7 @@ Examples:
     parser.add_argument("--epsilon", type=float, default=0.05,
                        help="Target epsilon value (default: 0.05)")
     parser.add_argument("--epsilon-list", type=str, default=None,
-                       help="Comma-separated list of epsilon values (e.g., '0.02,0.05,0.08')")
+                       help="Comma-separated list of epsilon values (e.g., '0.016,0.031,0.063')")
     parser.add_argument("--max-trials-wb", type=int, default=1,
                        help="Max trials for whitebox attacks (default: 1)")
     parser.add_argument("--max-trials-bb", type=int, default=1,
@@ -1011,7 +1055,7 @@ Examples:
             epsilon_levels = [f"custom_{eps:.3f}" for eps in epsilon_values]
             print(f"📊 Multiple epsilon levels specified: {epsilon_values}")
         except ValueError:
-            print("❌ Invalid epsilon list format. Use comma-separated floats (e.g., '0.02,0.05,0.08')")
+            print("❌ Invalid epsilon list format. Use comma-separated floats (e.g., '0.016,0.031,0.063')")
             return 1
 
     # Create configuration

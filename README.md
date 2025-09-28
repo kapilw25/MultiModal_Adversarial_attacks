@@ -129,20 +129,15 @@ Located in `scripts/`, this module handles model evaluation and result analysis:
 ```bash
 python3 -m venv venv_MM
 source venv_MM/bin/activate
-pip install -r requirements.txt
+  # Step 1: Install base requirements (without flash-attn)
+  pip install -r requirements.txt
+  # Step 2: Install flash-attn separately with updated build tools
+  pip install flash-attn>=2.5.0 --no-build-isolation
 python -m spacy download en_core_web_sm # Download spaCy English model for text processing 
 sudo apt-get install jq 
 ```
 
-### 2. Generate Adversarial Examples
-
-To run all attacks sequentially:
-```bash
-chmod +x scripts/attack_runner.sh
-./scripts/attack_runner.sh
-```
-
-### 3. Evaluate Model Performance
+### 2. Evaluate Model Performance
 
 ```bash
 # For all  models

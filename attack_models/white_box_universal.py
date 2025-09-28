@@ -40,7 +40,7 @@ try:
         load_image, create_classifier, save_image, preprocess_image_for_attack,
         postprocess_adversarial_image, get_output_path,
         fast_perturbation_calculation, fast_clip_operation, print_attack_info,
-        logger
+        calculate_epsilon, refine_epsilon_tolerance, logger, query_counter
     )
 except ImportError:
     # Fallback for direct execution
@@ -48,7 +48,7 @@ except ImportError:
         load_image, create_classifier, save_image, preprocess_image_for_attack,
         postprocess_adversarial_image, get_output_path,
         fast_perturbation_calculation, fast_clip_operation, print_attack_info,
-        logger
+        calculate_epsilon, refine_epsilon_tolerance, logger, query_counter
     )
 
 # WHITE-BOX PARAMETER SPACES - 100% EPSILON PARAMETER SUPPORT
@@ -106,6 +106,7 @@ class UniversalEpsilonAttack:
         self.epsilon_target = epsilon_target
 
 
+
     def _run_attack_with_params(self, image: np.ndarray, classifier, attack_type: str, params: Dict[str, Any]) -> Optional[np.ndarray]:
         """
         Wrapper for running attack with parameters - simplified for direct epsilon control
@@ -136,7 +137,7 @@ class UniversalEpsilonAttack:
             attack_params: Base attack parameters (optional, uses defaults if None)
 
         Returns:
-            Tuple of (adversarial_image, epsilon_target, epsilon_actual, final_parameters)
+            Tuple of (adversarial_image, epsilon_target, epsilon_l_inf, final_parameters)
         """
         print(f"\n🎯 Universal Epsilon-Based Attack")
         print(f"Target epsilon: {self.epsilon_target:.6f}")
@@ -160,19 +161,23 @@ class UniversalEpsilonAttack:
         if adv_image is None:
             raise RuntimeError(f"Attack '{attack_type}' failed to generate adversarial examples")
 
-        # Calculate actual epsilon achieved (L∞ norm) - properly normalized
-        from attack_models.utils import calculate_epsilon
-        epsilon_actual = calculate_epsilon(image, adv_image)
-
-        # Save result
+        # Save result (epsilon refinement already completed)
         output_path = get_output_path(image_path, attack_type, is_blackbox=False, epsilon=self.epsilon_target)
-        save_image(adv_image, output_path)
-        print_attack_info(output_path, image, adv_image, attack_type)
+        # Extract actual image from wrapper for saving
+        image_to_save = adv_image.image if hasattr(adv_image, 'image') else adv_image
+        save_image(image_to_save, output_path)
+
+        # Get actual query count from the global counter
+        actual_queries = query_counter.get_count()
+        print_attack_info(output_path, image, image_to_save, attack_type, query_count=actual_queries)
 
         print(f"✅ Target epsilon: {self.epsilon_target:.6f}")
-        print(f"✅ Actual epsilon: {epsilon_actual:.6f}")
+        # Note: Final epsilon is reported by print_attack_info as "Epsilon (L∞)"
 
-        return adv_image, self.epsilon_target, epsilon_actual, attack_params
+        # Extract final epsilon from the refined result for return
+        final_epsilon = adv_image._epsilon_l_inf if hasattr(adv_image, '_epsilon_l_inf') else self.epsilon_target
+
+        return adv_image, self.epsilon_target, final_epsilon, attack_params
 
     def _get_default_params(self, attack_type: str) -> Dict:
         """Get smart parameter initialization based on literature and empirical results"""
@@ -240,7 +245,7 @@ class UniversalEpsilonAttack:
         return scaled
 
     def _run_attack(self, image: np.ndarray, classifier, attack_type: str, params: Dict) -> Optional[np.ndarray]:
-        """Run attack with GPU memory optimizations - AUTHENTIC, NO POST-PROCESSING"""
+        """Run attack with GPU memory optimizations and epsilon tolerance control"""
 
         # Clear GPU cache before attack to free memory
         torch.cuda.empty_cache()
@@ -308,7 +313,7 @@ class UniversalEpsilonAttack:
             torch.cuda.empty_cache()
 
             # Calculate epsilon on raw tensors before uint8 conversion (precision loss)
-            from attack_models.utils import calculate_epsilon, preprocess_image_for_attack
+            # Note: preprocess_image_for_attack already imported at top of file
             original_tensor = preprocess_image_for_attack(image, return_tensor=False)
 
             # Calculate epsilon in the same space where attack operates ([0,1] normalized)
@@ -317,10 +322,31 @@ class UniversalEpsilonAttack:
             # Convert back to image format for saving
             adv_image = postprocess_adversarial_image(adv_tensor, image.shape)
 
-            # Store epsilon result for later retrieval
-            adv_image._epsilon_actual = epsilon_tensor
+            # ITERATIVE EPSILON REFINEMENT for ±5% tolerance (prioritize accuracy over speed)
+            adv_image, final_epsilon = refine_epsilon_tolerance(
+                original_image=image,
+                adversarial_image=adv_image,
+                target_epsilon=self.epsilon_target,
+                tolerance=0.05,  # ±5%
+                max_iterations=100  # High iterations for accuracy
+            )
 
-            return adv_image
+            # Store epsilon result for later retrieval using a wrapper class
+            class AdversarialResult:
+                def __init__(self, image, epsilon_l_inf):
+                    self.image = image
+                    self._epsilon_l_inf = epsilon_l_inf
+                    # Make it behave like an array for compatibility
+                    self.shape = image.shape
+                    self.dtype = image.dtype
+
+                def __array__(self):
+                    return self.image
+
+                def __getattr__(self, name):
+                    return getattr(self.image, name)
+
+            return AdversarialResult(adv_image, final_epsilon)
 
         except Exception as e:
             # Clear GPU cache on error as well
@@ -347,10 +373,13 @@ def epsilon_based_attack(
         max_trials: Maximum trials for attack execution (default: 1)
 
     Returns:
-        Tuple of (adversarial_image, epsilon_target, epsilon_actual, optimal_parameters)
+        Tuple of (adversarial_image, epsilon_target, epsilon_l_inf, optimal_parameters)
     """
+    # Reset query counter before attack
+    query_counter.reset()
+
     # Create classifier with gradients enabled for white-box attacks - GPU ONLY
-    classifier = create_classifier(device='cuda:0', requires_grad=True)
+    classifier = create_classifier(device='cuda:0', requires_grad=True, count_queries=True)
 
     print(f"🎯 Direct Epsilon-Based Attack (no optimization needed)")
     print(f"Target epsilon: {epsilon_target}")
@@ -371,19 +400,23 @@ def epsilon_based_attack(
     if adv_image is None:
         raise RuntimeError(f"Attack '{attack_type}' failed to generate adversarial examples")
 
-    # Calculate actual epsilon achieved (L∞ norm) - properly normalized
-    from attack_models.utils import calculate_epsilon
-    epsilon_actual = calculate_epsilon(image, adv_image)
-
-    # Save output
+    # Save output (epsilon refinement already completed)
     output_path = get_output_path(image_path, attack_type, is_blackbox=False, epsilon=epsilon_target)
-    save_image(adv_image, output_path)
-    print_attack_info(output_path, image, adv_image, attack_type)
+    # Extract actual image from wrapper for saving
+    image_to_save = adv_image.image if hasattr(adv_image, 'image') else adv_image
+    save_image(image_to_save, output_path)
+
+    # Get actual query count
+    actual_queries = query_counter.get_count()
+    print_attack_info(output_path, image, image_to_save, attack_type, query_count=actual_queries)
 
     print(f"✅ Target epsilon: {epsilon_target:.6f}")
-    print(f"✅ Actual epsilon: {epsilon_actual:.6f}")
+    # Note: Final epsilon is reported by print_attack_info as "Epsilon (L∞)"
 
-    return adv_image, epsilon_target, epsilon_actual, base_params
+    # Extract final epsilon from the refined result
+    final_epsilon = adv_image._epsilon_l_inf if hasattr(adv_image, '_epsilon_l_inf') else epsilon_target
+
+    return adv_image, epsilon_target, final_epsilon, base_params
 
 def main():
     parser = argparse.ArgumentParser(description="Universal whitebox attack with direct epsilon control")
@@ -410,7 +443,7 @@ def main():
 
     try:
         # Universal attack execution - single line handles ALL whitebox attacks
-        adv_image, epsilon_target, epsilon_actual, final_params = epsilon_based_attack(
+        adv_image, epsilon_target, epsilon_l_inf, final_params = epsilon_based_attack(
             image_path=args.image_path,
             attack_type=args.attack_type,  # This single parameter determines the attack
             epsilon_target=args.epsilon,
@@ -418,7 +451,7 @@ def main():
         )
 
         print(f"Target epsilon: {epsilon_target:.6f}")
-        print(f"Actual epsilon: {epsilon_actual:.6f}")
+        print(f"Actual epsilon: {epsilon_l_inf:.6f}")
         print(f"Final parameters: {final_params}")
         print(f"Attack: {args.attack_type.upper()} completed successfully")
 

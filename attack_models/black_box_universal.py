@@ -42,7 +42,7 @@ try:
         load_image, create_classifier, save_image, preprocess_image_for_attack,
         postprocess_adversarial_image, get_output_path,
         fast_perturbation_calculation, fast_clip_operation, print_attack_info,
-        logger
+        calculate_epsilon, refine_epsilon_tolerance, logger, query_counter
     )
 except ImportError:
     # Fallback for direct execution from attack_models directory
@@ -50,7 +50,7 @@ except ImportError:
         load_image, create_classifier, save_image, preprocess_image_for_attack,
         postprocess_adversarial_image, get_output_path,
         fast_perturbation_calculation, fast_clip_operation, print_attack_info,
-        logger
+        calculate_epsilon, refine_epsilon_tolerance, logger, query_counter
     )
 
 # ART imports for black-box attacks
@@ -124,7 +124,7 @@ def square_attack(image: np.ndarray, classifier: PyTorchClassifier, **params) ->
 def simba_attack(image: np.ndarray, classifier: PyTorchClassifier, **params) -> np.ndarray:
     """Execute SimBA Attack"""
     # SimBA requires probabilistic classifier - create new one if needed
-    prob_classifier = create_classifier(device='cuda:0', requires_grad=False, probabilistic=True)
+    prob_classifier = create_classifier(device='cuda:0', requires_grad=False, probabilistic=True, count_queries=True)
 
     attack = SimBA(
         classifier=prob_classifier,
@@ -273,7 +273,7 @@ class UniversalEpsilonBlackBoxAttack:
 
         # Load image and create classifier
         image = load_image(image_path)
-        classifier = create_classifier(device='cuda:0', requires_grad=False)
+        classifier = create_classifier(device='cuda:0', requires_grad=False, count_queries=True)
 
         # Get default parameters if none provided
         if attack_params is None:
@@ -292,19 +292,28 @@ class UniversalEpsilonBlackBoxAttack:
 
         # Check if attack was successful
         if adv_image is not None:
-            # Calculate actual epsilon achieved (L∞ norm) - properly normalized
-            from attack_models.utils import calculate_epsilon
-            epsilon_actual = calculate_epsilon(image, adv_image)
+            # ITERATIVE EPSILON REFINEMENT for ±5% tolerance (prioritize accuracy over speed)
+            adv_image, epsilon_l_inf = refine_epsilon_tolerance(
+                original_image=image,
+                adversarial_image=adv_image,
+                target_epsilon=self.epsilon_target,
+                tolerance=0.05,  # ±5%
+                max_iterations=100  # High iterations for accuracy
+            )
+            print(f"🎯 Epsilon refinement completed: {epsilon_l_inf:.6f}")
 
-            # Save successful result
+            # Save successful result (epsilon refinement already completed)
             output_path = get_output_path(image_path, attack_type, is_blackbox=True, epsilon=self.epsilon_target)
             save_image(adv_image, output_path)
-            print_attack_info(output_path, image, adv_image, attack_type)
+
+            # Get actual query count
+            actual_queries = query_counter.get_count()
+            print_attack_info(output_path, image, adv_image, attack_type, query_count=actual_queries)
 
             print(f"✅ Target epsilon: {self.epsilon_target:.6f}")
-            print(f"✅ Actual epsilon: {epsilon_actual:.6f}")
+            # Note: Final epsilon is reported by print_attack_info as "Epsilon (L∞)"
 
-            return adv_image, epsilon_actual, attack_params
+            return adv_image, epsilon_l_inf, attack_params
 
         # Return failure if no result
         print("❌ Direct epsilon attack failed to produce valid adversarial example")
@@ -356,6 +365,9 @@ def epsilon_based_blackbox_attack(
     Returns:
         Tuple of (adversarial_image, achieved_epsilon, optimal_parameters)
     """
+
+    # Reset query counter before attack
+    query_counter.reset()
 
     print(f"🎯 Direct Epsilon-Based Black-Box Attack (no optimization needed)")
     print(f"Target epsilon: {epsilon_target}")

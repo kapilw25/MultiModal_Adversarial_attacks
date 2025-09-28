@@ -1,0 +1,596 @@
+(venv_MM) ubuntu@150-136-36-253:~/DiskUsEast1/MultiModal_Adversarial_attacks$ python3 scripts/attack_runner.py 
+✅ Created centralized database schema at: results/centralized_pipeline.db
+🎯 Universal Attack Runner (White-Box + Black-Box) - 100% EPSILON CONTROL
+======================================================================
+🚀 Whitebox: 5 epsilon-based attacks (FGSM, PGD, AutoPGD, AutoConjugateGradient, BasicIterative)
+🔒 Blackbox: 4 epsilon-based attacks (Square, SimBA, Boundary, SignOPT)
+⚡ Direct epsilon parameter control - no optimization needed
+✅ Fast, predictable execution with precise perturbation bounds
+🎯 100% epsilon parameter support across all attacks
+======================================================================
+
+[2025-09-28 05:55:50] INFO: ✅ Environment check passed
+Select the task to run attacks on:
+  [1] Chart interpretation (4 images)
+  [2] Table data extraction (3 images)
+  [3] Road map navigation (3 images)
+  [4] Dashboard analysis (3 images)
+  [5] Flowchart understanding (3 images)
+  [6] Relation graph analysis (3 images)
+  [7] Planar layout interpretation (3 images)
+  [8] Visual puzzle solving (3 images)
+  [9] ALL tasks (25 images total)
+
+Enter your choice (1-9): 1
+✅ Selected task: chart
+
+Select attack category (100% EPSILON PARAMETER SUPPORT):
+  [1] White-Box Attacks (5 epsilon attacks: FGSM, PGD, AutoPGD, AutoConjugateGradient, BasicIterative)
+  [2] Black-Box Attacks (4 epsilon attacks: Square, SimBA, Boundary, SignOPT)
+  [3] All Attacks (9 epsilon attacks total: 5 White-Box + 4 Black-Box)
+
+✅ ALL ATTACKS SUPPORT EPSILON:
+   • Direct epsilon parameter control
+   • Fast execution (no optimization needed)
+   • Predictable perturbation bounds
+
+Enter your choice (1-3): 1
+✅ Selected category: White-Box Attacks
+
+Select whitebox attack type (100% EPSILON SUPPORT):
+  [1] FGSM Attack (Fast Gradient Sign Method) - ε parameter
+  [2] PGD Attack (Projected Gradient Descent) - ε parameter
+  [3] AutoPGD Attack (Auto Projected Gradient Descent) - ε parameter
+  [4] AutoConjugateGradient Attack - ε parameter
+  [5] BasicIterativeMethod Attack - ε parameter
+  [6] ALL WHITEBOX ATTACKS (5 epsilon attacks total)
+
+✅ ALL ATTACKS SUPPORT EPSILON:
+   • Direct epsilon parameter control
+   • Fast execution (no optimization)
+   • Predictable perturbation bounds
+
+💡 Multiple selection examples:
+   • '1,2,3' → FGSM + PGD + AutoPGD attacks
+   • '1,5' → FGSM + BasicIterative attacks
+   • '2' → Single PGD attack
+
+Enter your choice(s) (1-6 or comma-separated): 1
+✅ Selected attack: fgsm (whitebox)
+
+Select epsilon level(s) for adversarial attacks:
+  [1] Minimal (ε = 4/255 ≈ 0.016) - ImageNet standard, barely perceptible
+  [2] Standard (ε = 8/255 ≈ 0.031) - CIFAR-10 standard, imperceptible
+  [3] Moderate (ε = 16/255 ≈ 0.063) - Higher but still invisible perturbations
+  [4] ALL levels (Subtle + Moderate + Strong)
+  [5] Custom epsilon (enter manually)
+
+✅ DIRECT EPSILON CONTROL:
+     • 100% epsilon parameter support
+     • Fast execution (no optimization)
+     • Precise perturbation bounds
+     • Predictable results
+
+Enter your choice (1-5): 4
+✅ Selected ALL epsilon levels: [Minimal, Standard, Moderate]
+📊 Found 4 images to process
+
+⚠️  EXISTING ADVERSARIAL IMAGES DETECTED
+==================================================
+🚀 Whitebox: 12 existing images found
+==================================================
+
+📋 REPLACEMENT OPTIONS:
+==================================================
+🔄 [Y] COMPLETE REPLACEMENT:
+   • Deletes ALL existing adversarial images
+   • Clears ALL existing database entries
+   • Starts completely fresh
+   • Only selected attacks will remain
+
+✏️  [N] SELECTIVE OVERWRITE:
+   • Keeps ALL existing adversarial images
+   • Preserves ALL existing database entries
+   • Only overwrites images for selected attacks
+   • Other attacks remain untouched
+
+💡 Recommendation: Use [N] to keep successful results and improve specific attacks
+==================================================
+Choose replacement mode - Complete [Y] or Selective [N]: Y
+✅ Will replace existing adversarial images and reset database metadata
+💾 Backed up adversarial images to: data/adversarial_backup
+🗑️  Cleared existing whitebox images
+
+[2025-09-28 05:56:00] INFO: 🚀 Starting Universal Attack Execution
+[2025-09-28 05:56:00] INFO: Task: chart, Category: whitebox, Attack: fgsm
+[2025-09-28 05:56:00] INFO: Total images: 4, Epsilon levels: ['minimal', 'standard', 'moderate']
+
+🖼️  Processing all images with fgsm attack
+==================================================
+
+📊 Epsilon Level: Minimal (ε = 0.016)
+==============================
+[1/4] Running Universal fgsm Attack on data/clean/chart/20231107140031466140.png...
+🎯 Epsilon Level: Minimal (ε = 0.01568627450980392)
+🔄 Direct execution (no optimization needed)
+🔍 Executing attack command...
+Command: ./venv_MM/bin/python3 attack_models/white_box_universal.py --image_path data/clean/chart/20231107140031466140.png --attack_type fgsm --epsilon 0.01568627450980392 --trial_number 1
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
+INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
+INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
+INFO:attack_models.utils:🔄 Refining epsilon to target 0.015686 ±5.0%
+INFO:attack_models.utils:✅ Epsilon tolerance achieved: 0.015686 (target: 0.015686)
+Using device: cuda:0
+Attack type: FGSM
+Target epsilon: 0.01568627450980392
+🎯 Direct Epsilon-Based Attack (no optimization needed)
+Target epsilon: 0.01568627450980392
+Attack parameters: {'eps': 0.01568627450980392, 'norm': inf}
+Saved adversarial image to data/adversarial/whitebox/fgsm/eps_0016/chart/20231107140031466140.png
+Max perturbation: 4.0
+Mean perturbation: 1.4081875085830688
+Epsilon (L∞): 0.0156862735748291
+To use this adversarial image in evaluation:
+1. The image is saved at: data/adversarial/whitebox/fgsm/eps_0016/chart/20231107140031466140.png
+2. When running eval_model.py, the script will use the original path
+3. To use adversarial images, modify the img_path in eval_model.py:
+   Change: img_path = 'data/clean/' + data['image']
+   To:     img_path = 'data/adversarial/whitebox/fgsm/' + data['image']
+✅ Target epsilon: 0.015686
+Target epsilon: 0.015686
+Actual epsilon: 0.015686
+Final parameters: {'eps': 0.01568627450980392, 'norm': inf}
+Attack: FGSM completed successfully
+[2025-09-28 05:56:21] INFO: [FGSM] Saved to DB: Epsilon=0.0157, Mean_Pert=1.4082, Success=True
+✅ fgsm whitebox attack completed successfully!
+🎯 Epsilon tolerance achieved: Target=0.015686, Actual=0.015686 (±5%)
+[2/4] Running Universal fgsm Attack on data/clean/chart/20231107141554953383.png...
+🎯 Epsilon Level: Minimal (ε = 0.01568627450980392)
+🔄 Direct execution (no optimization needed)
+🔍 Executing attack command...
+Command: ./venv_MM/bin/python3 attack_models/white_box_universal.py --image_path data/clean/chart/20231107141554953383.png --attack_type fgsm --epsilon 0.01568627450980392 --trial_number 1
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
+INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
+INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
+INFO:attack_models.utils:🔄 Refining epsilon to target 0.015686 ±5.0%
+INFO:attack_models.utils:✅ Epsilon tolerance achieved: 0.015686 (target: 0.015686)
+Using device: cuda:0
+Attack type: FGSM
+Target epsilon: 0.01568627450980392
+🎯 Direct Epsilon-Based Attack (no optimization needed)
+Target epsilon: 0.01568627450980392
+Attack parameters: {'eps': 0.01568627450980392, 'norm': inf}
+Saved adversarial image to data/adversarial/whitebox/fgsm/eps_0016/chart/20231107141554953383.png
+Max perturbation: 4.0
+Mean perturbation: 0.786781370639801
+Epsilon (L∞): 0.0156862773001194
+To use this adversarial image in evaluation:
+1. The image is saved at: data/adversarial/whitebox/fgsm/eps_0016/chart/20231107141554953383.png
+2. When running eval_model.py, the script will use the original path
+3. To use adversarial images, modify the img_path in eval_model.py:
+   Change: img_path = 'data/clean/' + data['image']
+   To:     img_path = 'data/adversarial/whitebox/fgsm/' + data['image']
+✅ Target epsilon: 0.015686
+Target epsilon: 0.015686
+Actual epsilon: 0.015686
+Final parameters: {'eps': 0.01568627450980392, 'norm': inf}
+Attack: FGSM completed successfully
+[2025-09-28 05:56:34] INFO: [FGSM] Saved to DB: Epsilon=0.0157, Mean_Pert=0.7868, Success=True
+✅ fgsm whitebox attack completed successfully!
+🎯 Epsilon tolerance achieved: Target=0.015686, Actual=0.015686 (±5%)
+[3/4] Running Universal fgsm Attack on data/clean/chart/20231108143642918671.png...
+🎯 Epsilon Level: Minimal (ε = 0.01568627450980392)
+🔄 Direct execution (no optimization needed)
+🔍 Executing attack command...
+Command: ./venv_MM/bin/python3 attack_models/white_box_universal.py --image_path data/clean/chart/20231108143642918671.png --attack_type fgsm --epsilon 0.01568627450980392 --trial_number 1
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
+INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
+INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
+INFO:attack_models.utils:🔄 Refining epsilon to target 0.015686 ±5.0%
+INFO:attack_models.utils:✅ Epsilon tolerance achieved: 0.015686 (target: 0.015686)
+Using device: cuda:0
+Attack type: FGSM
+Target epsilon: 0.01568627450980392
+🎯 Direct Epsilon-Based Attack (no optimization needed)
+Target epsilon: 0.01568627450980392
+Attack parameters: {'eps': 0.01568627450980392, 'norm': inf}
+Saved adversarial image to data/adversarial/whitebox/fgsm/eps_0016/chart/20231108143642918671.png
+Max perturbation: 4.0
+Mean perturbation: 0.756921112537384
+Epsilon (L∞): 0.0156862735748291
+To use this adversarial image in evaluation:
+1. The image is saved at: data/adversarial/whitebox/fgsm/eps_0016/chart/20231108143642918671.png
+2. When running eval_model.py, the script will use the original path
+3. To use adversarial images, modify the img_path in eval_model.py:
+   Change: img_path = 'data/clean/' + data['image']
+   To:     img_path = 'data/adversarial/whitebox/fgsm/' + data['image']
+✅ Target epsilon: 0.015686
+Target epsilon: 0.015686
+Actual epsilon: 0.015686
+Final parameters: {'eps': 0.01568627450980392, 'norm': inf}
+Attack: FGSM completed successfully
+[2025-09-28 05:56:48] INFO: [FGSM] Saved to DB: Epsilon=0.0157, Mean_Pert=0.7569, Success=True
+✅ fgsm whitebox attack completed successfully!
+🎯 Epsilon tolerance achieved: Target=0.015686, Actual=0.015686 (±5%)
+[4/4] Running Universal fgsm Attack on data/clean/chart/20231114102825506748.png...
+🎯 Epsilon Level: Minimal (ε = 0.01568627450980392)
+🔄 Direct execution (no optimization needed)
+🔍 Executing attack command...
+Command: ./venv_MM/bin/python3 attack_models/white_box_universal.py --image_path data/clean/chart/20231114102825506748.png --attack_type fgsm --epsilon 0.01568627450980392 --trial_number 1
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
+INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
+INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
+INFO:attack_models.utils:🔄 Refining epsilon to target 0.015686 ±5.0%
+INFO:attack_models.utils:✅ Epsilon tolerance achieved: 0.015686 (target: 0.015686)
+Using device: cuda:0
+Attack type: FGSM
+Target epsilon: 0.01568627450980392
+🎯 Direct Epsilon-Based Attack (no optimization needed)
+Target epsilon: 0.01568627450980392
+Attack parameters: {'eps': 0.01568627450980392, 'norm': inf}
+Saved adversarial image to data/adversarial/whitebox/fgsm/eps_0016/chart/20231114102825506748.png
+Max perturbation: 4.0
+Mean perturbation: 0.7986710667610168
+Epsilon (L∞): 0.0156862810254097
+To use this adversarial image in evaluation:
+1. The image is saved at: data/adversarial/whitebox/fgsm/eps_0016/chart/20231114102825506748.png
+2. When running eval_model.py, the script will use the original path
+3. To use adversarial images, modify the img_path in eval_model.py:
+   Change: img_path = 'data/clean/' + data['image']
+   To:     img_path = 'data/adversarial/whitebox/fgsm/' + data['image']
+✅ Target epsilon: 0.015686
+Target epsilon: 0.015686
+Actual epsilon: 0.015686
+Final parameters: {'eps': 0.01568627450980392, 'norm': inf}
+Attack: FGSM completed successfully
+[2025-09-28 05:57:01] INFO: [FGSM] Saved to DB: Epsilon=0.0157, Mean_Pert=0.7987, Success=True
+✅ fgsm whitebox attack completed successfully!
+🎯 Epsilon tolerance achieved: Target=0.015686, Actual=0.015686 (±5%)
+
+📊 Epsilon Level: Standard (ε = 0.031)
+==============================
+[1/4] Running Universal fgsm Attack on data/clean/chart/20231107140031466140.png...
+🎯 Epsilon Level: Standard (ε = 0.03137254901960784)
+🔄 Direct execution (no optimization needed)
+🔍 Executing attack command...
+Command: ./venv_MM/bin/python3 attack_models/white_box_universal.py --image_path data/clean/chart/20231107140031466140.png --attack_type fgsm --epsilon 0.03137254901960784 --trial_number 1
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
+INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
+INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
+INFO:attack_models.utils:🔄 Refining epsilon to target 0.031373 ±5.0%
+INFO:attack_models.utils:✅ Epsilon tolerance achieved: 0.031373 (target: 0.031373)
+Using device: cuda:0
+Attack type: FGSM
+Target epsilon: 0.03137254901960784
+🎯 Direct Epsilon-Based Attack (no optimization needed)
+Target epsilon: 0.03137254901960784
+Attack parameters: {'eps': 0.03137254901960784, 'norm': inf}
+Saved adversarial image to data/adversarial/whitebox/fgsm/eps_0031/chart/20231107140031466140.png
+Max perturbation: 8.0
+Mean perturbation: 1.5215766429901123
+Epsilon (L∞): 0.0313725508749485
+To use this adversarial image in evaluation:
+1. The image is saved at: data/adversarial/whitebox/fgsm/eps_0031/chart/20231107140031466140.png
+2. When running eval_model.py, the script will use the original path
+3. To use adversarial images, modify the img_path in eval_model.py:
+   Change: img_path = 'data/clean/' + data['image']
+   To:     img_path = 'data/adversarial/whitebox/fgsm/' + data['image']
+✅ Target epsilon: 0.031373
+Target epsilon: 0.031373
+Actual epsilon: 0.031373
+Final parameters: {'eps': 0.03137254901960784, 'norm': inf}
+Attack: FGSM completed successfully
+[2025-09-28 05:57:17] INFO: [FGSM] Saved to DB: Epsilon=0.0314, Mean_Pert=1.5216, Success=True
+✅ fgsm whitebox attack completed successfully!
+🎯 Epsilon tolerance achieved: Target=0.031373, Actual=0.031373 (±5%)
+[2/4] Running Universal fgsm Attack on data/clean/chart/20231107141554953383.png...
+🎯 Epsilon Level: Standard (ε = 0.03137254901960784)
+🔄 Direct execution (no optimization needed)
+🔍 Executing attack command...
+Command: ./venv_MM/bin/python3 attack_models/white_box_universal.py --image_path data/clean/chart/20231107141554953383.png --attack_type fgsm --epsilon 0.03137254901960784 --trial_number 1
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
+INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
+INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
+INFO:attack_models.utils:🔄 Refining epsilon to target 0.031373 ±5.0%
+INFO:attack_models.utils:✅ Epsilon tolerance achieved: 0.031373 (target: 0.031373)
+Using device: cuda:0
+Attack type: FGSM
+Target epsilon: 0.03137254901960784
+🎯 Direct Epsilon-Based Attack (no optimization needed)
+Target epsilon: 0.03137254901960784
+Attack parameters: {'eps': 0.03137254901960784, 'norm': inf}
+Saved adversarial image to data/adversarial/whitebox/fgsm/eps_0031/chart/20231107141554953383.png
+Max perturbation: 8.0
+Mean perturbation: 0.8716424107551575
+Epsilon (L∞): 0.0313725508749485
+To use this adversarial image in evaluation:
+1. The image is saved at: data/adversarial/whitebox/fgsm/eps_0031/chart/20231107141554953383.png
+2. When running eval_model.py, the script will use the original path
+3. To use adversarial images, modify the img_path in eval_model.py:
+   Change: img_path = 'data/clean/' + data['image']
+   To:     img_path = 'data/adversarial/whitebox/fgsm/' + data['image']
+✅ Target epsilon: 0.031373
+Target epsilon: 0.031373
+Actual epsilon: 0.031373
+Final parameters: {'eps': 0.03137254901960784, 'norm': inf}
+Attack: FGSM completed successfully
+[2025-09-28 05:57:32] INFO: [FGSM] Saved to DB: Epsilon=0.0314, Mean_Pert=0.8716, Success=True
+✅ fgsm whitebox attack completed successfully!
+🎯 Epsilon tolerance achieved: Target=0.031373, Actual=0.031373 (±5%)
+[3/4] Running Universal fgsm Attack on data/clean/chart/20231108143642918671.png...
+🎯 Epsilon Level: Standard (ε = 0.03137254901960784)
+🔄 Direct execution (no optimization needed)
+🔍 Executing attack command...
+Command: ./venv_MM/bin/python3 attack_models/white_box_universal.py --image_path data/clean/chart/20231108143642918671.png --attack_type fgsm --epsilon 0.03137254901960784 --trial_number 1
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
+INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
+INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
+INFO:attack_models.utils:🔄 Refining epsilon to target 0.031373 ±5.0%
+INFO:attack_models.utils:✅ Epsilon tolerance achieved: 0.031373 (target: 0.031373)
+Using device: cuda:0
+Attack type: FGSM
+Target epsilon: 0.03137254901960784
+🎯 Direct Epsilon-Based Attack (no optimization needed)
+Target epsilon: 0.03137254901960784
+Attack parameters: {'eps': 0.03137254901960784, 'norm': inf}
+Saved adversarial image to data/adversarial/whitebox/fgsm/eps_0031/chart/20231108143642918671.png
+Max perturbation: 8.0
+Mean perturbation: 0.8818082809448242
+Epsilon (L∞): 0.0313725508749485
+To use this adversarial image in evaluation:
+1. The image is saved at: data/adversarial/whitebox/fgsm/eps_0031/chart/20231108143642918671.png
+2. When running eval_model.py, the script will use the original path
+3. To use adversarial images, modify the img_path in eval_model.py:
+   Change: img_path = 'data/clean/' + data['image']
+   To:     img_path = 'data/adversarial/whitebox/fgsm/' + data['image']
+✅ Target epsilon: 0.031373
+Target epsilon: 0.031373
+Actual epsilon: 0.031373
+Final parameters: {'eps': 0.03137254901960784, 'norm': inf}
+Attack: FGSM completed successfully
+[2025-09-28 05:57:45] INFO: [FGSM] Saved to DB: Epsilon=0.0314, Mean_Pert=0.8818, Success=True
+✅ fgsm whitebox attack completed successfully!
+🎯 Epsilon tolerance achieved: Target=0.031373, Actual=0.031373 (±5%)
+[4/4] Running Universal fgsm Attack on data/clean/chart/20231114102825506748.png...
+🎯 Epsilon Level: Standard (ε = 0.03137254901960784)
+🔄 Direct execution (no optimization needed)
+🔍 Executing attack command...
+Command: ./venv_MM/bin/python3 attack_models/white_box_universal.py --image_path data/clean/chart/20231114102825506748.png --attack_type fgsm --epsilon 0.03137254901960784 --trial_number 1
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
+INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
+INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
+INFO:attack_models.utils:🔄 Refining epsilon to target 0.031373 ±5.0%
+INFO:attack_models.utils:✅ Epsilon tolerance achieved: 0.031373 (target: 0.031373)
+Using device: cuda:0
+Attack type: FGSM
+Target epsilon: 0.03137254901960784
+🎯 Direct Epsilon-Based Attack (no optimization needed)
+Target epsilon: 0.03137254901960784
+Attack parameters: {'eps': 0.03137254901960784, 'norm': inf}
+Saved adversarial image to data/adversarial/whitebox/fgsm/eps_0031/chart/20231114102825506748.png
+Max perturbation: 8.0
+Mean perturbation: 1.6685442924499512
+Epsilon (L∞): 0.0313725508749485
+To use this adversarial image in evaluation:
+1. The image is saved at: data/adversarial/whitebox/fgsm/eps_0031/chart/20231114102825506748.png
+2. When running eval_model.py, the script will use the original path
+3. To use adversarial images, modify the img_path in eval_model.py:
+   Change: img_path = 'data/clean/' + data['image']
+   To:     img_path = 'data/adversarial/whitebox/fgsm/' + data['image']
+✅ Target epsilon: 0.031373
+Target epsilon: 0.031373
+Actual epsilon: 0.031373
+Final parameters: {'eps': 0.03137254901960784, 'norm': inf}
+Attack: FGSM completed successfully
+[2025-09-28 05:57:59] INFO: [FGSM] Saved to DB: Epsilon=0.0314, Mean_Pert=1.6685, Success=True
+✅ fgsm whitebox attack completed successfully!
+🎯 Epsilon tolerance achieved: Target=0.031373, Actual=0.031373 (±5%)
+
+📊 Epsilon Level: Moderate (ε = 0.063)
+==============================
+[1/4] Running Universal fgsm Attack on data/clean/chart/20231107140031466140.png...
+🎯 Epsilon Level: Moderate (ε = 0.06274509803921569)
+🔄 Direct execution (no optimization needed)
+🔍 Executing attack command...
+Command: ./venv_MM/bin/python3 attack_models/white_box_universal.py --image_path data/clean/chart/20231107140031466140.png --attack_type fgsm --epsilon 0.06274509803921569 --trial_number 1
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
+INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
+INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
+INFO:attack_models.utils:🔄 Refining epsilon to target 0.062745 ±5.0%
+INFO:attack_models.utils:✅ Epsilon tolerance achieved: 0.062745 (target: 0.062745)
+Using device: cuda:0
+Attack type: FGSM
+Target epsilon: 0.06274509803921569
+🎯 Direct Epsilon-Based Attack (no optimization needed)
+Target epsilon: 0.06274509803921569
+Attack parameters: {'eps': 0.06274509803921569, 'norm': inf}
+Saved adversarial image to data/adversarial/whitebox/fgsm/eps_0063/chart/20231107140031466140.png
+Max perturbation: 16.0
+Mean perturbation: 6.394776344299316
+Epsilon (L∞): 0.0627450942993164
+To use this adversarial image in evaluation:
+1. The image is saved at: data/adversarial/whitebox/fgsm/eps_0063/chart/20231107140031466140.png
+2. When running eval_model.py, the script will use the original path
+3. To use adversarial images, modify the img_path in eval_model.py:
+   Change: img_path = 'data/clean/' + data['image']
+   To:     img_path = 'data/adversarial/whitebox/fgsm/' + data['image']
+✅ Target epsilon: 0.062745
+Target epsilon: 0.062745
+Actual epsilon: 0.062745
+Final parameters: {'eps': 0.06274509803921569, 'norm': inf}
+Attack: FGSM completed successfully
+[2025-09-28 05:58:12] INFO: [FGSM] Saved to DB: Epsilon=0.0627, Mean_Pert=6.3948, Success=True
+✅ fgsm whitebox attack completed successfully!
+🎯 Epsilon tolerance achieved: Target=0.062745, Actual=0.062745 (±5%)
+[2/4] Running Universal fgsm Attack on data/clean/chart/20231107141554953383.png...
+🎯 Epsilon Level: Moderate (ε = 0.06274509803921569)
+🔄 Direct execution (no optimization needed)
+🔍 Executing attack command...
+Command: ./venv_MM/bin/python3 attack_models/white_box_universal.py --image_path data/clean/chart/20231107141554953383.png --attack_type fgsm --epsilon 0.06274509803921569 --trial_number 1
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
+INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
+INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
+INFO:attack_models.utils:🔄 Refining epsilon to target 0.062745 ±5.0%
+INFO:attack_models.utils:✅ Epsilon tolerance achieved: 0.062745 (target: 0.062745)
+Using device: cuda:0
+Attack type: FGSM
+Target epsilon: 0.06274509803921569
+🎯 Direct Epsilon-Based Attack (no optimization needed)
+Target epsilon: 0.06274509803921569
+Attack parameters: {'eps': 0.06274509803921569, 'norm': inf}
+Saved adversarial image to data/adversarial/whitebox/fgsm/eps_0063/chart/20231107141554953383.png
+Max perturbation: 16.0
+Mean perturbation: 1.4258586168289185
+Epsilon (L∞): 0.062745101749897
+To use this adversarial image in evaluation:
+1. The image is saved at: data/adversarial/whitebox/fgsm/eps_0063/chart/20231107141554953383.png
+2. When running eval_model.py, the script will use the original path
+3. To use adversarial images, modify the img_path in eval_model.py:
+   Change: img_path = 'data/clean/' + data['image']
+   To:     img_path = 'data/adversarial/whitebox/fgsm/' + data['image']
+✅ Target epsilon: 0.062745
+Target epsilon: 0.062745
+Actual epsilon: 0.062745
+Final parameters: {'eps': 0.06274509803921569, 'norm': inf}
+Attack: FGSM completed successfully
+[2025-09-28 05:58:27] INFO: [FGSM] Saved to DB: Epsilon=0.0627, Mean_Pert=1.4259, Success=True
+✅ fgsm whitebox attack completed successfully!
+🎯 Epsilon tolerance achieved: Target=0.062745, Actual=0.062745 (±5%)
+[3/4] Running Universal fgsm Attack on data/clean/chart/20231108143642918671.png...
+🎯 Epsilon Level: Moderate (ε = 0.06274509803921569)
+🔄 Direct execution (no optimization needed)
+🔍 Executing attack command...
+Command: ./venv_MM/bin/python3 attack_models/white_box_universal.py --image_path data/clean/chart/20231108143642918671.png --attack_type fgsm --epsilon 0.06274509803921569 --trial_number 1
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
+INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
+INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
+INFO:attack_models.utils:🔄 Refining epsilon to target 0.062745 ±5.0%
+INFO:attack_models.utils:✅ Epsilon tolerance achieved: 0.062745 (target: 0.062745)
+Using device: cuda:0
+Attack type: FGSM
+Target epsilon: 0.06274509803921569
+🎯 Direct Epsilon-Based Attack (no optimization needed)
+Target epsilon: 0.06274509803921569
+Attack parameters: {'eps': 0.06274509803921569, 'norm': inf}
+Saved adversarial image to data/adversarial/whitebox/fgsm/eps_0063/chart/20231108143642918671.png
+Max perturbation: 16.0
+Mean perturbation: 1.4611525535583496
+Epsilon (L∞): 0.062745101749897
+To use this adversarial image in evaluation:
+1. The image is saved at: data/adversarial/whitebox/fgsm/eps_0063/chart/20231108143642918671.png
+2. When running eval_model.py, the script will use the original path
+3. To use adversarial images, modify the img_path in eval_model.py:
+   Change: img_path = 'data/clean/' + data['image']
+   To:     img_path = 'data/adversarial/whitebox/fgsm/' + data['image']
+✅ Target epsilon: 0.062745
+Target epsilon: 0.062745
+Actual epsilon: 0.062745
+Final parameters: {'eps': 0.06274509803921569, 'norm': inf}
+Attack: FGSM completed successfully
+[2025-09-28 05:58:42] INFO: [FGSM] Saved to DB: Epsilon=0.0627, Mean_Pert=1.4612, Success=True
+✅ fgsm whitebox attack completed successfully!
+🎯 Epsilon tolerance achieved: Target=0.062745, Actual=0.062745 (±5%)
+[4/4] Running Universal fgsm Attack on data/clean/chart/20231114102825506748.png...
+🎯 Epsilon Level: Moderate (ε = 0.06274509803921569)
+🔄 Direct execution (no optimization needed)
+🔍 Executing attack command...
+Command: ./venv_MM/bin/python3 attack_models/white_box_universal.py --image_path data/clean/chart/20231114102825506748.png --attack_type fgsm --epsilon 0.06274509803921569 --trial_number 1
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
+INFO:art.attacks.evasion.fast_gradient:Using model predictions as correct labels for FGM.
+INFO:art.attacks.evasion.fast_gradient:Success rate of FGM attack: 0.00%
+INFO:attack_models.utils:🔄 Refining epsilon to target 0.062745 ±5.0%
+INFO:attack_models.utils:✅ Epsilon tolerance achieved: 0.062745 (target: 0.062745)
+Using device: cuda:0
+Attack type: FGSM
+Target epsilon: 0.06274509803921569
+🎯 Direct Epsilon-Based Attack (no optimization needed)
+Target epsilon: 0.06274509803921569
+Attack parameters: {'eps': 0.06274509803921569, 'norm': inf}
+Saved adversarial image to data/adversarial/whitebox/fgsm/eps_0063/chart/20231114102825506748.png
+Max perturbation: 16.0
+Mean perturbation: 2.2625014781951904
+Epsilon (L∞): 0.062745101749897
+To use this adversarial image in evaluation:
+1. The image is saved at: data/adversarial/whitebox/fgsm/eps_0063/chart/20231114102825506748.png
+2. When running eval_model.py, the script will use the original path
+3. To use adversarial images, modify the img_path in eval_model.py:
+   Change: img_path = 'data/clean/' + data['image']
+   To:     img_path = 'data/adversarial/whitebox/fgsm/' + data['image']
+✅ Target epsilon: 0.062745
+Target epsilon: 0.062745
+Actual epsilon: 0.062745
+Final parameters: {'eps': 0.06274509803921569, 'norm': inf}
+Attack: FGSM completed successfully
+[2025-09-28 05:58:56] INFO: [FGSM] Saved to DB: Epsilon=0.0627, Mean_Pert=2.2625, Success=True
+✅ fgsm whitebox attack completed successfully!
+🎯 Epsilon tolerance achieved: Target=0.062745, Actual=0.062745 (±5%)
+
+🏆 EXECUTION SUMMARY
+==================================================
+📊 Total attacks processed: 12
+✅ Successful attacks: 12
+❌ Failed attacks: 0
+📈 Success rate: 100%
+
+🎯 100% EPSILON-BASED ATTACK FRAMEWORK RESULTS:
+✅ Direct epsilon parameter control
+✅ NO optimization needed
+✅ Fast and predictable execution
+✅ Precise perturbation bounds
+🚀 Whitebox attacks: 5 epsilon-based attacks
+🔒 Blackbox attacks: 4 epsilon-based attacks
+
+📊 Attack results saved to centralized database: results/centralized_pipeline.db
+🎯 Check adversarial images in:
+   - data/adversarial/whitebox/ (5 epsilon whitebox attacks)
+==================================================
+[2025-09-28 05:58:56] INFO: 🏁 Universal attack execution completed
+(venv_MM) ubuntu@150-136-36-253:~/DiskUsEast1/MultiModal_Adversarial_attacks$ 

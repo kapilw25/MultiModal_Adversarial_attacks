@@ -34,7 +34,7 @@ def create_centralized_schema():
         -- Epsilon Parameters (SSIM removed)
         epsilon_level TEXT,
         epsilon_target REAL,
-        epsilon_actual REAL,
+        epsilon_l_inf REAL,
         mean_perturbation REAL,
         max_perturbation REAL,
         l2_norm REAL,
@@ -99,7 +99,7 @@ def create_centralized_schema():
         task TEXT NOT NULL,
         attack_type TEXT NOT NULL,
         epsilon_target REAL NOT NULL,        -- Target epsilon value (goal)
-        epsilon_actual REAL NOT NULL,        -- Actual achieved epsilon value
+        epsilon_l_inf REAL NOT NULL,        -- Actual achieved epsilon value
         inference_image_path TEXT NOT NULL,  -- Image fed to model (clean or adversarial)
         clean_image_path TEXT NOT NULL,      -- Original unperturbed reference
         timestamp TEXT NOT NULL,
@@ -192,7 +192,7 @@ class CentralizedDB:
             execution_data['timestamp'],
             execution_data['parameters']['epsilon_level'],
             execution_data['parameters']['epsilon_target'],
-            execution_data['parameters']['epsilon_actual'],
+            execution_data['parameters']['epsilon_l_inf'],
             execution_data['parameters']['mean_perturbation'],
             execution_data['parameters']['max_perturbation'],
             execution_data['parameters']['l2_norm'],
@@ -268,7 +268,7 @@ class CentralizedDB:
             result_data['metadata']['task'],
             result_data['metadata']['attack_type'],
             result_data['metadata'].get('epsilon_target', 0.0),
-            result_data['metadata'].get('epsilon_actual', 0.0),
+            result_data['metadata'].get('epsilon_l_inf', 0.0),
             result_data['metadata']['image_path'],
             result_data['metadata']['original_image_path'],
             result_data['metadata']['timestamp'],
@@ -326,7 +326,7 @@ class CentralizedDB:
         cursor = conn.cursor()
 
         query = '''
-        SELECT image_path, adversarial_image_path, epsilon_actual, epsilon_target, epsilon_level, attack_name, attack_category
+        SELECT image_path, adversarial_image_path, epsilon_l_inf, epsilon_target, epsilon_level, attack_name, attack_category
         FROM attack_executions
         WHERE success = 1
         '''
@@ -339,7 +339,7 @@ class CentralizedDB:
         for row in results:
             composite_key = (row[0], row[1])  # (image_path, adversarial_image_path)
             epsilon_mapping[composite_key] = {
-                'epsilon_actual': row[2],
+                'epsilon_l_inf': row[2],
                 'epsilon_target': row[3],
                 'epsilon_level': row[4],
                 'adversarial_image_path': row[1],
