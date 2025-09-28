@@ -129,12 +129,18 @@ Located in `scripts/`, this module handles model evaluation and result analysis:
 ```bash
 python3 -m venv venv_MM
 source venv_MM/bin/activate
-  # Step 1: Install base requirements (without flash-attn)
+  # Step 1: Install base requirements (without flash-attn/tensorrt)
   pip install -r requirements.txt
   # Step 2: Install flash-attn separately with updated build tools
   pip install flash-attn>=2.5.0 --no-build-isolation
-python -m spacy download en_core_web_sm # Download spaCy English model for text processing 
-sudo apt-get install jq 
+  # Step 3: Install TensorRT for GPU optimization (optional)
+  pip install torch-tensorrt>=1.4.0 --extra-index-url https://download.pytorch.org/whl/cu121
+  # step4: Install nvidia-modelopt for Quantization Support
+  pip install nvidia-modelopt 
+  # step 5: # Download spaCy English model for text processing
+  python -m spacy download en_core_web_sm 
+  # step6: 
+  sudo apt-get install jq
 ```
 
 ### 2. Evaluate Model Performance

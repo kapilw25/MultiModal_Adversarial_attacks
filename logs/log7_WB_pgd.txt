@@ -1,0 +1,93 @@
+/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/modelopt/torch/__init__.py:36: UserWarning: transformers version 4.57.0.dev0 is incompatible with nvidia-modelopt and may cause issues. Please install recommended version with `pip install nvidia-modelopt[hf]` if working with HF models.
+  _warnings.warn(
+TensorRT-LLM is not installed. Please install TensorRT-LLM or set TRTLLM_PLUGINS_PATH to the directory containing libnvinfer_plugin_tensorrt_llm.so to use converters for torch.distributed ops
+WARNING:py.warnings:/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+
+WARNING:py.warnings:/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=ResNet50_Weights.IMAGENET1K_V1`. You can also use `weights=ResNet50_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+
+INFO:art.estimators.classification.pytorch:Inferred 10 hidden layers on PyTorch classifier.
+INFO:art.attacks.evasion.projected_gradient_descent.projected_gradient_descent:Creating adversarial samples.
+Using device: cuda:0
+Attack type: PGD
+Target epsilon: 0.02
+🔧 [DYNAMIC_BATCH] GPU Memory Analysis - Total: 22.1GB, Free: 22.1GB
+✅ [DYNAMIC_BATCH] Optimal batch size calculated: 4 (based on 22.1GB free)
+🔧 [ATTACK] Batch size analysis completed for attack planning
+🚀 Creating classifier with optimization level: high
+🔧 [MEMORY_POOL] GPU memory fraction set to 90%
+🔧 [MEMORY_POOL] Memory allocation strategy: max_split_size_mb:128
+🔧 [MEMORY_POOL] TF32 optimizations enabled for matmul and cudnn
+🔧 [MEMORY_POOL] GPU cache cleared
+✅ [MEMORY_POOL] GPU memory pool optimization ACTIVATED
+🔧 [STANDARD] Using standard optimized classifier
+🔧 [MIXED_PRECISION] AMP enabled for query counting operations
+🎯 Direct Epsilon-Based Attack (no optimization needed)
+Target epsilon: 0.02
+Attack parameters: {'eps': 0.02, 'eps_step': 0.01, 'nb_iter': 40}
+🔧 [MIXED_PRECISION] Using AMP autocast for prediction
+PGD - Batches:   0%|          | 0/1 [00:00<?, ?it/s]PGD - Batches: 100%|██████████| 1/1 [00:01<00:00,  1.10s/it]                                                            INFO:art.attacks.evasion.projected_gradient_descent.projected_gradient_descent_pytorch:Success rate of attack: 100.00%
+INFO:attack_models.utils:🔄 Refining epsilon to target 0.020000 ±5.0%
+INFO:attack_models.utils:✅ Epsilon tolerance achieved: 0.019608 (target: 0.020000)
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation
+🔧 [MIXED_PRECISION] Using AMP autocast for prediction
+🔧 [MIXED_PRECISION] Using AMP autocast for prediction
+Saved adversarial image to data/adversarial/whitebox/pgd/eps_0020/chart/20231107140031466140.png
+Max perturbation: 5.0
+Mean perturbation: 0.8425812721252441
+Epsilon (L∞): 0.019607845693826675
+L2 norm: 7.285226345062256
+L0 norm: 1146133
+Total queries: 43
+
+To use this adversarial image in evaluation:
+1. The image is saved at: data/adversarial/whitebox/pgd/eps_0020/chart/20231107140031466140.png
+2. When running eval_model.py, the script will use the original path
+3. To use adversarial images, modify the img_path in eval_model.py:
+   Change: img_path = 'data/clean/' + data['image']
+   To:     img_path = 'data/adversarial/whitebox/pgd/' + data['image']
+✅ Target epsilon: 0.020000
+Target epsilon: 0.020000
+Actual epsilon: 0.019608
+Final parameters: {'eps': 0.02, 'eps_step': 0.01, 'nb_iter': 40}
+Attack: PGD completed successfully

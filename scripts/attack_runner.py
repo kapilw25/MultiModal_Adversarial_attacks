@@ -117,6 +117,9 @@ class AttackOrchestrator:
         self.results_dir = Path("results")
         self.results_dir.mkdir(exist_ok=True)
 
+        # Set project root for imports
+        self.project_root = Path(__file__).parent.parent
+
         # Initialize execution tracking
         self.execution_id = f"universal_run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         self.success_count = 0
@@ -546,24 +549,189 @@ class AttackOrchestrator:
             print(f"\n📊 Epsilon Level: {epsilon_level.title()} (ε = {epsilon_value:.3f})")
             print("=" * 30)
 
-            for i, image_path in enumerate(image_list):
-                if not Path(image_path).exists():
-                    print(f"❌ Image not found: {image_path}")
-                    self.failure_count += 1
-                    continue
+            # Filter existing images
+            valid_images = [img_path for img_path in image_list if Path(img_path).exists()]
+            invalid_count = len(image_list) - len(valid_images)
 
-                # Execute the appropriate attack type
-                if is_blackbox:
-                    success = self.run_blackbox_attack(image_path, attack_type,
-                                                     i+1+attack_num_offset, total_images, epsilon_level, trial_number)
-                else:
-                    success = self.run_whitebox_attack(image_path, attack_type,
-                                                     i+1+attack_num_offset, total_images, epsilon_level, trial_number)
+            if invalid_count > 0:
+                print(f"❌ {invalid_count} images not found, processing {len(valid_images)} valid images")
+                self.failure_count += invalid_count
 
-                if success:
-                    self.success_count += 1
+            if not valid_images:
+                continue
+
+            # Execute batch attack
+            if is_blackbox:
+                success = self.run_batch_blackbox_attack(valid_images, attack_type, epsilon_level, trial_number)
+            else:
+                success = self.run_batch_whitebox_attack(valid_images, attack_type, epsilon_level, trial_number)
+
+    def get_output_path_for_image(self, image_path: str, attack_type: str, is_blackbox: bool, epsilon: float) -> str:
+        """Generate output path for adversarial image"""
+        # Extract relative path from data/clean/
+        rel_path = str(Path(image_path).relative_to("data/clean"))
+
+        # Determine category and epsilon folder
+        category = "blackbox" if is_blackbox else "whitebox"
+        eps_folder = f"eps_{int(epsilon * 1000):04d}"  # e.g., eps_0020 for 0.02
+
+        return f"data/adversarial/{category}/{attack_type}/{eps_folder}/{rel_path}"
+
+    def filter_existing_images(self, image_paths: List[str], attack_type: str,
+                              is_blackbox: bool, epsilon_level: str) -> List[str]:
+        """Filter out images that already have adversarial versions"""
+        if self.is_replacement_run:
+            return image_paths  # Process all images in complete replacement mode
+
+        epsilon_value = self.get_epsilon_from_level(epsilon_level)
+        new_images = []
+
+        for image_path in image_paths:
+            output_path = self.get_output_path_for_image(image_path, attack_type, is_blackbox, epsilon_value)
+            if not Path(output_path).exists():
+                new_images.append(image_path)
+
+        skipped_count = len(image_paths) - len(new_images)
+        if skipped_count > 0:
+            print(f"⏭️  Skipped {skipped_count} existing images for {attack_type}")
+
+        return new_images
+
+    def run_batch_whitebox_attack(self, image_paths: List[str], attack_type: str,
+                                 epsilon_level: str = None, trial_number: int = 1) -> bool:
+        """Execute batch whitebox attack for multiple images"""
+        try:
+            # Filter existing images if replacement=No
+            filtered_images = self.filter_existing_images(image_paths, attack_type, False, epsilon_level)
+            if not filtered_images:
+                return True  # All images already exist
+
+            # Import the batch function
+            sys.path.append(str(self.project_root))
+            from attack_models.white_box_universal import batch_epsilon_attack
+
+            epsilon_value = self.get_epsilon_from_level(epsilon_level)
+
+            # Execute batch attack
+            results = batch_epsilon_attack(
+                image_paths=filtered_images,
+                attack_type=attack_type,
+                epsilon_target=epsilon_value,
+                optimization_level='high'
+            )
+
+            # Process results
+            success_count = 0
+            for i, result in enumerate(results):
+                if result['success']:
+                    success_count += 1
+                    # Log to database
+                    self.db.insert_attack_result({
+                        'image_path': filtered_images[i],
+                        'attack_type': attack_type,
+                        'attack_category': 'whitebox',
+                        'epsilon_target': epsilon_value,
+                        'epsilon_achieved': result['epsilon_achieved'],
+                        'success': True,
+                        'execution_time': result.get('execution_time', 0),
+                        'queries_used': result.get('queries_used', 0),
+                        'trial_number': trial_number
+                    })
                 else:
+                    # Log failure
+                    self.db.insert_attack_result({
+                        'image_path': filtered_images[i],
+                        'attack_type': attack_type,
+                        'attack_category': 'whitebox',
+                        'epsilon_target': epsilon_value,
+                        'epsilon_achieved': 0.0,
+                        'success': False,
+                        'execution_time': 0,
+                        'queries_used': 0,
+                        'trial_number': trial_number
+                    })
+
+            self.success_count += success_count
+            self.failure_count += (len(filtered_images) - success_count)
+
+            return success_count > 0
+
+        except Exception as e:
+            print(f"❌ Batch whitebox attack failed: {e}")
+            self.failure_count += len(image_paths)
+            return False
+
+    def run_batch_blackbox_attack(self, image_paths: List[str], attack_type: str,
+                                 epsilon_level: str = None, trial_number: int = 1) -> bool:
+        """Execute batch blackbox attack for multiple images"""
+        try:
+            # Filter existing images if replacement=No
+            filtered_images = self.filter_existing_images(image_paths, attack_type, True, epsilon_level)
+            if not filtered_images:
+                return True  # All images already exist
+
+            # Import required functions
+            sys.path.append(str(self.project_root))
+            from attack_models.black_box_universal import UniversalEpsilonBlackBoxAttack
+            from attack_models.utils import query_counter
+
+            epsilon_value = self.get_epsilon_from_level(epsilon_level)
+
+            # Process images in batches
+            success_count = 0
+            attack_instance = UniversalEpsilonBlackBoxAttack(epsilon_target=epsilon_value)
+
+            for image_path in filtered_images:
+                query_counter.reset()
+
+                try:
+                    adv_image, achieved_epsilon, final_params = attack_instance.run_epsilon_attack(
+                        image_path=image_path,
+                        attack_type=attack_type,
+                        attack_params=None
+                    )
+
+                    if adv_image is not None:
+                        success_count += 1
+                        # Log to database
+                        self.db.insert_attack_result({
+                            'image_path': image_path,
+                            'attack_type': attack_type,
+                            'attack_category': 'blackbox',
+                            'epsilon_target': epsilon_value,
+                            'epsilon_achieved': achieved_epsilon,
+                            'success': True,
+                            'execution_time': 0,
+                            'queries_used': query_counter.get_count(),
+                            'trial_number': trial_number
+                        })
+                    else:
+                        # Log failure
+                        self.db.insert_attack_result({
+                            'image_path': image_path,
+                            'attack_type': attack_type,
+                            'attack_category': 'blackbox',
+                            'epsilon_target': epsilon_value,
+                            'epsilon_achieved': 0.0,
+                            'success': False,
+                            'execution_time': 0,
+                            'queries_used': query_counter.get_count(),
+                            'trial_number': trial_number
+                        })
+
+                except Exception as e:
+                    print(f"❌ Failed processing {image_path}: {e}")
                     self.failure_count += 1
+
+            self.success_count += success_count
+            self.failure_count += (len(filtered_images) - success_count)
+
+            return success_count > 0
+
+        except Exception as e:
+            print(f"❌ Batch blackbox attack failed: {e}")
+            self.failure_count += len(image_paths)
+            return False
 
     def check_epsilon_success(self, target_epsilon: float, actual_epsilon: float, tolerance_percent: float = 5.0) -> bool:
         """

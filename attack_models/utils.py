@@ -28,6 +28,84 @@ import time
 import numba
 from numba import jit
 
+# GPU Optimization imports
+try:
+    import torch_tensorrt
+    TENSORRT_AVAILABLE = True
+except ImportError:
+    TENSORRT_AVAILABLE = False
+    print("⚠️ TensorRT not available. Install with: pip install torch-tensorrt")
+
+# Memory and performance optimization
+def setup_gpu_optimizations():
+    """Setup GPU memory pools and optimization settings"""
+    if not torch.cuda.is_available():
+        print("❌ CUDA not available")
+        return False
+
+    try:
+        # Configure memory pool
+        torch.cuda.memory.set_per_process_memory_fraction(0.9)  # Use 90% of GPU memory
+        # GPU memory pool optimization applied
+
+        # Set memory allocation strategy
+        os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
+        # Memory allocation strategy configured
+
+        # Enable memory mapping
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        # TF32 optimizations enabled
+
+        # Clear cache
+        torch.cuda.empty_cache()
+        # GPU cache cleared
+
+        print("✅ [MEMORY_POOL] GPU memory pool optimization ACTIVATED")
+        return True
+    except Exception as e:
+        print(f"❌ [MEMORY_POOL] GPU optimization setup failed: {e}")
+        return False
+
+def get_optimal_batch_size():
+    """Determine optimal batch size based on available GPU memory"""
+    if not torch.cuda.is_available():
+        print("❌ [DYNAMIC_BATCH] CUDA not available")
+        return 1
+
+    try:
+        # Get GPU memory info
+        device_props = torch.cuda.get_device_properties(0)
+        total_memory_gb = device_props.total_memory / (1024**3)
+
+        # Get current memory usage
+        allocated_memory = torch.cuda.memory_allocated(0)
+        cached_memory = torch.cuda.memory_reserved(0)
+        free_memory_gb = (device_props.total_memory - cached_memory) / (1024**3)
+
+        # GPU Memory Analysis completed
+
+        # Aggressive batch sizing for maximizing 24GB GPU utilization
+        # ResNet-50 + gradients ≈ 1-2GB per image with optimizations
+        optimal_batch = 1
+        if free_memory_gb >= 20:
+            optimal_batch = 16  # Process 16 images simultaneously (22GB available)
+        elif free_memory_gb >= 15:
+            optimal_batch = 12  # Process 12 images simultaneously
+        elif free_memory_gb >= 10:
+            optimal_batch = 8   # Process 8 images simultaneously
+        elif free_memory_gb >= 6:
+            optimal_batch = 4   # Process 4 images simultaneously
+        else:
+            optimal_batch = 2   # Minimum 2 images
+
+        print(f"✅ [DYNAMIC_BATCH] Optimal batch size calculated: {optimal_batch} (based on {free_memory_gb:.1f}GB free)")
+        return optimal_batch
+
+    except Exception as e:
+        print(f"❌ [DYNAMIC_BATCH] Memory detection failed: {e}, using batch_size=1")
+        return 1
+
 # Configure unified logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -64,18 +142,62 @@ def load_image(image_path):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img
 
-def create_classifier(device='cuda:0', requires_grad=True, probabilistic=False, count_queries=True):
-    """Create a GPU-only PyTorch classifier for the attack with optional query counting"""
+def create_classifier(device='cuda:0', requires_grad=True, probabilistic=False, count_queries=True,
+                     optimization_level='high', use_tensorrt=False, use_quantization=False):
+    """Create optimized GPU classifier with multiple optimization options
+
+    Args:
+        device: CUDA device
+        requires_grad: Enable gradients for white-box attacks
+        probabilistic: Add softmax for probabilistic outputs
+        count_queries: Enable query counting
+        optimization_level: 'none', 'basic', 'high', 'extreme'
+        use_tensorrt: Enable TensorRT optimization
+        use_quantization: Enable INT8 quantization
+    """
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA GPU is required. CPU fallback is not supported.")
 
+    print(f"🚀 Creating classifier with optimization level: {optimization_level}")
+
+    # Setup GPU optimizations if requested
+    if optimization_level in ['basic', 'high', 'extreme']:
+        setup_gpu_optimizations()
+
+    # Choose optimization strategy
+    if use_tensorrt and TENSORRT_AVAILABLE:
+        # TensorRT optimization requested
+        if requires_grad:
+            print("❌ [TENSORRT] TensorRT incompatible with requires_grad=True, using standard classifier")
+            return create_optimized_classifier(device, requires_grad, probabilistic, count_queries, optimization_level)
+        else:
+            print("✅ [TENSORRT] TensorRT compatible - proceeding with compilation")
+            return create_tensorrt_classifier(device, requires_grad, probabilistic, count_queries)
+    elif use_quantization:
+        # INT8 quantization requested
+        return create_quantized_classifier(device, requires_grad, probabilistic, count_queries)
+    else:
+        print("🔧 [STANDARD] Using standard optimized classifier")
+        return create_optimized_classifier(device, requires_grad, probabilistic, count_queries, optimization_level)
+
+def create_optimized_classifier(device='cuda:0', requires_grad=True, probabilistic=False,
+                               count_queries=True, optimization_level='high'):
+    """Create classifier with mixed precision and standard optimizations"""
     model = models.resnet50(pretrained=True)
     model.to(device)
 
-    # Set model to training mode for white-box attacks that need gradients
+    # Optimization based on level
+    if optimization_level in ['high', 'extreme']:
+        # Enable mixed precision optimizations
+        model = model.half() if not requires_grad else model  # FP16 for inference only
+
+        # Compile model for faster execution
+        if optimization_level == 'extreme':
+            model = torch.jit.script(model)
+
+    # Set model mode
     if requires_grad:
         model.train()
-        # Enable gradients for all parameters
         for param in model.parameters():
             param.requires_grad = True
     else:
@@ -93,8 +215,9 @@ def create_classifier(device='cuda:0', requires_grad=True, probabilistic=False, 
                 self.softmax = torch.nn.Softmax(dim=1)
 
             def forward(self, x):
-                logits = self.base_model(x)
-                return self.softmax(logits)
+                with torch.amp.autocast('cuda', enabled=(optimization_level in ['high', 'extreme'])):
+                    logits = self.base_model(x)
+                    return self.softmax(logits)
 
         model = ProbabilisticModel(model)
 
@@ -104,9 +227,178 @@ def create_classifier(device='cuda:0', requires_grad=True, probabilistic=False, 
         device_type=device
     )
 
-    # Add query counting if requested
+    # Add optimized query counting if requested
     if count_queries:
-        classifier = add_query_counting_to_classifier(classifier, query_counter)
+        classifier = add_optimized_query_counting(classifier, query_counter, optimization_level)
+
+    return classifier
+
+def create_tensorrt_classifier(device='cuda:0', requires_grad=True, probabilistic=False, count_queries=True,
+                              max_batch_size=4):
+    """Create TensorRT-optimized classifier for maximum inference speed
+
+    Args:
+        device: CUDA device
+        requires_grad: Enable gradients (not supported for TensorRT)
+        probabilistic: Add softmax for probabilistic outputs
+        count_queries: Enable query counting
+        max_batch_size: Maximum batch size for dynamic shapes (default: 4)
+    """
+    if not TENSORRT_AVAILABLE:
+        print("⚠️ TensorRT not available, falling back to optimized classifier")
+        return create_optimized_classifier(device, requires_grad, probabilistic, count_queries, 'high')
+
+    print(f"🔧 Creating TensorRT-optimized classifier (max_batch_size={max_batch_size})...")
+
+    model = models.resnet50(pretrained=True)
+    model.to(device)
+    model.eval()  # TensorRT requires eval mode
+
+    # Compile model with TensorRT
+    try:
+        # Create input spec with dynamic batch size for TensorRT compilation
+        input_spec = torch_tensorrt.Input(
+            min_shape=[1, 3, 224, 224],      # Minimum: batch_size=1
+            opt_shape=[2, 3, 224, 224],      # Optimal: batch_size=2
+            max_shape=[max_batch_size, 3, 224, 224],  # Maximum: configurable batch_size
+            dtype=torch.float32
+        )
+
+        # TensorRT compilation settings with dynamic batch support
+        trt_model = torch_tensorrt.compile(
+            model,
+            inputs=[input_spec],  # Use input spec instead of example tensor
+            enabled_precisions={torch.float32, torch.half},  # FP32 primary, FP16 optional
+            workspace_size=1 << 30,  # 1GB workspace
+            min_block_size=3,
+            debug=False
+        )
+
+        print("✅ TensorRT compilation successful with dynamic batch support")
+
+        # Wrap TensorRT model to handle input dtype/device conversion and batch validation
+        class TensorRTWrapper(torch.nn.Module):
+            def __init__(self, trt_model, max_batch_size):
+                super().__init__()
+                self.trt_model = trt_model
+                self.max_batch_size = max_batch_size
+
+            def forward(self, x):
+                # Ensure input is on correct device and dtype
+                if not isinstance(x, torch.Tensor):
+                    x = torch.tensor(x, dtype=torch.float32, device=device)
+                elif x.dtype != torch.float32:
+                    x = x.to(dtype=torch.float32)
+                if x.device != torch.device(device):
+                    x = x.to(device)
+
+                # Validate batch size
+                batch_size = x.shape[0] if len(x.shape) == 4 else 1
+                if batch_size > self.max_batch_size:
+                    print(f"⚠️ Warning: Batch size {batch_size} exceeds TensorRT max {self.max_batch_size}")
+                    print(f"   Processing in chunks of {self.max_batch_size}")
+
+                    # Process in chunks
+                    results = []
+                    for i in range(0, batch_size, self.max_batch_size):
+                        chunk = x[i:i+self.max_batch_size]
+                        chunk_result = self.trt_model(chunk)
+                        results.append(chunk_result)
+                    return torch.cat(results, dim=0)
+
+                return self.trt_model(x)
+
+        model = TensorRTWrapper(trt_model, max_batch_size)
+
+    except Exception as e:
+        print(f"⚠️ TensorRT compilation failed: {e}")
+        print("   Falling back to standard model")
+        # Fallback to standard ResNet without TensorRT
+        model = models.resnet50(pretrained=True)
+        model.to(device)
+        model.eval()
+
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+
+    # Add softmax for probabilistic outputs if needed
+    if probabilistic:
+        # Adding probabilistic wrapper with softmax
+        class ProbabilisticTensorRTModel(torch.nn.Module):
+            def __init__(self, base_model):
+                super().__init__()
+                self.base_model = base_model
+                self.softmax = torch.nn.Softmax(dim=1)
+
+            def forward(self, x):
+                logits = self.base_model(x)
+                return self.softmax(logits)
+
+        model = ProbabilisticTensorRTModel(model)
+        print("✅ [TENSORRT] Probabilistic wrapper APPLIED successfully")
+
+    classifier = PyTorchClassifier(
+        model=model, clip_values=(0.0, 1.0), loss=torch.nn.CrossEntropyLoss(),
+        input_shape=(3, 224, 224), nb_classes=1000, preprocessing=(mean, std),
+        device_type=device
+    )
+
+    if count_queries:
+        classifier = add_optimized_query_counting(classifier, query_counter, 'extreme')
+
+    return classifier
+
+def create_quantized_classifier(device='cuda:0', requires_grad=True, probabilistic=False,
+                               count_queries=True, quantization_type='dynamic'):
+    """Create INT8 quantized classifier for memory efficiency"""
+    # Creating quantized classifier
+
+    model = models.resnet50(pretrained=True)
+    model.to(device)
+    model.eval()
+
+    try:
+        if quantization_type == 'dynamic':
+            # Applying dynamic INT8 quantization
+            # Dynamic quantization (easiest, good performance)
+            quantized_model = torch.quantization.quantize_dynamic(
+                model,
+                {torch.nn.Linear, torch.nn.Conv2d},
+                dtype=torch.qint8
+            )
+            print("✅ [QUANTIZATION] Dynamic INT8 quantization APPLIED successfully")
+        else:
+            # Applying static INT8 quantization
+            # Static quantization (more complex, better performance)
+            model.qconfig = torch.quantization.get_default_qconfig('fbgemm')
+            torch.quantization.prepare(model, inplace=True)
+
+            # Simple calibration with dummy data
+            # Calibrating model with dummy data
+            with torch.no_grad():
+                dummy_input = torch.randn(10, 3, 224, 224)
+                for i in range(10):
+                    model(dummy_input[i:i+1])
+
+            quantized_model = torch.quantization.convert(model, inplace=True)
+            print("✅ [QUANTIZATION] Static INT8 quantization APPLIED successfully")
+
+        model = quantized_model
+
+    except Exception as e:
+        print(f"❌ [QUANTIZATION] Quantization failed: {e}, using standard model")
+
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+
+    classifier = PyTorchClassifier(
+        model=model, clip_values=(0.0, 1.0), loss=torch.nn.CrossEntropyLoss(),
+        input_shape=(3, 224, 224), nb_classes=1000, preprocessing=(mean, std),
+        device_type=device
+    )
+
+    if count_queries:
+        classifier = add_optimized_query_counting(classifier, query_counter, 'basic')
 
     return classifier
 
@@ -407,7 +699,7 @@ def calculate_epsilon_tensor(tensor1, tensor2):
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA GPU is required. CPU fallback is not supported.")
 
-    with torch.cuda.amp.autocast():
+    with torch.amp.autocast('cuda'):
         # Convert tensors to numpy for epsilon calculation
         img1 = tensor1.squeeze().cpu().numpy()
         img2 = tensor2.squeeze().cpu().numpy()
@@ -481,38 +773,150 @@ class QueryCounter:
 query_counter = QueryCounter()
 
 def add_query_counting_to_classifier(classifier, query_counter):
-    """Add query counting to an existing classifier by patching its methods"""
-    # Store original methods
+    """Legacy function for backward compatibility"""
+    return add_optimized_query_counting(classifier, query_counter, 'basic')
+
+def add_optimized_query_counting(classifier, query_counter, optimization_level='basic'):
+    """Add optimized query counting with mixed precision support"""
     original_predict = classifier.predict
     original_loss_gradient = classifier.loss_gradient
 
+    # Determine if we should use AMP
+    use_amp = optimization_level in ['high', 'extreme']
+    if use_amp:
+        # AMP enabled for query counting
+        pass
+    else:
+        # Standard precision for query counting
+        pass
+
     def counting_predict(x, batch_size=128, **kwargs):
-        """Predict method that counts queries"""
-        # Count the number of samples being processed
+        """Optimized predict method with query counting and AMP"""
+        # Count queries
         if hasattr(x, 'shape'):
             batch_count = x.shape[0] if len(x.shape) > 0 else 1
         else:
             batch_count = 1
 
         query_counter.increment(batch_count)
-        return original_predict(x, batch_size=batch_size, **kwargs)
+
+        # Use mixed precision if enabled
+        if use_amp:
+            # Using AMP autocast for prediction
+            with torch.amp.autocast('cuda'):
+                return original_predict(x, batch_size=batch_size, **kwargs)
+        else:
+            return original_predict(x, batch_size=batch_size, **kwargs)
 
     def counting_loss_gradient(x, y, **kwargs):
-        """Loss gradient method that counts queries"""
-        # Count the number of samples being processed
+        """Optimized loss gradient method with query counting and AMP"""
+        # Count queries
         if hasattr(x, 'shape'):
             batch_count = x.shape[0] if len(x.shape) > 0 else 1
         else:
             batch_count = 1
 
         query_counter.increment(batch_count)
-        return original_loss_gradient(x, y, **kwargs)
+
+        # Use mixed precision if enabled
+        if use_amp:
+            # print("🔧 [MIXED_PRECISION] Using AMP autocast for gradient computation")
+            with torch.amp.autocast('cuda'):
+                return original_loss_gradient(x, y, **kwargs)
+        else:
+            return original_loss_gradient(x, y, **kwargs)
 
     # Patch the methods
     classifier.predict = counting_predict
     classifier.loss_gradient = counting_loss_gradient
 
     return classifier
+
+# Batch processing functions for dynamic batch sizing
+def batch_preprocess_images(image_paths, return_tensor=True):
+    """Preprocess multiple images in optimal batches"""
+    optimal_batch_size = get_optimal_batch_size()
+
+    print(f"🔄 Batch processing {len(image_paths)} images with batch size {optimal_batch_size}")
+
+    all_tensors = []
+    all_images = []
+
+    # Load images first
+    for path in image_paths:
+        image = load_image(path)
+        all_images.append(image)
+
+    # Process in optimal batch sizes
+    for i in range(0, len(all_images), optimal_batch_size):
+        batch_images = all_images[i:i+optimal_batch_size]
+        batch_tensors = []
+
+        for image in batch_images:
+            tensor = preprocess_image_for_attack(image, return_tensor=True)
+            batch_tensors.append(tensor)
+
+        # Create batch tensor
+        if len(batch_tensors) > 1:
+            batch_tensor = torch.cat(batch_tensors, dim=0)
+        else:
+            batch_tensor = batch_tensors[0]
+
+        all_tensors.append(batch_tensor)
+
+    return all_tensors, all_images
+
+def batch_postprocess_images(adv_tensors, original_images):
+    """Postprocess adversarial tensors back to images"""
+    all_adv_images = []
+
+    tensor_idx = 0
+    for tensor_batch, original_batch in zip(adv_tensors, original_images):
+        # Handle batch dimension
+        if tensor_batch.dim() == 4:  # Batch of images
+            for i in range(tensor_batch.shape[0]):
+                single_tensor = tensor_batch[i:i+1]
+                original_shape = original_batch[tensor_idx].shape if isinstance(original_batch, list) else original_batch.shape
+                adv_image = postprocess_adversarial_image(single_tensor, original_shape)
+                all_adv_images.append(adv_image)
+                tensor_idx += 1
+        else:  # Single image
+            original_shape = original_batch.shape if not isinstance(original_batch, list) else original_batch[0].shape
+            adv_image = postprocess_adversarial_image(tensor_batch.unsqueeze(0), original_shape)
+            all_adv_images.append(adv_image)
+
+    return all_adv_images
+
+def get_gpu_memory_info():
+    """Get detailed GPU memory information"""
+    if not torch.cuda.is_available():
+        return {"total": 0, "allocated": 0, "cached": 0, "free": 0}
+
+    total = torch.cuda.get_device_properties(0).total_memory
+    allocated = torch.cuda.memory_allocated(0)
+    cached = torch.cuda.memory_reserved(0)
+    free = total - cached
+
+    return {
+        "total_gb": total / (1024**3),
+        "allocated_gb": allocated / (1024**3),
+        "cached_gb": cached / (1024**3),
+        "free_gb": free / (1024**3)
+    }
+
+def optimize_memory_usage():
+    """Clean up GPU memory and optimize allocation"""
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+
+        # Get memory info after cleanup
+        memory_info = get_gpu_memory_info()
+        print(f"🧹 Memory cleanup - Free: {memory_info['free_gb']:.1f}GB, "
+              f"Allocated: {memory_info['allocated_gb']:.1f}GB")
+
+        return memory_info
+    return None
 
 class UniversalEpsilonOptimizer:
     """Unified epsilon-aware optimizer for both white-box and black-box attacks"""

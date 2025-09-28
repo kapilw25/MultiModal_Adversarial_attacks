@@ -40,7 +40,9 @@ try:
         load_image, create_classifier, save_image, preprocess_image_for_attack,
         postprocess_adversarial_image, get_output_path,
         fast_perturbation_calculation, fast_clip_operation, print_attack_info,
-        calculate_epsilon, refine_epsilon_tolerance, logger, query_counter
+        calculate_epsilon, refine_epsilon_tolerance, logger, query_counter,
+        batch_preprocess_images, batch_postprocess_images, get_optimal_batch_size,
+        optimize_memory_usage, get_gpu_memory_info, setup_gpu_optimizations
     )
 except ImportError:
     # Fallback for direct execution
@@ -48,7 +50,9 @@ except ImportError:
         load_image, create_classifier, save_image, preprocess_image_for_attack,
         postprocess_adversarial_image, get_output_path,
         fast_perturbation_calculation, fast_clip_operation, print_attack_info,
-        calculate_epsilon, refine_epsilon_tolerance, logger, query_counter
+        calculate_epsilon, refine_epsilon_tolerance, logger, query_counter,
+        batch_preprocess_images, batch_postprocess_images, get_optimal_batch_size,
+        optimize_memory_usage, get_gpu_memory_info, setup_gpu_optimizations
     )
 
 # WHITE-BOX PARAMETER SPACES - 100% EPSILON PARAMETER SUPPORT
@@ -244,6 +248,134 @@ class UniversalEpsilonAttack:
 
         return scaled
 
+    def _run_batch_attack(self, batch_tensor: torch.Tensor, classifier, attack_type: str, params: Dict) -> List[Optional[np.ndarray]]:
+        """Run attack on a batch of images for improved efficiency"""
+        try:
+            print(f"🔄 Running batch {attack_type} attack on {batch_tensor.shape[0]} images")
+
+            # Convert batch tensor to numpy for ART
+            if torch.is_tensor(batch_tensor):
+                batch_numpy = batch_tensor.cpu().numpy()
+            else:
+                batch_numpy = batch_tensor
+
+            # Run attack on entire batch
+            if attack_type == 'fgsm':
+                attack = FastGradientMethod(
+                    estimator=classifier,
+                    norm=params.get('norm', np.inf),
+                    eps=params['eps'],
+                    targeted=False
+                )
+                adv_batch = attack.generate(x=batch_numpy)
+
+            elif attack_type == 'pgd':
+                attack = ProjectedGradientDescent(
+                    estimator=classifier,
+                    norm=np.inf,
+                    eps=params['eps'],
+                    eps_step=params['eps_step'],
+                    max_iter=int(params['nb_iter']),
+                    targeted=False,
+                    num_random_init=1
+                )
+                adv_batch = attack.generate(x=batch_numpy)
+
+            else:
+                # For other attacks, process individually
+                results = []
+                for i in range(batch_numpy.shape[0]):
+                    single_image = batch_numpy[i:i+1]
+                    result = self._run_single_attack(single_image, classifier, attack_type, params)
+                    results.append(result)
+                return results
+
+            # Convert batch results back to individual images
+            results = []
+            for i in range(adv_batch.shape[0]):
+                single_adv = adv_batch[i]
+
+                # Create result wrapper similar to single attack
+                class BatchAdversarialResult:
+                    def __init__(self, image, epsilon_l_inf):
+                        self.image = image
+                        self._epsilon_l_inf = epsilon_l_inf
+                        self.shape = image.shape
+                        self.dtype = image.dtype
+
+                    def __array__(self):
+                        return self.image
+
+                # Calculate epsilon for this image (approximate)
+                epsilon_val = params['eps']  # Use target epsilon as approximation for batch
+                result = BatchAdversarialResult(single_adv, epsilon_val)
+                results.append(result)
+
+            return results
+
+        except Exception as e:
+            print(f"❌ Batch attack failed: {e}")
+            # Fallback to individual processing
+            results = []
+            for i in range(batch_tensor.shape[0]):
+                single_tensor = batch_tensor[i:i+1] if batch_tensor.dim() == 4 else batch_tensor
+                try:
+                    # Convert back to image format for individual processing
+                    single_image = postprocess_adversarial_image(single_tensor, (224, 224))
+                    result = self._run_attack(single_image, classifier, attack_type, params)
+                    results.append(result)
+                except:
+                    results.append(None)
+            return results
+
+    def _run_single_attack(self, image_numpy: np.ndarray, classifier, attack_type: str, params: Dict) -> Optional[np.ndarray]:
+        """Run attack on a single image (helper for batch processing)"""
+        try:
+            if attack_type == 'fgsm':
+                attack = FastGradientMethod(
+                    estimator=classifier,
+                    norm=params.get('norm', np.inf),
+                    eps=params['eps'],
+                    targeted=False
+                )
+                return attack.generate(x=image_numpy)
+
+            elif attack_type == 'pgd':
+                attack = ProjectedGradientDescent(
+                    estimator=classifier,
+                    norm=np.inf,
+                    eps=params['eps'],
+                    eps_step=params['eps_step'],
+                    max_iter=int(params['nb_iter']),
+                    targeted=False,
+                    num_random_init=1
+                )
+                return attack.generate(x=image_numpy)
+
+            # Add other attack types as needed
+            else:
+                return self._run_attack_fallback(image_numpy, classifier, attack_type, params)
+
+        except Exception as e:
+            print(f"❌ Single attack failed: {e}")
+            return None
+
+    def _run_attack_fallback(self, image_numpy: np.ndarray, classifier, attack_type: str, params: Dict) -> Optional[np.ndarray]:
+        """Fallback to original attack method for unsupported batch operations"""
+        # Convert numpy back to image format
+        if len(image_numpy.shape) == 4:
+            image_numpy = image_numpy[0]  # Remove batch dimension
+
+        # Transpose from CHW to HWC if needed
+        if image_numpy.shape[0] == 3:
+            image_numpy = np.transpose(image_numpy, (1, 2, 0))
+
+        # Convert to uint8 image format
+        image = (image_numpy * 255).astype(np.uint8) if image_numpy.max() <= 1.0 else image_numpy.astype(np.uint8)
+
+        # Use original _run_attack method
+        return self._run_attack(image, classifier, attack_type, params)
+
     def _run_attack(self, image: np.ndarray, classifier, attack_type: str, params: Dict) -> Optional[np.ndarray]:
         """Run attack with GPU memory optimizations and epsilon tolerance control"""
 
@@ -281,7 +413,7 @@ class UniversalEpsilonAttack:
                     estimator=classifier,
                     norm=params.get('norm', np.inf),
                     eps=params['eps'],
-                    nb_iter=int(params.get('nb_iter', 100)),
+                    max_iter=int(params.get('nb_iter', 100)),
                     targeted=False
                 )
                 adv_tensor = attack.generate(x=img_tensor)
@@ -291,7 +423,7 @@ class UniversalEpsilonAttack:
                     estimator=classifier,
                     norm=params.get('norm', np.inf),
                     eps=params['eps'],
-                    nb_iter=int(params.get('nb_iter', 100)),
+                    max_iter=int(params.get('nb_iter', 100)),
                     targeted=False
                 )
                 adv_tensor = attack.generate(x=img_tensor)
@@ -378,8 +510,13 @@ def epsilon_based_attack(
     # Reset query counter before attack
     query_counter.reset()
 
+    # Force dynamic batch sizing to execute even for single images
+    optimal_batch = get_optimal_batch_size()
+    print(f"🔧 [ATTACK] Batch size analysis completed for attack planning")
+
     # Create classifier with gradients enabled for white-box attacks - GPU ONLY
-    classifier = create_classifier(device='cuda:0', requires_grad=True, count_queries=True)
+    # Note: TensorRT disabled for white-box due to requires_grad=True incompatibility
+    classifier = create_classifier(device='cuda:0', requires_grad=True, count_queries=True, use_tensorrt=False)
 
     print(f"🎯 Direct Epsilon-Based Attack (no optimization needed)")
     print(f"Target epsilon: {epsilon_target}")
@@ -417,6 +554,179 @@ def epsilon_based_attack(
     final_epsilon = adv_image._epsilon_l_inf if hasattr(adv_image, '_epsilon_l_inf') else epsilon_target
 
     return adv_image, epsilon_target, final_epsilon, base_params
+
+def batch_epsilon_attack(image_paths: List[str], attack_type: str,
+                        epsilon_target: float = 0.05, optimization_level: str = 'high') -> List[Dict]:
+    """
+    Optimized batch processing for multiple white-box adversarial attacks
+
+    Args:
+        image_paths: List of image paths to process
+        attack_type: Type of white-box attack
+        epsilon_target: Target epsilon value
+        optimization_level: GPU optimization level ('basic', 'high', 'extreme')
+
+    Returns:
+        List of attack results with metrics
+    """
+    print(f"🚀 Batch White-Box Attack: {len(image_paths)} images")
+    print(f"Attack: {attack_type.upper()}, Epsilon: {epsilon_target}, Optimization: {optimization_level}")
+
+    # Reset query counter and setup optimizations
+    query_counter.reset()
+    setup_gpu_optimizations()
+
+    # Show initial memory state
+    memory_info = get_gpu_memory_info()
+    print(f"🔍 Initial GPU Memory: {memory_info['free_gb']:.1f}GB free")
+
+    # Create optimized classifier
+    # TensorRT disabled for white-box attacks due to requires_grad=True incompatibility
+    classifier = create_classifier(
+        device='cuda:0',
+        requires_grad=True,
+        count_queries=True,
+        optimization_level=optimization_level,
+        use_tensorrt=False  # TensorRT incompatible with gradients
+    )
+
+    # Determine optimal batch size
+    batch_size = get_optimal_batch_size()
+    results = []
+
+    # Process images in optimized batches
+    for i in range(0, len(image_paths), batch_size):
+        batch_paths = image_paths[i:i+batch_size]
+        print(f"\n📦 Processing batch {i//batch_size + 1}: {len(batch_paths)} images")
+
+        try:
+            # Batch preprocessing
+            batch_tensors, batch_images = batch_preprocess_images(batch_paths)
+
+            # Process each tensor batch
+            batch_results = []
+            for tensor_batch, image_batch in zip(batch_tensors, batch_images):
+
+                # Create attack framework for this batch
+                attack_framework = UniversalEpsilonAttack(epsilon_target=epsilon_target)
+                base_params = attack_framework._get_default_params(attack_type)
+                base_params['eps'] = epsilon_target
+
+                # Run batch attack with mixed precision
+                with torch.amp.autocast('cuda', enabled=(optimization_level in ['high', 'extreme'])):
+                    if tensor_batch.dim() == 4 and tensor_batch.shape[0] > 1:
+                        # True batch processing
+                        adv_tensor_batch = attack_framework._run_batch_attack(
+                            tensor_batch, classifier, attack_type, base_params
+                        )
+                    else:
+                        # Single image in batch format
+                        single_tensor = tensor_batch.squeeze(0) if tensor_batch.dim() == 4 else tensor_batch
+                        single_image = image_batch[0] if isinstance(image_batch, list) else image_batch
+
+                        adv_result = attack_framework._run_attack(
+                            single_image, classifier, attack_type, base_params
+                        )
+                        adv_tensor_batch = [adv_result]
+
+                # Post-process results
+                if isinstance(adv_tensor_batch, list):
+                    for j, adv_result in enumerate(adv_tensor_batch):
+                        if adv_result is not None:
+                            original_image = image_batch[j] if isinstance(image_batch, list) else image_batch
+                            path_idx = i + len(batch_results) + j
+
+                            if path_idx < len(batch_paths):
+                                result = process_single_result(
+                                    adv_result, original_image, batch_paths[path_idx],
+                                    attack_type, epsilon_target
+                                )
+                                batch_results.append(result)
+
+            results.extend(batch_results)
+
+            # Memory optimization between batches
+            if i + batch_size < len(image_paths):
+                optimize_memory_usage()
+
+        except Exception as e:
+            print(f"❌ Batch {i//batch_size + 1} failed: {e}")
+            # Continue with next batch
+            continue
+
+    # Final statistics
+    total_queries = query_counter.get_count()
+    successful_attacks = len([r for r in results if r['success']])
+
+    print(f"\n✅ Batch Processing Complete:")
+    print(f"   📊 Total images: {len(image_paths)}")
+    print(f"   ✅ Successful: {successful_attacks}")
+    print(f"   🔢 Total queries: {total_queries}")
+    print(f"   ⚡ Avg queries per image: {total_queries/len(image_paths):.1f}")
+
+    final_memory = get_gpu_memory_info()
+    print(f"   🧠 Final GPU Memory: {final_memory['free_gb']:.1f}GB free")
+
+    return results
+
+def process_single_result(adv_result, original_image, image_path, attack_type, epsilon_target):
+    """Process a single attack result and save it"""
+    try:
+        # Extract image from result wrapper
+        image_to_save = adv_result.image if hasattr(adv_result, 'image') else adv_result
+
+        # Save result
+        output_path = get_output_path(image_path, attack_type, is_blackbox=False, epsilon=epsilon_target)
+        save_image(image_to_save, output_path)
+
+        # Calculate metrics
+        epsilon_l_inf = calculate_epsilon(original_image, image_to_save)
+        final_epsilon = adv_result._epsilon_l_inf if hasattr(adv_result, '_epsilon_l_inf') else epsilon_l_inf
+
+        return {
+            'image_path': image_path,
+            'output_path': output_path,
+            'success': True,
+            'epsilon_target': epsilon_target,
+            'epsilon_l_inf': final_epsilon,
+            'adversarial_image': image_to_save
+        }
+
+    except Exception as e:
+        print(f"❌ Failed to process result for {image_path}: {e}")
+        return {
+            'image_path': image_path,
+            'success': False,
+            'error': str(e)
+        }
+
+def optimized_epsilon_attack(image_path: str, attack_type: str, epsilon_target: float = 0.05,
+                           optimization_level: str = 'high') -> Tuple[np.ndarray, float, float, Dict]:
+    """
+    Single image attack with GPU optimizations
+
+    Args:
+        image_path: Path to input image
+        attack_type: Type of white-box attack
+        epsilon_target: Target epsilon value
+        optimization_level: GPU optimization level
+
+    Returns:
+        Tuple of (adversarial_image, epsilon_target, epsilon_l_inf, parameters)
+    """
+    # For single images, use batch processing with batch_size=1 for consistency
+    results = batch_epsilon_attack([image_path], attack_type, epsilon_target, optimization_level)
+
+    if results and results[0]['success']:
+        result = results[0]
+        return (
+            result['adversarial_image'],
+            result['epsilon_target'],
+            result['epsilon_l_inf'],
+            {'eps': epsilon_target}
+        )
+    else:
+        raise RuntimeError(f"Optimized attack '{attack_type}' failed")
 
 def main():
     parser = argparse.ArgumentParser(description="Universal whitebox attack with direct epsilon control")

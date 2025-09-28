@@ -42,7 +42,9 @@ try:
         load_image, create_classifier, save_image, preprocess_image_for_attack,
         postprocess_adversarial_image, get_output_path,
         fast_perturbation_calculation, fast_clip_operation, print_attack_info,
-        calculate_epsilon, refine_epsilon_tolerance, logger, query_counter
+        calculate_epsilon, refine_epsilon_tolerance, logger, query_counter,
+        batch_preprocess_images, batch_postprocess_images, get_optimal_batch_size,
+        optimize_memory_usage, get_gpu_memory_info, setup_gpu_optimizations
     )
 except ImportError:
     # Fallback for direct execution from attack_models directory
@@ -50,7 +52,9 @@ except ImportError:
         load_image, create_classifier, save_image, preprocess_image_for_attack,
         postprocess_adversarial_image, get_output_path,
         fast_perturbation_calculation, fast_clip_operation, print_attack_info,
-        calculate_epsilon, refine_epsilon_tolerance, logger, query_counter
+        calculate_epsilon, refine_epsilon_tolerance, logger, query_counter,
+        batch_preprocess_images, batch_postprocess_images, get_optimal_batch_size,
+        optimize_memory_usage, get_gpu_memory_info, setup_gpu_optimizations
     )
 
 # ART imports for black-box attacks
@@ -66,7 +70,7 @@ def get_blackbox_param_spaces(attack_type: str, epsilon_target: float = 0.05) ->
     """Get parameter spaces for black-box attacks with direct epsilon control"""
     base_params = {
         'square': {'eps': epsilon_target, 'max_iter': 1000, 'p_init': 0.05, 'norm': np.inf},
-        'simba': {'epsilon': epsilon_target, 'max_iter': 1000, 'freq_dims': 4, 'stride': 7},
+        'simba': {'epsilon': epsilon_target, 'max_iter': 1000, 'freq_dims': 8, 'stride': 8},
         'boundary': {'epsilon': epsilon_target, 'max_iter': 1000, 'num_trials': 25, 'sample_size': 20},
         'sign_opt': {'epsilon': epsilon_target, 'max_iter': 1000, 'query_limit': 20000}
     }
@@ -124,7 +128,15 @@ def square_attack(image: np.ndarray, classifier: PyTorchClassifier, **params) ->
 def simba_attack(image: np.ndarray, classifier: PyTorchClassifier, **params) -> np.ndarray:
     """Execute SimBA Attack"""
     # SimBA requires probabilistic classifier - create new one if needed
-    prob_classifier = create_classifier(device='cuda:0', requires_grad=False, probabilistic=True, count_queries=True)
+    # Enable TensorRT for maximum performance (no gradients needed for black-box)
+    prob_classifier = create_classifier(
+        device='cuda:0',
+        requires_grad=False,
+        probabilistic=True,
+        count_queries=True,
+        optimization_level='high',
+        use_tensorrt=True  # TensorRT enabled for black-box attacks
+    )
 
     attack = SimBA(
         classifier=prob_classifier,
@@ -271,9 +283,16 @@ class UniversalEpsilonBlackBoxAttack:
         print(f"Target epsilon: {self.epsilon_target:.4f}")
         print(f"Attack: {attack_type.upper()}")
 
-        # Load image and create classifier
+        # Load image and create optimized classifier
         image = load_image(image_path)
-        classifier = create_classifier(device='cuda:0', requires_grad=False, count_queries=True)
+        # Enable TensorRT for maximum performance (no gradients needed for black-box)
+        classifier = create_classifier(
+            device='cuda:0',
+            requires_grad=False,
+            count_queries=True,
+            optimization_level='high',  # Use high optimization for black-box attacks
+            use_tensorrt=True  # TensorRT enabled for black-box attacks
+        )
 
         # Get default parameters if none provided
         if attack_params is None:
@@ -329,8 +348,8 @@ class UniversalEpsilonBlackBoxAttack:
             },
             'simba': {
                 'max_iter': 1000,
-                'freq_dims': 4,
-                'stride': 7
+                'freq_dims': 8,
+                'stride': 8  # (224-8)/8 = 27, remainder 0 ✓
             },
             'boundary': {
                 'max_iter': 1000,
