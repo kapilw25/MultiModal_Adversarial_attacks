@@ -22,6 +22,7 @@ ALL ATTACKS SUPPORT EPSILON:
 
 import os
 import sys
+import cv2
 import numpy as np
 import torch
 import logging
@@ -42,7 +43,8 @@ try:
         fast_perturbation_calculation, fast_clip_operation, print_attack_info,
         calculate_epsilon, refine_epsilon_tolerance, logger, query_counter,
         batch_preprocess_images, batch_postprocess_images, get_optimal_batch_size,
-        optimize_memory_usage, get_gpu_memory_info, setup_gpu_optimizations
+        optimize_memory_usage, get_gpu_memory_info, setup_gpu_optimizations,
+        validate_image_for_attack
     )
 except ImportError:
     # Fallback for direct execution
@@ -52,7 +54,8 @@ except ImportError:
         fast_perturbation_calculation, fast_clip_operation, print_attack_info,
         calculate_epsilon, refine_epsilon_tolerance, logger, query_counter,
         batch_preprocess_images, batch_postprocess_images, get_optimal_batch_size,
-        optimize_memory_usage, get_gpu_memory_info, setup_gpu_optimizations
+        optimize_memory_usage, get_gpu_memory_info, setup_gpu_optimizations,
+        validate_image_for_attack
     )
 
 # WHITE-BOX PARAMETER SPACES - 100% EPSILON PARAMETER SUPPORT
@@ -592,16 +595,37 @@ def batch_epsilon_attack(image_paths: List[str], attack_type: str,
 
     # Determine optimal batch size
     batch_size = get_optimal_batch_size()
+    # ✅ ADD: Dynamic batch size adjustment
+    actual_batch_size = min(batch_size, len(image_paths))
     results = []
 
     # Process images in optimized batches
-    for i in range(0, len(image_paths), batch_size):
-        batch_paths = image_paths[i:i+batch_size]
+    for i in range(0, len(image_paths), actual_batch_size):
+        batch_paths = image_paths[i:i+actual_batch_size]
         print(f"\n📦 Processing batch {i//batch_size + 1}: {len(batch_paths)} images")
 
         try:
-            # Batch preprocessing
-            batch_tensors, batch_images = batch_preprocess_images(batch_paths)
+            # ✅ ADD: Validate images before processing
+            valid_paths = []
+            invalid_results = []
+            for path in batch_paths:
+                if validate_image_for_attack(path):
+                    valid_paths.append(path)
+                else:
+                    invalid_results.append({
+                        'image_path': path,
+                        'success': False,
+                        'error': 'Invalid image format or dimensions'
+                    })
+
+            # If no valid images, skip batch
+            if not valid_paths:
+                results.extend(invalid_results)
+                continue
+
+            # Batch preprocessing for valid images only
+            batch_tensors, batch_images = batch_preprocess_images(valid_paths)
+            batch_paths = valid_paths  # Update batch_paths to only valid images
 
             # Process each tensor batch
             batch_results = []
@@ -629,12 +653,13 @@ def batch_epsilon_attack(image_paths: List[str], attack_type: str,
                         )
                         adv_tensor_batch = [adv_result]
 
-                # Post-process results
+                # Post-process results with proper query tracking
                 if isinstance(adv_tensor_batch, list):
                     for j, adv_result in enumerate(adv_tensor_batch):
                         if adv_result is not None:
                             original_image = image_batch[j] if isinstance(image_batch, list) else image_batch
-                            path_idx = i + len(batch_results) + j
+                            # ✅ FIXED: Simple batch-relative index
+                            path_idx = j
 
                             if path_idx < len(batch_paths):
                                 result = process_single_result(
@@ -642,7 +667,19 @@ def batch_epsilon_attack(image_paths: List[str], attack_type: str,
                                     attack_type, epsilon_target
                                 )
                                 batch_results.append(result)
+                        else:
+                            # ✅ ADD: Record failed images
+                            path_idx = j
+                            if path_idx < len(batch_paths):
+                                failed_result = {
+                                    'image_path': batch_paths[path_idx],
+                                    'success': False,
+                                    'error': 'Attack returned None'
+                                }
+                                batch_results.append(failed_result)
 
+            # Add invalid results from validation
+            batch_results.extend(invalid_results)
             results.extend(batch_results)
 
             # Memory optimization between batches
@@ -651,6 +688,16 @@ def batch_epsilon_attack(image_paths: List[str], attack_type: str,
 
         except Exception as e:
             print(f"❌ Batch {i//batch_size + 1} failed: {e}")
+            # ✅ ADD: Log specific failures for each image
+            batch_results = []
+            for j, path in enumerate(batch_paths):
+                failed_result = {
+                    'image_path': path,
+                    'success': False,
+                    'error': f'Batch processing failed: {str(e)}'
+                }
+                batch_results.append(failed_result)
+            results.extend(batch_results)
             # Continue with next batch
             continue
 
@@ -670,17 +717,57 @@ def batch_epsilon_attack(image_paths: List[str], attack_type: str,
     return results
 
 def process_single_result(adv_result, original_image, image_path, attack_type, epsilon_target):
-    """Process a single attack result and save it"""
+    """Process a single attack result and save it with proper dimension handling"""
     try:
         # Extract image from result wrapper
         image_to_save = adv_result.image if hasattr(adv_result, 'image') else adv_result
 
-        # Save result
+        # Handle dimension mismatch: adversarial image might be different size than original
+        if hasattr(image_to_save, 'shape') and hasattr(original_image, 'shape'):
+            if image_to_save.shape != original_image.shape:
+                logger.debug(f"Dimension mismatch: adversarial {image_to_save.shape} vs original {original_image.shape}")
+
+                # Resize adversarial image to match original dimensions for epsilon calculation
+                if len(original_image.shape) == 3:  # H, W, C
+                    target_size = (original_image.shape[1], original_image.shape[0])  # (width, height) for cv2
+                    if len(image_to_save.shape) == 3:
+                        image_for_epsilon = cv2.resize(image_to_save, target_size)
+                    else:
+                        # Convert to 3-channel if needed for resizing
+                        if len(image_to_save.shape) == 2:
+                            image_to_save_3ch = cv2.cvtColor(image_to_save, cv2.COLOR_GRAY2RGB)
+                        else:
+                            image_to_save_3ch = image_to_save
+                        image_for_epsilon = cv2.resize(image_to_save_3ch, target_size)
+                else:
+                    # Fallback: use adversarial image as-is for metrics
+                    image_for_epsilon = image_to_save
+            else:
+                image_for_epsilon = image_to_save
+        else:
+            # No shape information available, use as-is
+            image_for_epsilon = image_to_save
+
+        # Save result (save original adversarial image, not resized version)
         output_path = get_output_path(image_path, attack_type, is_blackbox=False, epsilon=epsilon_target)
         save_image(image_to_save, output_path)
 
-        # Calculate metrics
-        epsilon_l_inf = calculate_epsilon(original_image, image_to_save)
+        # Calculate metrics using dimension-matched images
+        try:
+            epsilon_l_inf = calculate_epsilon(original_image, image_for_epsilon)
+
+            # Calculate additional perturbation metrics
+            perturbation = np.abs(image_for_epsilon.astype(np.float32) - original_image.astype(np.float32))
+            mean_perturbation = np.mean(perturbation)
+            max_perturbation = np.max(perturbation)
+            l2_norm = np.linalg.norm(perturbation.flatten())
+            l0_norm = np.count_nonzero(perturbation)
+
+        except Exception as epsilon_error:
+            logger.warning(f"Metric calculation failed: {epsilon_error}, using target epsilon")
+            epsilon_l_inf = epsilon_target
+            mean_perturbation = max_perturbation = l2_norm = l0_norm = 0.0
+
         final_epsilon = adv_result._epsilon_l_inf if hasattr(adv_result, '_epsilon_l_inf') else epsilon_l_inf
 
         return {
@@ -689,6 +776,10 @@ def process_single_result(adv_result, original_image, image_path, attack_type, e
             'success': True,
             'epsilon_target': epsilon_target,
             'epsilon_l_inf': final_epsilon,
+            'mean_perturbation': mean_perturbation,
+            'max_perturbation': max_perturbation,
+            'l2_norm': l2_norm,
+            'l0_norm': l0_norm,
             'adversarial_image': image_to_save
         }
 

@@ -27,6 +27,7 @@ import json
 import subprocess
 import argparse
 import logging
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional, Any
@@ -135,6 +136,19 @@ class AttackOrchestrator:
             # Extract epsilon from custom level name (e.g., 'custom_0.030')
             return float(epsilon_level.split('_')[1])
         return self.EPSILON_LEVELS.get(epsilon_level, {}).get('epsilon', 0.05)
+
+    def get_epsilon_level_from_value(self, epsilon_value: float) -> str:
+        """Map epsilon value back to level name"""
+        epsilon_level_map = {
+            4/255: 'minimal',    # ≈ 0.0157
+            8/255: 'standard',   # ≈ 0.0314
+            16/255: 'moderate'   # ≈ 0.0627
+        }
+        # Find closest match with tolerance
+        for eps_val, level_name in epsilon_level_map.items():
+            if abs(epsilon_value - eps_val) < 0.001:
+                return level_name
+        return 'custom'
 
     def display_header(self):
         """Display application header"""
@@ -612,42 +626,63 @@ class AttackOrchestrator:
 
             epsilon_value = self.get_epsilon_from_level(epsilon_level)
 
-            # Execute batch attack
+            # Execute batch attack with timing
+            start_time = time.time()
             results = batch_epsilon_attack(
                 image_paths=filtered_images,
                 attack_type=attack_type,
                 epsilon_target=epsilon_value,
                 optimization_level='high'
             )
+            batch_execution_time = time.time() - start_time
 
             # Process results
             success_count = 0
             for i, result in enumerate(results):
                 if result['success']:
                     success_count += 1
+                    # Extract task from image path and get epsilon level
+                    task_name = os.path.basename(os.path.dirname(filtered_images[i]))
+                    epsilon_level = self.get_epsilon_level_from_value(epsilon_value)
+
                     # Log to database
                     self.db.insert_attack_result({
                         'image_path': filtered_images[i],
                         'attack_type': attack_type,
                         'attack_category': 'whitebox',
+                        'task_type': task_name,
+                        'epsilon_level': epsilon_level,
                         'epsilon_target': epsilon_value,
-                        'epsilon_achieved': result['epsilon_achieved'],
+                        'epsilon_achieved': result.get('epsilon_l_inf', result.get('epsilon_achieved', epsilon_value)),
+                        'adversarial_image_path': result.get('output_path', ''),
                         'success': True,
-                        'execution_time': result.get('execution_time', 0),
-                        'queries_used': result.get('queries_used', 0),
+                        'execution_time': result.get('execution_time', batch_execution_time / len(results)),
+                        'mean_perturbation': result.get('mean_perturbation', 0.0),
+                        'max_perturbation': result.get('max_perturbation', 0.0),
+                        'l2_norm': result.get('l2_norm', 0.0),
+                        'l0_norm': result.get('l0_norm', 0),
                         'trial_number': trial_number
                     })
                 else:
+                    # Extract task from image path and get epsilon level
+                    task_name = os.path.basename(os.path.dirname(filtered_images[i]))
+                    epsilon_level = self.get_epsilon_level_from_value(epsilon_value)
+
                     # Log failure
                     self.db.insert_attack_result({
                         'image_path': filtered_images[i],
                         'attack_type': attack_type,
                         'attack_category': 'whitebox',
+                        'task_type': task_name,
+                        'epsilon_level': epsilon_level,
                         'epsilon_target': epsilon_value,
                         'epsilon_achieved': 0.0,
                         'success': False,
                         'execution_time': 0,
-                        'queries_used': 0,
+                        'mean_perturbation': 0.0,
+                        'max_perturbation': 0.0,
+                        'l2_norm': 0.0,
+                        'l0_norm': 0,
                         'trial_number': trial_number
                     })
 
@@ -685,37 +720,66 @@ class AttackOrchestrator:
                 query_counter.reset()
 
                 try:
+                    # Time individual blackbox attack
+                    start_time = time.time()
                     adv_image, achieved_epsilon, final_params = attack_instance.run_epsilon_attack(
                         image_path=image_path,
                         attack_type=attack_type,
                         attack_params=None
                     )
+                    execution_time = time.time() - start_time
 
                     if adv_image is not None:
                         success_count += 1
-                        # Log to database
+                        # Construct adversarial image path
+                        epsilon_str = f"eps_{int(epsilon_value * 1000):04d}"
+                        image_name = os.path.basename(image_path)
+                        task_dir = os.path.basename(os.path.dirname(image_path))
+                        adversarial_path = f"data/adversarial/blackbox/{attack_type}/{epsilon_str}/{task_dir}/{image_name}"
+
+                        # Extract task name and get epsilon level
+                        task_name = task_dir
+                        epsilon_level = self.get_epsilon_level_from_value(epsilon_value)
+
+                        # Log to database with actual calculated metrics
                         self.db.insert_attack_result({
                             'image_path': image_path,
                             'attack_type': attack_type,
                             'attack_category': 'blackbox',
+                            'task_type': task_name,
+                            'epsilon_level': epsilon_level,
                             'epsilon_target': epsilon_value,
                             'epsilon_achieved': achieved_epsilon,
+                            'adversarial_image_path': adversarial_path,
                             'success': True,
-                            'execution_time': 0,
-                            'queries_used': query_counter.get_count(),
+                            'execution_time': execution_time,
+                            'mean_perturbation': final_params.get('mean_perturbation', 0.0),
+                            'max_perturbation': final_params.get('max_perturbation', 0.0),
+                            'l2_norm': final_params.get('l2_norm', 0.0),
+                            'l0_norm': final_params.get('l0_norm', 0),
+                            'queries_used': final_params.get('total_queries', 0),
                             'trial_number': trial_number
                         })
                     else:
+                        # Extract task name and get epsilon level
+                        task_name = os.path.basename(os.path.dirname(image_path))
+                        epsilon_level = self.get_epsilon_level_from_value(epsilon_value)
+
                         # Log failure
                         self.db.insert_attack_result({
                             'image_path': image_path,
                             'attack_type': attack_type,
                             'attack_category': 'blackbox',
+                            'task_type': task_name,
+                            'epsilon_level': epsilon_level,
                             'epsilon_target': epsilon_value,
                             'epsilon_achieved': 0.0,
                             'success': False,
-                            'execution_time': 0,
-                            'queries_used': query_counter.get_count(),
+                            'execution_time': execution_time,
+                            'mean_perturbation': 0.0,
+                            'max_perturbation': 0.0,
+                            'l2_norm': 0.0,
+                            'l0_norm': 0,
                             'trial_number': trial_number
                         })
 
@@ -840,7 +904,7 @@ class AttackOrchestrator:
                 execution_time=execution_time,
                 success=success,
                 metrics=metrics,
-                attack_category="White-Box",
+                attack_category="whitebox",
                 epsilon_level=current_epsilon_level
             )
 
@@ -949,7 +1013,7 @@ class AttackOrchestrator:
                 execution_time=execution_time,
                 success=success,
                 metrics=metrics,
-                attack_category="Black-Box",
+                attack_category="blackbox",
                 epsilon_level=current_epsilon_level
             )
 
@@ -998,13 +1062,12 @@ class AttackOrchestrator:
         # Extract image info
         path_parts = image_path.split('/')
         task_type = path_parts[2] if len(path_parts) > 2 else "unknown"
-        image_name = os.path.basename(image_path)
 
         # Get epsilon value from level
         epsilon_value = self.get_epsilon_from_level(epsilon_level) if epsilon_level else 0.05
 
         # Construct adversarial image path
-        is_blackbox = attack_category == "Black-Box"
+        is_blackbox = attack_category == "blackbox"
         adversarial_image_path = self.construct_adversarial_image_path(
             image_path, attack_name, epsilon_value, is_blackbox
         )
@@ -1021,7 +1084,6 @@ class AttackOrchestrator:
             'attack_category': attack_category,
             'image_path': image_path,
             'adversarial_image_path': adversarial_image_path,
-            'image_name': image_name,
             'task_type': task_type,
             'execution_time_seconds': execution_time,
             'success': success,
@@ -1035,10 +1097,7 @@ class AttackOrchestrator:
                 'l2_norm': metrics.get('l2_norm'),
                 'l0_norm': metrics.get('l0_norm'),
                 'total_queries': metrics.get('total_queries')
-            },
-            'execution_date': datetime.now().isoformat(),
-            'description': "Universal attack results with epsilon control",
-            'completed_attacks': self.success_count + self.failure_count + 1
+            }
         }
 
         # Save to database instead of JSON

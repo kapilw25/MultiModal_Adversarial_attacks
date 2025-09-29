@@ -1,8 +1,0 @@
-/lambda/nfs/DiskUsEast1/MultiModal_Adversarial_attacks/venv_MM/lib/python3.10/site-packages/modelopt/torch/__init__.py:36: UserWarning: transformers version 4.57.0.dev0 is incompatible with nvidia-modelopt and may cause issues. Please install recommended version with `pip install nvidia-modelopt[hf]` if working with HF models.
-  _warnings.warn(
-TensorRT-LLM is not installed. Please install TensorRT-LLM or set TRTLLM_PLUGINS_PATH to the directory containing libnvinfer_plugin_tensorrt_llm.so to use converters for torch.distributed ops
-usage: white_box_universal.py [-h] --image_path IMAGE_PATH --attack_type
-                              {fgsm,pgd,auto_pgd,auto_conjugate_gradient,basic_iterative}
-                              [--epsilon EPSILON] [--max_trials MAX_TRIALS]
-                              [--trial_number TRIAL_NUMBER]
-white_box_universal.py: error: argument --attack_type: invalid choice: 'cw' (choose from 'fgsm', 'pgd', 'auto_pgd', 'auto_conjugate_gradient', 'basic_iterative')

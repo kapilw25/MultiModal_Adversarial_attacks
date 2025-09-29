@@ -26,7 +26,6 @@ def create_centralized_schema():
         attack_category TEXT NOT NULL,
         image_path TEXT NOT NULL,
         adversarial_image_path TEXT NOT NULL,
-        image_name TEXT NOT NULL,
         task_type TEXT NOT NULL,
         execution_time_seconds INTEGER NOT NULL,
         success BOOLEAN NOT NULL,
@@ -39,11 +38,7 @@ def create_centralized_schema():
         max_perturbation REAL,
         l2_norm REAL,
         l0_norm REAL,
-        total_queries INTEGER,
-        -- Metadata
-        execution_date TEXT,
-        description TEXT,
-        completed_attacks INTEGER
+        total_queries INTEGER
     )
     ''')
 
@@ -175,36 +170,85 @@ class CentralizedDB:
         conn = self.get_connection()
         cursor = conn.cursor()
 
-        cursor.execute('''
-        INSERT OR REPLACE INTO attack_executions VALUES (
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-        )
-        ''', (
-            execution_data['execution_id'],
-            execution_data['attack_name'],
-            execution_data['attack_category'],
-            execution_data['image_path'],
-            execution_data['adversarial_image_path'],
-            execution_data['image_name'],
-            execution_data['task_type'],
-            execution_data['execution_time_seconds'],
-            execution_data['success'],
-            execution_data['timestamp'],
-            execution_data['parameters']['epsilon_level'],
-            execution_data['parameters']['epsilon_target'],
-            execution_data['parameters']['epsilon_l_inf'],
-            execution_data['parameters']['mean_perturbation'],
-            execution_data['parameters']['max_perturbation'],
-            execution_data['parameters']['l2_norm'],
-            execution_data['parameters']['l0_norm'],
-            execution_data['parameters']['total_queries'],
-            execution_data.get('execution_date'),
-            execution_data.get('description'),
-            execution_data.get('completed_attacks')
-        ))
+        # Verify table exists before attempting insert
+        try:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='attack_executions'")
+            table_exists = cursor.fetchone()
 
-        conn.commit()
-        conn.close()
+            if not table_exists:
+                print("⚠️  attack_executions table not found, recreating schema...")
+                conn.close()
+                create_centralized_schema()
+                conn = self.get_connection()
+                cursor = conn.cursor()
+
+            cursor.execute('''
+            INSERT OR REPLACE INTO attack_executions VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
+            ''', (
+                execution_data['execution_id'],
+                execution_data['attack_name'],
+                execution_data['attack_category'],
+                execution_data['image_path'],
+                execution_data['adversarial_image_path'],
+                execution_data['task_type'],
+                execution_data['execution_time_seconds'],
+                execution_data['success'],
+                execution_data['timestamp'],
+                execution_data['parameters']['epsilon_level'],
+                execution_data['parameters']['epsilon_target'],
+                execution_data['parameters']['epsilon_l_inf'],
+                execution_data['parameters']['mean_perturbation'],
+                execution_data['parameters']['max_perturbation'],
+                execution_data['parameters']['l2_norm'],
+                execution_data['parameters']['l0_norm'],
+                execution_data['parameters']['total_queries']
+            ))
+
+            conn.commit()
+
+        except Exception as e:
+            print(f"❌ Database operation failed: {e}")
+            print(f"🔍 Attempting to recreate schema and retry...")
+            try:
+                conn.close()
+                create_centralized_schema()
+                conn = self.get_connection()
+                cursor = conn.cursor()
+
+                cursor.execute('''
+                INSERT OR REPLACE INTO attack_executions VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                )
+                ''', (
+                    execution_data['execution_id'],
+                    execution_data['attack_name'],
+                    execution_data['attack_category'],
+                    execution_data['image_path'],
+                    execution_data['adversarial_image_path'],
+                    execution_data['task_type'],
+                    execution_data['execution_time_seconds'],
+                    execution_data['success'],
+                    execution_data['timestamp'],
+                    execution_data['parameters']['epsilon_level'],
+                    execution_data['parameters']['epsilon_target'],
+                    execution_data['parameters']['epsilon_l_inf'],
+                    execution_data['parameters']['mean_perturbation'],
+                    execution_data['parameters']['max_perturbation'],
+                    execution_data['parameters']['l2_norm'],
+                    execution_data['parameters']['l0_norm'],
+                    execution_data['parameters']['total_queries']
+                ))
+
+                conn.commit()
+                print("✅ Retry successful after schema recreation")
+
+            except Exception as retry_error:
+                print(f"❌ Retry also failed: {retry_error}")
+                raise
+        finally:
+            conn.close()
 
     def save_ground_truth_question(self, question_data: Dict[str, Any]):
         """Save ground truth question (replaces ground truth JSON files)"""
@@ -289,6 +333,34 @@ class CentralizedDB:
 
         conn.commit()
         conn.close()
+
+    def insert_attack_result(self, result_data: Dict[str, Any]):
+        """Insert attack result (compatible interface for attack runners)"""
+        # Convert to save_attack_execution format
+        execution_data = {
+            'execution_id': result_data.get('execution_id', f"attack_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]}"),
+            'attack_name': result_data.get('attack_type', ''),
+            'attack_category': result_data.get('attack_category', ''),
+            'image_path': result_data.get('image_path', ''),
+            'adversarial_image_path': result_data.get('adversarial_image_path', ''),
+            'task_type': result_data.get('task_type', ''),
+            'execution_time_seconds': result_data.get('execution_time', 0),
+            'success': result_data.get('success', False),
+            'timestamp': result_data.get('timestamp', datetime.now().isoformat()),
+            'parameters': {
+                'epsilon_level': result_data.get('epsilon_level', ''),
+                'epsilon_target': result_data.get('epsilon_target', 0.0),
+                'epsilon_l_inf': result_data.get('epsilon_achieved', 0.0),
+                'mean_perturbation': result_data.get('mean_perturbation', 0.0),
+                'max_perturbation': result_data.get('max_perturbation', 0.0),
+                'l2_norm': result_data.get('l2_norm', 0.0),
+                'l0_norm': result_data.get('l0_norm', 0),
+                'total_queries': result_data.get('queries_used', 0)
+            }
+        }
+
+        # Use existing save_attack_execution method
+        self.save_attack_execution(execution_data)
 
     def save_robustness_evaluation(self, model_name: str, attack_type: str, task_name: str, eval_data: Dict[str, Any]):
         """Save robustness evaluation (replaces robustness JSON)"""
@@ -584,22 +656,19 @@ class CentralizedDB:
 
             for attack_name, attack_info in attack_data.get('attacks', {}).items():
                 for execution in attack_info.get('executions', []):
+                    # Extract image name from path for execution_id
+                    image_name = os.path.basename(execution.get('image_path', 'unknown'))
                     execution_data = {
-                        'execution_id': f"{execution.get('execution_id', 'unknown')}_{attack_name}_{execution.get('image_name', 'unknown')}",
+                        'execution_id': f"{execution.get('execution_id', 'unknown')}_{attack_name}_{image_name}",
                         'attack_name': attack_name,
                         'attack_category': attack_info.get('attack_category', 'Unknown'),
                         'image_path': execution.get('image_path', ''),
                         'adversarial_image_path': execution.get('adversarial_image_path', ''),
-                        'image_name': execution.get('image_name', ''),
                         'task_type': execution.get('task_type', ''),
                         'execution_time_seconds': execution.get('execution_time_seconds', 0),
                         'success': execution.get('success', False),
                         'timestamp': execution.get('timestamp', ''),
-                        'parameters': execution.get('parameters', {}),
-                        'execution_date': attack_data.get('metadata', {}).get('execution_date'),
-                        'description': attack_data.get('metadata', {}).get('description'),
-                        'ssim_threshold': attack_data.get('metadata', {}).get('ssim_threshold'),
-                        'completed_attacks': attack_data.get('metadata', {}).get('completed_attacks')
+                        'parameters': execution.get('parameters', {})
                     }
                     self.save_attack_execution(execution_data)
 

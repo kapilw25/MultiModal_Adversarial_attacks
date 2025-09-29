@@ -330,9 +330,23 @@ class UniversalEpsilonBlackBoxAttack:
             print_attack_info(output_path, image, adv_image, attack_type, query_count=actual_queries)
 
             print(f"✅ Target epsilon: {self.epsilon_target:.6f}")
-            # Note: Final epsilon is reported by print_attack_info as "Epsilon (L∞)"
 
-            return adv_image, epsilon_l_inf, attack_params
+            # Calculate and return actual metrics instead of just attack_params
+            from .utils import fast_perturbation_calculation, calculate_l2_norm, calculate_l0_norm
+
+            perturbation = fast_perturbation_calculation(image, adv_image)
+            final_metrics = {
+                'mean_perturbation': float(np.mean(perturbation)),
+                'max_perturbation': float(np.max(perturbation)),
+                'epsilon_l_inf': float(epsilon_l_inf),
+                'l2_norm': float(calculate_l2_norm(image, adv_image)),
+                'l0_norm': int(calculate_l0_norm(image, adv_image)),
+                'total_queries': int(actual_queries),
+                # Keep original attack params for reference
+                **attack_params
+            }
+
+            return adv_image, epsilon_l_inf, final_metrics
 
         # Return failure if no result
         print("❌ Direct epsilon attack failed to produce valid adversarial example")

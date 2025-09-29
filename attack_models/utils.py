@@ -134,6 +134,20 @@ ATTACK_DIR_MAP = {
     'square': 'square', 'simba': 'simba', 'boundary': 'boundary', 'sign_opt': 'sign_opt'
 }
 
+def validate_image_for_attack(image_path: str) -> bool:
+    """Validate image can be processed for attacks"""
+    try:
+        image = cv2.imread(image_path)
+        if image is None:
+            return False
+        if len(image.shape) != 3:
+            return False
+        if image.shape[2] not in [1, 3, 4]:
+            return False
+        return True
+    except Exception:
+        return False
+
 def load_image(image_path):
     """Load and preprocess an image for the model"""
     img = cv2.imread(image_path)
@@ -403,7 +417,7 @@ def create_quantized_classifier(device='cuda:0', requires_grad=True, probabilist
     return classifier
 
 def save_image(image, output_path):
-    """Save the image to the specified path"""
+    """Save the image to the specified path with proper OpenCV channel validation"""
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     # Handle both tensor and numpy array inputs
@@ -415,6 +429,10 @@ def save_image(image, output_path):
             image = image.permute(1, 2, 0)
         image = image.detach().cpu().numpy()
 
+    # Ensure image is numpy array
+    if not isinstance(image, np.ndarray):
+        raise ValueError(f"Image must be numpy array or tensor, got {type(image)}")
+
     # Ensure image is in correct format for OpenCV
     if image.dtype != np.uint8:
         # Normalize to 0-255 if needed
@@ -423,18 +441,44 @@ def save_image(image, output_path):
         else:
             image = np.clip(image, 0, 255).astype(np.uint8)
 
-    # Ensure image is numpy array
-    if not isinstance(image, np.ndarray):
-        raise ValueError(f"Image must be numpy array or tensor, got {type(image)}")
-
-    # Convert RGB to BGR for OpenCV
-    if len(image.shape) == 3 and image.shape[2] == 3:
-        image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    else:
+    # OpenCV channel validation: must be 1, 3, or 4 channels
+    if len(image.shape) == 2:
+        # Grayscale image (1 channel) - OpenCV handles this
         image_bgr = image
+    elif len(image.shape) == 3:
+        channels = image.shape[2]
+        if channels == 1:
+            # Single channel in 3D format - squeeze to 2D
+            image_bgr = image.squeeze(2)
+        elif channels == 3:
+            # RGB to BGR conversion for OpenCV
+            image_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        elif channels == 4:
+            # RGBA to BGRA conversion for OpenCV
+            image_bgr = cv2.cvtColor(image, cv2.COLOR_RGBA2BGRA)
+        else:
+            # Invalid channel count - convert to 3-channel by taking first 3
+            logger.warning(f"Invalid channel count {channels}, converting to 3-channel")
+            if channels > 3:
+                image_bgr = cv2.cvtColor(image[:, :, :3], cv2.COLOR_RGB2BGR)
+            else:
+                # Pad channels to 3 by repeating the single channel
+                image_3ch = np.repeat(image[:, :, 0:1], 3, axis=2)
+                image_bgr = cv2.cvtColor(image_3ch, cv2.COLOR_RGB2BGR)
+    else:
+        raise ValueError(f"Invalid image shape: {image.shape}. Expected 2D or 3D array.")
 
-    cv2.imwrite(output_path, image_bgr)
-    print(f"Saved adversarial image to {output_path}")
+    # Final validation before saving
+    if len(image_bgr.shape) == 3 and image_bgr.shape[2] not in [1, 3, 4]:
+        raise ValueError(f"OpenCV requires 1, 3, or 4 channels, got {image_bgr.shape[2]}")
+
+    try:
+        cv2.imwrite(output_path, image_bgr)
+        print(f"Saved adversarial image to {output_path}")
+    except Exception as e:
+        logger.error(f"Failed to save image to {output_path}: {e}")
+        logger.error(f"Image shape: {image_bgr.shape}, dtype: {image_bgr.dtype}")
+        raise
 
 def preprocess_image_for_attack(image, return_tensor=False):
     """Preprocess an image for attack"""
