@@ -44,7 +44,7 @@ try:
         calculate_epsilon, refine_epsilon_tolerance, logger, query_counter,
         batch_preprocess_images, batch_postprocess_images, get_optimal_batch_size,
         optimize_memory_usage, get_gpu_memory_info, setup_gpu_optimizations,
-        validate_image_for_attack
+        validate_image_for_attack, batch_multi_epsilon_attack
     )
 except ImportError:
     # Fallback for direct execution
@@ -55,7 +55,7 @@ except ImportError:
         calculate_epsilon, refine_epsilon_tolerance, logger, query_counter,
         batch_preprocess_images, batch_postprocess_images, get_optimal_batch_size,
         optimize_memory_usage, get_gpu_memory_info, setup_gpu_optimizations,
-        validate_image_for_attack
+        validate_image_for_attack, batch_multi_epsilon_attack
     )
 
 # WHITE-BOX PARAMETER SPACES - 100% EPSILON PARAMETER SUPPORT
@@ -293,10 +293,16 @@ class UniversalEpsilonAttack:
                     results.append(result)
                 return results
 
-            # Convert batch results back to individual images
+            # Convert batch results back to individual images with ACCURATE epsilon calculation
             results = []
+            target_epsilon = params['eps']
+
+            print(f"🔬 Applying research-quality epsilon refinement to batch...")
             for i in range(adv_batch.shape[0]):
                 single_adv = adv_batch[i]
+
+                # Get corresponding original image from batch
+                original_image = batch_numpy[i]
 
                 # Create result wrapper similar to single attack
                 class BatchAdversarialResult:
@@ -309,9 +315,39 @@ class UniversalEpsilonAttack:
                     def __array__(self):
                         return self.image
 
-                # Calculate epsilon for this image (approximate)
-                epsilon_val = params['eps']  # Use target epsilon as approximation for batch
-                result = BatchAdversarialResult(single_adv, epsilon_val)
+                # RESEARCH-QUALITY FIX: Calculate actual epsilon with refinement
+                try:
+                    # Convert from normalized [0,1] to uint8 [0,255] for refinement
+                    original_uint8 = (original_image.transpose(1, 2, 0) * 255).astype(np.uint8)
+                    adv_uint8 = (single_adv.transpose(1, 2, 0) * 255).astype(np.uint8)
+
+                    # ✅ BUGFIX: Calculate and log epsilon BEFORE refinement
+                    raw_epsilon = calculate_epsilon(original_uint8, adv_uint8)
+                    print(f"   [Batch {i+1}] Raw epsilon (before refinement): {raw_epsilon:.6f}")
+
+                    # Apply iterative epsilon refinement (±5% tolerance)
+                    refined_adv, epsilon_val = refine_epsilon_tolerance(
+                        original_image=original_uint8,
+                        adversarial_image=adv_uint8,
+                        target_epsilon=target_epsilon,
+                        tolerance=0.05,  # ±5%
+                        max_iterations=100  # Research-quality
+                    )
+
+                    # Convert back to normalized format for storage
+                    refined_adv_normalized = (refined_adv.astype(np.float32) / 255.0).transpose(2, 0, 1)
+
+                    print(f"   [Batch {i+1}] Refined epsilon: {epsilon_val:.6f} (target: {target_epsilon:.6f}, deviation: {abs(epsilon_val-target_epsilon):.6f})")
+
+                    # Store refined adversarial image
+                    result = BatchAdversarialResult(refined_adv_normalized, epsilon_val)
+
+                except Exception as e:
+                    print(f"   [Batch {i+1}] Refinement failed: {e}, using raw calculation")
+                    # Fallback: Calculate epsilon without refinement
+                    epsilon_val = float(np.max(np.abs(single_adv - original_image)))
+                    result = BatchAdversarialResult(single_adv, epsilon_val)
+
                 results.append(result)
 
             return results
@@ -453,6 +489,7 @@ class UniversalEpsilonAttack:
 
             # Calculate epsilon in the same space where attack operates ([0,1] normalized)
             epsilon_tensor = float(np.max(np.abs(adv_tensor - original_tensor)))
+            print(f"   Raw epsilon (before refinement): {epsilon_tensor:.6f}")
 
             # Convert back to image format for saving
             adv_image = postprocess_adversarial_image(adv_tensor, image.shape)
@@ -818,6 +855,50 @@ def optimized_epsilon_attack(image_path: str, attack_type: str, epsilon_target: 
         )
     else:
         raise RuntimeError(f"Optimized attack '{attack_type}' failed")
+
+def whitebox_batch_runner(images: List[np.ndarray], image_paths: List[str],
+                          epsilon_target: float, attack_type: str,
+                          optimization_level: str) -> List[Dict]:
+    """
+    White-box specific runner function for batch_multi_epsilon_attack
+
+    This function is called by the generic batch_multi_epsilon_attack from utils.py
+    """
+    # Reuse existing batch_epsilon_attack infrastructure
+    results = batch_epsilon_attack(
+        image_paths=image_paths,
+        attack_type=attack_type,
+        epsilon_target=epsilon_target,
+        optimization_level=optimization_level
+    )
+    return results
+
+def batch_multi_epsilon_whitebox_attack(image_paths: List[str], attack_type: str,
+                                        epsilon_targets: List[float],
+                                        optimization_level: str = 'high') -> List[Dict]:
+    """
+    Multi-epsilon batch processing for white-box attacks
+
+    Processes: N images × M epsilons in batches of 75
+    Example: 25 images × 3 epsilons = 75 operations → 1 batch (75)
+
+    Args:
+        image_paths: List of image paths
+        attack_type: White-box attack type ('fgsm', 'pgd', 'auto_pgd', etc.)
+        epsilon_targets: List of epsilon values (e.g., [4/255, 8/255, 16/255])
+        optimization_level: GPU optimization level
+
+    Returns:
+        List of attack results, one per (image, epsilon) combination
+    """
+    return batch_multi_epsilon_attack(
+        image_paths=image_paths,
+        attack_type=attack_type,
+        epsilon_targets=epsilon_targets,
+        attack_runner_func=whitebox_batch_runner,
+        optimization_level=optimization_level,
+        is_blackbox=False
+    )
 
 def main():
     parser = argparse.ArgumentParser(description="Universal whitebox attack with direct epsilon control")

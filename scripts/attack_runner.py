@@ -28,6 +28,7 @@ import subprocess
 import argparse
 import logging
 import time
+import numpy as np
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional, Any
@@ -35,6 +36,7 @@ import re
 import glob
 import shutil
 from dataclasses import dataclass
+from PIL import Image
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent
@@ -496,12 +498,7 @@ class AttackOrchestrator:
         """Extract metrics from attack log output"""
         metrics = {
             'epsilon_target': 0.0,
-            'epsilon_l_inf': 0.0,
-            'mean_perturbation': 0.0,
-            'max_perturbation': 0.0,
-            'l2_norm': 0.0,
-            'l0_norm': 0,
-            'total_queries': 0
+            'epsilon_l_inf': 0.0
         }
 
         # Extract epsilon values - target and post-processed L∞ epsilon
@@ -516,31 +513,6 @@ class AttackOrchestrator:
         else:
             # If Epsilon (L∞) not found, attack likely failed
             metrics['epsilon_l_inf'] = 0.0
-
-        # Extract mean perturbation
-        mean_pert_match = re.search(r'Mean perturbation[^:]*:\s*([0-9.-]+)', log_content)
-        if mean_pert_match:
-            metrics['mean_perturbation'] = float(mean_pert_match.group(1))
-
-        # Extract max perturbation
-        max_pert_match = re.search(r'Max perturbation[^:]*:\s*([0-9.-]+)', log_content)
-        if max_pert_match:
-            metrics['max_perturbation'] = float(max_pert_match.group(1))
-
-        # Extract L2 norm
-        l2_match = re.search(r'L2 norm:\s*([0-9.-]+)', log_content)
-        if l2_match:
-            metrics['l2_norm'] = float(l2_match.group(1))
-
-        # Extract L0 norm
-        l0_match = re.search(r'L0 norm:\s*([0-9]+)', log_content)
-        if l0_match:
-            metrics['l0_norm'] = int(l0_match.group(1))
-
-        # Extract total queries
-        queries_match = re.search(r'Total queries:\s*([0-9]+)', log_content)
-        if queries_match:
-            metrics['total_queries'] = int(queries_match.group(1))
 
         return metrics
 
@@ -579,6 +551,51 @@ class AttackOrchestrator:
                 success = self.run_batch_blackbox_attack(valid_images, attack_type, epsilon_level, trial_number)
             else:
                 success = self.run_batch_whitebox_attack(valid_images, attack_type, epsilon_level, trial_number)
+
+    def _execute_attacks_with_multi_epsilon_batch(self, image_list: List[str], attack_type: str,
+                                                   is_blackbox: bool = False, trial_number: int = 1):
+        """
+        Execute attacks with multi-epsilon batching for maximum GPU utilization
+
+        Instead of: FOR each epsilon: process all images
+        Does:       Process all (image, epsilon) combinations in batches of 64
+
+        Example: 25 images × 3 epsilons = 75 operations
+                 → Batch 1: 64 operations (full GPU)
+                 → Batch 2: 11 operations
+
+        Args:
+            image_list: List of image paths to process
+            attack_type: Type of attack to execute
+            is_blackbox: Whether this is a blackbox attack
+            trial_number: Trial number for this run
+        """
+        # Get all epsilon values
+        epsilon_values = [self.get_epsilon_from_level(level) for level in self.config.epsilon_levels]
+
+        print(f"\n🚀 Multi-Epsilon Batch Processing")
+        print(f"   Attack: {attack_type.upper()}")
+        print(f"   Images: {len(image_list)}")
+        print(f"   Epsilons: {len(epsilon_values)} → [{', '.join([f'{int(e*255)}/255' for e in epsilon_values])}]")
+        print(f"   Total operations: {len(image_list) * len(epsilon_values)}")
+        print("=" * 60)
+
+        # Filter valid images
+        valid_images = [img_path for img_path in image_list if Path(img_path).exists()]
+        invalid_count = len(image_list) - len(valid_images)
+
+        if invalid_count > 0:
+            print(f"❌ {invalid_count} images not found, processing {len(valid_images)} valid images")
+            self.failure_count += invalid_count
+
+        if not valid_images:
+            return
+
+        # Execute multi-epsilon batch attack
+        if is_blackbox:
+            success = self.run_multi_epsilon_blackbox_attack(valid_images, attack_type, epsilon_values, trial_number)
+        else:
+            success = self.run_multi_epsilon_whitebox_attack(valid_images, attack_type, epsilon_values, trial_number)
 
     def get_output_path_for_image(self, image_path: str, attack_type: str, is_blackbox: bool, epsilon: float) -> str:
         """Generate output path for adversarial image"""
@@ -645,6 +662,12 @@ class AttackOrchestrator:
                     task_name = os.path.basename(os.path.dirname(filtered_images[i]))
                     epsilon_level = self.get_epsilon_level_from_value(epsilon_value)
 
+                    # RESEARCH-QUALITY: Validate epsilon was actually calculated
+                    epsilon_achieved = result.get('epsilon_l_inf') or result.get('epsilon_achieved')
+                    if epsilon_achieved is None:
+                        logger.error(f"❌ Epsilon calculation failed for {filtered_images[i]}")
+                        raise ValueError(f"Epsilon calculation failed - cannot use hardcoded target value")
+
                     # Log to database
                     self.db.insert_attack_result({
                         'image_path': filtered_images[i],
@@ -653,14 +676,10 @@ class AttackOrchestrator:
                         'task_type': task_name,
                         'epsilon_level': epsilon_level,
                         'epsilon_target': epsilon_value,
-                        'epsilon_achieved': result.get('epsilon_l_inf', result.get('epsilon_achieved', epsilon_value)),
+                        'epsilon_achieved': epsilon_achieved,
                         'adversarial_image_path': result.get('output_path', ''),
                         'success': True,
                         'execution_time': result.get('execution_time', batch_execution_time / len(results)),
-                        'mean_perturbation': result.get('mean_perturbation', 0.0),
-                        'max_perturbation': result.get('max_perturbation', 0.0),
-                        'l2_norm': result.get('l2_norm', 0.0),
-                        'l0_norm': result.get('l0_norm', 0),
                         'trial_number': trial_number
                     })
                 else:
@@ -679,10 +698,6 @@ class AttackOrchestrator:
                         'epsilon_achieved': 0.0,
                         'success': False,
                         'execution_time': 0,
-                        'mean_perturbation': 0.0,
-                        'max_perturbation': 0.0,
-                        'l2_norm': 0.0,
-                        'l0_norm': 0,
                         'trial_number': trial_number
                     })
 
@@ -694,6 +709,140 @@ class AttackOrchestrator:
         except Exception as e:
             print(f"❌ Batch whitebox attack failed: {e}")
             self.failure_count += len(image_paths)
+            return False
+
+    def run_multi_epsilon_whitebox_attack(self, image_paths: List[str], attack_type: str,
+                                          epsilon_values: List[float], trial_number: int = 1) -> bool:
+        """Execute multi-epsilon batch whitebox attack for maximum GPU utilization"""
+        try:
+            # Import the multi-epsilon batch function
+            sys.path.append(str(self.project_root))
+            from attack_models.white_box_universal import batch_multi_epsilon_whitebox_attack
+
+            # CRITICAL FIX: Filter (image, epsilon) combinations if replacement=NO
+            start_time = time.time()
+
+            if not self.is_replacement_run:
+                # Build list of (image, epsilon) combinations that need processing
+                operations_needed = []
+                total_combinations = len(image_paths) * len(epsilon_values)
+
+                for image_path in image_paths:
+                    for epsilon_value in epsilon_values:
+                        # Check if output file already exists
+                        output_path = self.get_output_path_for_image(image_path, attack_type, False, epsilon_value)
+                        if not Path(output_path).exists():
+                            operations_needed.append((image_path, epsilon_value))
+
+                skipped_count = total_combinations - len(operations_needed)
+                if skipped_count > 0:
+                    print(f"⏭️  Skipped {skipped_count}/{total_combinations} existing (image, epsilon) combinations")
+
+                if not operations_needed:
+                    print(f"✅ All {total_combinations} combinations already exist - nothing to process")
+                    return True
+
+                # FIX: Extract unique images and epsilons for TRUE multi-epsilon batching
+                # This ensures 64+ operations are batched together (mixing images AND epsilons)
+                unique_images = sorted(list(set([img for img, _ in operations_needed])))
+                unique_epsilons = sorted(list(set([eps for _, eps in operations_needed])))
+
+                print(f"🔄 Processing {len(unique_images)} images × {len(unique_epsilons)} epsilons = {len(operations_needed)} needed operations")
+                print(f"   (Note: {len(unique_images) * len(unique_epsilons) - len(operations_needed)} combinations already exist)")
+
+                # Call with ALL unique images and epsilons for proper batching
+                # The batch function will create Cartesian product, but some outputs already exist (will overwrite)
+                results = batch_multi_epsilon_whitebox_attack(
+                    image_paths=unique_images,
+                    attack_type=attack_type,
+                    epsilon_targets=unique_epsilons,
+                    optimization_level='high'
+                )
+            else:
+                # Replacement=YES: Process ALL combinations
+                results = batch_multi_epsilon_whitebox_attack(
+                    image_paths=image_paths,
+                    attack_type=attack_type,
+                    epsilon_targets=epsilon_values,
+                    optimization_level='high'
+                )
+
+            batch_execution_time = time.time() - start_time
+
+            # Process results
+            success_count = 0
+            for result in results:
+                if result.get('success', False):
+                    success_count += 1
+                    # Extract task from image path
+                    image_path = result['image_path']
+                    task_name = os.path.basename(os.path.dirname(image_path))
+                    epsilon_value = result['epsilon_target']
+                    epsilon_level = self.get_epsilon_level_from_value(epsilon_value)
+
+                    # RESEARCH-QUALITY: Validate epsilon was actually calculated
+                    epsilon_achieved = result.get('epsilon_l_inf')
+                    if epsilon_achieved is None:
+                        logger.error(f"❌ Epsilon calculation failed for {image_path}")
+                        raise ValueError(f"Epsilon calculation failed - cannot use hardcoded target value")
+
+                    # Log to database
+                    self.db.insert_attack_result({
+                        'image_path': image_path,
+                        'attack_type': attack_type,
+                        'attack_category': 'whitebox',
+                        'task_type': task_name,
+                        'epsilon_level': epsilon_level,
+                        'epsilon_target': epsilon_value,
+                        'epsilon_achieved': epsilon_achieved,
+                        'adversarial_image_path': result.get('output_path', ''),
+                        'success': True,
+                        'execution_time': result.get('execution_time', batch_execution_time / len(results)),
+                        'trial_number': trial_number
+                    })
+                    self.success_count += 1
+                else:
+                    # FIX #1: Log failures to database (was missing)
+                    image_path = result.get('image_path', '')
+                    epsilon_value = result.get('epsilon_target', 0.0)
+                    task_name = os.path.basename(os.path.dirname(image_path)) if image_path else 'unknown'
+                    epsilon_level = self.get_epsilon_level_from_value(epsilon_value) if epsilon_value else 'unknown'
+
+                    # Log failure to database
+                    self.db.insert_attack_result({
+                        'image_path': image_path,
+                        'attack_type': attack_type,
+                        'attack_category': 'whitebox',
+                        'task_type': task_name,
+                        'epsilon_level': epsilon_level,
+                        'epsilon_target': epsilon_value,
+                        'epsilon_achieved': 0.0,
+                        'adversarial_image_path': '',
+                        'success': False,
+                        'execution_time': 0,
+                        'trial_number': trial_number
+                    })
+                    self.failure_count += 1
+
+            print(f"\n📊 Multi-Epsilon Batch Results:")
+            print(f"   ✅ Successful: {success_count}/{len(results)}")
+            print(f"   ⏱️  Total time: {batch_execution_time:.2f}s")
+            print(f"   ⚡ Avg time per operation: {batch_execution_time/len(results):.2f}s")
+
+            return success_count > 0
+
+        except Exception as e:
+            print(f"❌ Multi-epsilon batch whitebox attack failed: {e}")
+            import traceback
+            traceback.print_exc()
+
+            # FIX #2: Count only attempted operations (not skipped ones when replacement=NO)
+            if 'operations_needed' in locals() and operations_needed is not None:
+                failed_count = len(operations_needed)
+            else:
+                failed_count = len(image_paths) * len(epsilon_values)
+
+            self.failure_count += failed_count
             return False
 
     def run_batch_blackbox_attack(self, image_paths: List[str], attack_type: str,
@@ -753,11 +902,6 @@ class AttackOrchestrator:
                             'adversarial_image_path': adversarial_path,
                             'success': True,
                             'execution_time': execution_time,
-                            'mean_perturbation': final_params.get('mean_perturbation', 0.0),
-                            'max_perturbation': final_params.get('max_perturbation', 0.0),
-                            'l2_norm': final_params.get('l2_norm', 0.0),
-                            'l0_norm': final_params.get('l0_norm', 0),
-                            'queries_used': final_params.get('total_queries', 0),
                             'trial_number': trial_number
                         })
                     else:
@@ -776,10 +920,6 @@ class AttackOrchestrator:
                             'epsilon_achieved': 0.0,
                             'success': False,
                             'execution_time': execution_time,
-                            'mean_perturbation': 0.0,
-                            'max_perturbation': 0.0,
-                            'l2_norm': 0.0,
-                            'l0_norm': 0,
                             'trial_number': trial_number
                         })
 
@@ -795,6 +935,141 @@ class AttackOrchestrator:
         except Exception as e:
             print(f"❌ Batch blackbox attack failed: {e}")
             self.failure_count += len(image_paths)
+            return False
+
+    def run_multi_epsilon_blackbox_attack(self, image_paths: List[str], attack_type: str,
+                                          epsilon_values: List[float], trial_number: int = 1) -> bool:
+        """Execute multi-epsilon batch blackbox attack for parallel processing"""
+        try:
+            # Import the multi-epsilon batch function
+            sys.path.append(str(self.project_root))
+            from attack_models.black_box_universal import batch_multi_epsilon_blackbox_attack
+
+            # Filter (image, epsilon) combinations if replacement=NO
+            start_time = time.time()
+
+            if not self.is_replacement_run:
+                # Build list of (image, epsilon) combinations that need processing
+                operations_needed = []
+                total_combinations = len(image_paths) * len(epsilon_values)
+
+                for image_path in image_paths:
+                    for epsilon_value in epsilon_values:
+                        # Check if output file already exists
+                        output_path = self.get_output_path_for_image(image_path, attack_type, True, epsilon_value)
+                        if not Path(output_path).exists():
+                            operations_needed.append((image_path, epsilon_value))
+
+                skipped_count = total_combinations - len(operations_needed)
+                if skipped_count > 0:
+                    print(f"⏭️  Skipped {skipped_count}/{total_combinations} existing (image, epsilon) combinations")
+
+                if not operations_needed:
+                    print(f"✅ All {total_combinations} combinations already exist - nothing to process")
+                    return True
+
+                # Extract unique images and epsilons for TRUE multi-epsilon batching
+                unique_images = sorted(list(set([img for img, _ in operations_needed])))
+                unique_epsilons = sorted(list(set([eps for _, eps in operations_needed])))
+
+                print(f"🔄 Processing {len(unique_images)} images × {len(unique_epsilons)} epsilons = {len(operations_needed)} needed operations")
+                print(f"   (Note: {len(unique_images) * len(unique_epsilons) - len(operations_needed)} combinations already exist)")
+
+                # Call with ALL unique images and epsilons for proper batching
+                results = batch_multi_epsilon_blackbox_attack(
+                    image_paths=unique_images,
+                    attack_type=attack_type,
+                    epsilon_targets=unique_epsilons,
+                    optimization_level='high'
+                )
+            else:
+                # Replacement=YES: Process ALL combinations
+                results = batch_multi_epsilon_blackbox_attack(
+                    image_paths=image_paths,
+                    attack_type=attack_type,
+                    epsilon_targets=epsilon_values,
+                    optimization_level='high'
+                )
+
+            # Calculate execution time (FOLLOWS WHITE-BOX PATTERN: line 770)
+            batch_execution_time = time.time() - start_time
+
+            # Process results and log to database (FOLLOWS WHITE-BOX PATTERN: lines 772-824)
+            success_count = 0
+
+            for result in results:
+                if result.get('success', False):
+                    success_count += 1
+                    # Extract task from image path
+                    image_path = result['image_path']
+                    task_name = os.path.basename(os.path.dirname(image_path))
+                    epsilon_value = result['epsilon_target']
+                    epsilon_level = self.get_epsilon_level_from_value(epsilon_value)
+
+                    # FOLLOW WHITE-BOX PATTERN: Use output_path from result (no manual saving)
+                    # (white-box: line 797 uses result.get('output_path', ''))
+                    epsilon_achieved = result.get('epsilon_l_inf')
+                    if epsilon_achieved is None:
+                        logger.error(f"❌ Epsilon calculation failed for {image_path}")
+                        raise ValueError(f"Epsilon calculation failed - cannot use hardcoded target value")
+
+                    # Log success to database
+                    self.db.insert_attack_result({
+                        'image_path': image_path,
+                        'attack_type': attack_type,
+                        'attack_category': 'blackbox',
+                        'task_type': task_name,
+                        'epsilon_level': epsilon_level,
+                        'epsilon_target': epsilon_value,
+                        'epsilon_achieved': epsilon_achieved,
+                        'adversarial_image_path': result.get('output_path', ''),
+                        'success': True,
+                        'execution_time': result.get('execution_time', batch_execution_time / len(results)),
+                        'trial_number': trial_number
+                    })
+                    self.success_count += 1
+                else:
+                    # Log failure to database (FOLLOWS WHITE-BOX PATTERN: lines 804-824)
+                    image_path = result.get('image_path', '')
+                    epsilon_value = result.get('epsilon_target', 0.0)
+                    task_name = os.path.basename(os.path.dirname(image_path)) if image_path else 'unknown'
+                    epsilon_level = self.get_epsilon_level_from_value(epsilon_value) if epsilon_value else 'unknown'
+
+                    # Log failure to database
+                    self.db.insert_attack_result({
+                        'image_path': image_path,
+                        'attack_type': attack_type,
+                        'attack_category': 'blackbox',
+                        'task_type': task_name,
+                        'epsilon_level': epsilon_level,
+                        'epsilon_target': epsilon_value,
+                        'epsilon_achieved': 0.0,
+                        'adversarial_image_path': '',
+                        'success': False,
+                        'execution_time': 0,
+                        'trial_number': trial_number
+                    })
+                    self.failure_count += 1
+
+            print(f"\n📊 Multi-Epsilon Batch Results:")
+            print(f"   ✅ Successful: {success_count}/{len(results)}")
+            print(f"   ⏱️  Total time: {batch_execution_time:.2f}s")
+            print(f"   ⚡ Avg time per operation: {batch_execution_time/len(results):.2f}s")
+
+            return success_count > 0
+
+        except Exception as e:
+            print(f"❌ Multi-epsilon batch blackbox attack failed: {e}")
+            import traceback
+            traceback.print_exc()
+
+            # Count only attempted operations (not skipped ones when replacement=NO)
+            if 'operations_needed' in locals() and operations_needed is not None:
+                failed_count = len(operations_needed)
+            else:
+                failed_count = len(image_paths) * len(epsilon_values)
+
+            self.failure_count += failed_count
             return False
 
     def check_epsilon_success(self, target_epsilon: float, actual_epsilon: float, tolerance_percent: float = 5.0) -> bool:
@@ -1091,20 +1366,14 @@ class AttackOrchestrator:
             'parameters': {
                 'epsilon_level': epsilon_level,
                 'epsilon_target': metrics.get('epsilon_target', epsilon_value),
-                'epsilon_l_inf': metrics.get('epsilon_l_inf', 0.0),
-                'mean_perturbation': metrics.get('mean_perturbation'),
-                'max_perturbation': metrics.get('max_perturbation'),
-                'l2_norm': metrics.get('l2_norm'),
-                'l0_norm': metrics.get('l0_norm'),
-                'total_queries': metrics.get('total_queries')
+                'epsilon_l_inf': metrics.get('epsilon_l_inf', 0.0)
             }
         }
 
         # Save to database instead of JSON
         self.db.save_attack_execution(execution_data)
 
-        logger.info(f"[{attack_name.upper()}] Saved to DB: Epsilon={metrics.get('epsilon_l_inf', 0.0):.4f}, "
-                   f"Mean_Pert={metrics.get('mean_perturbation', 0.0):.4f}, Success={success}")
+        logger.info(f"[{attack_name.upper()}] Saved to DB: Epsilon={metrics.get('epsilon_l_inf', 0.0):.4f}, Success={success}")
 
     def execute_attacks(self, category: str, attack_name: str,
                        task_name: str, image_list: List[str]):
@@ -1120,14 +1389,14 @@ class AttackOrchestrator:
 
             for current_attack in whitebox_attacks:
                 print(f"\n🔄 Running {current_attack} whitebox attacks on all images...")
-                self._execute_attacks_with_epsilon_iteration(image_list, current_attack, is_blackbox=False)
+                self._execute_attacks_with_multi_epsilon_batch(image_list, current_attack, is_blackbox=False)
 
             print("\n🔄 Running ALL BLACKBOX attacks (4 epsilon attacks)...")
             print("=" * 50)
 
             for current_attack in blackbox_attacks:
                 print(f"\n🔄 Running {current_attack} blackbox attacks on all images...")
-                self._execute_attacks_with_epsilon_iteration(image_list, current_attack, is_blackbox=True)
+                self._execute_attacks_with_multi_epsilon_batch(image_list, current_attack, is_blackbox=True)
 
         elif category == "whitebox":
             if attack_name == "all":
@@ -1135,18 +1404,18 @@ class AttackOrchestrator:
                 for current_attack in whitebox_attacks:
                     print(f"\n🔄 Running {current_attack} whitebox attacks on all images...")
                     print("=" * 50)
-                    self._execute_attacks_with_epsilon_iteration(image_list, current_attack, is_blackbox=False)
+                    self._execute_attacks_with_multi_epsilon_batch(image_list, current_attack, is_blackbox=False)
             elif isinstance(attack_name, list):
                 # Run multiple selected whitebox attacks
                 for current_attack in attack_name:
                     print(f"\n🔄 Running {current_attack} whitebox attacks on all images...")
                     print("=" * 50)
-                    self._execute_attacks_with_epsilon_iteration(image_list, current_attack, is_blackbox=False)
+                    self._execute_attacks_with_multi_epsilon_batch(image_list, current_attack, is_blackbox=False)
             else:
                 # Run single whitebox attack
                 print(f"\n🖼️  Processing all images with {attack_name} attack")
                 print("=" * 50)
-                self._execute_attacks_with_epsilon_iteration(image_list, attack_name, is_blackbox=False)
+                self._execute_attacks_with_multi_epsilon_batch(image_list, attack_name, is_blackbox=False)
 
         elif category == "blackbox":
             if attack_name == "all":
@@ -1154,18 +1423,18 @@ class AttackOrchestrator:
                 for current_attack in blackbox_attacks:
                     print(f"\n🔄 Running {current_attack} blackbox attacks on all images...")
                     print("=" * 50)
-                    self._execute_attacks_with_epsilon_iteration(image_list, current_attack, is_blackbox=True)
+                    self._execute_attacks_with_multi_epsilon_batch(image_list, current_attack, is_blackbox=True)
             elif isinstance(attack_name, list):
                 # Run multiple selected blackbox attacks
                 for current_attack in attack_name:
                     print(f"\n🔄 Running {current_attack} blackbox attacks on all images...")
                     print("=" * 50)
-                    self._execute_attacks_with_epsilon_iteration(image_list, current_attack, is_blackbox=True)
+                    self._execute_attacks_with_multi_epsilon_batch(image_list, current_attack, is_blackbox=True)
             else:
                 # Run single blackbox attack
                 print(f"\n🖼️  Processing all images with {attack_name} attack")
                 print("=" * 50)
-                self._execute_attacks_with_epsilon_iteration(image_list, attack_name, is_blackbox=True)
+                self._execute_attacks_with_multi_epsilon_batch(image_list, attack_name, is_blackbox=True)
 
     def display_summary(self, category: str):
         """Display execution summary"""

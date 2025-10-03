@@ -30,15 +30,10 @@ def create_centralized_schema():
         execution_time_seconds INTEGER NOT NULL,
         success BOOLEAN NOT NULL,
         timestamp TEXT NOT NULL,
-        -- Epsilon Parameters (SSIM removed)
+        -- Epsilon Parameters (Core metrics only)
         epsilon_level TEXT,
         epsilon_target REAL,
-        epsilon_l_inf REAL,
-        mean_perturbation REAL,
-        max_perturbation REAL,
-        l2_norm REAL,
-        l0_norm REAL,
-        total_queries INTEGER
+        epsilon_l_inf REAL
     )
     ''')
 
@@ -184,7 +179,7 @@ class CentralizedDB:
 
             cursor.execute('''
             INSERT OR REPLACE INTO attack_executions VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
             ''', (
                 execution_data['execution_id'],
@@ -198,12 +193,7 @@ class CentralizedDB:
                 execution_data['timestamp'],
                 execution_data['parameters']['epsilon_level'],
                 execution_data['parameters']['epsilon_target'],
-                execution_data['parameters']['epsilon_l_inf'],
-                execution_data['parameters']['mean_perturbation'],
-                execution_data['parameters']['max_perturbation'],
-                execution_data['parameters']['l2_norm'],
-                execution_data['parameters']['l0_norm'],
-                execution_data['parameters']['total_queries']
+                execution_data['parameters']['epsilon_l_inf']
             ))
 
             conn.commit()
@@ -219,7 +209,7 @@ class CentralizedDB:
 
                 cursor.execute('''
                 INSERT OR REPLACE INTO attack_executions VALUES (
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                 )
                 ''', (
                     execution_data['execution_id'],
@@ -233,12 +223,7 @@ class CentralizedDB:
                     execution_data['timestamp'],
                     execution_data['parameters']['epsilon_level'],
                     execution_data['parameters']['epsilon_target'],
-                    execution_data['parameters']['epsilon_l_inf'],
-                    execution_data['parameters']['mean_perturbation'],
-                    execution_data['parameters']['max_perturbation'],
-                    execution_data['parameters']['l2_norm'],
-                    execution_data['parameters']['l0_norm'],
-                    execution_data['parameters']['total_queries']
+                    execution_data['parameters']['epsilon_l_inf']
                 ))
 
                 conn.commit()
@@ -336,13 +321,27 @@ class CentralizedDB:
 
     def insert_attack_result(self, result_data: Dict[str, Any]):
         """Insert attack result (compatible interface for attack runners)"""
+
+        # CRITICAL FIX: Generate execution_id from adversarial_image_path to ensure uniqueness
+        # Same path → Same execution_id → INSERT OR REPLACE works correctly
+        adversarial_image_path = result_data.get('adversarial_image_path', '')
+
+        if adversarial_image_path:
+            # Derive execution_id from path to ensure deterministic replacement
+            # Example: data/adversarial/whitebox/fgsm/eps_0016/chart/image.png
+            #       → data_adversarial_whitebox_fgsm_eps_0016_chart_image
+            execution_id = adversarial_image_path.replace('/', '_').replace('.png', '').replace('.jpg', '').replace('.jpeg', '')
+        else:
+            # Fallback to timestamp only if no adversarial path (shouldn't happen in normal flow)
+            execution_id = result_data.get('execution_id', f"attack_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]}")
+
         # Convert to save_attack_execution format
         execution_data = {
-            'execution_id': result_data.get('execution_id', f"attack_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]}"),
+            'execution_id': execution_id,
             'attack_name': result_data.get('attack_type', ''),
             'attack_category': result_data.get('attack_category', ''),
             'image_path': result_data.get('image_path', ''),
-            'adversarial_image_path': result_data.get('adversarial_image_path', ''),
+            'adversarial_image_path': adversarial_image_path,
             'task_type': result_data.get('task_type', ''),
             'execution_time_seconds': result_data.get('execution_time', 0),
             'success': result_data.get('success', False),
@@ -350,12 +349,7 @@ class CentralizedDB:
             'parameters': {
                 'epsilon_level': result_data.get('epsilon_level', ''),
                 'epsilon_target': result_data.get('epsilon_target', 0.0),
-                'epsilon_l_inf': result_data.get('epsilon_achieved', 0.0),
-                'mean_perturbation': result_data.get('mean_perturbation', 0.0),
-                'max_perturbation': result_data.get('max_perturbation', 0.0),
-                'l2_norm': result_data.get('l2_norm', 0.0),
-                'l0_norm': result_data.get('l0_norm', 0),
-                'total_queries': result_data.get('queries_used', 0)
+                'epsilon_l_inf': result_data.get('epsilon_achieved', 0.0)
             }
         }
 
@@ -464,7 +458,7 @@ class CentralizedDB:
         INSERT OR REPLACE INTO inference_results (
             result_id, question_id, prompt, model_response, ground_truth, question_type, answer_id, markers,
             model_id, adversarial, task, attack_type,
-            ssim_target, ssim_actual, inference_image_path, clean_image_path, timestamp
+            epsilon_target, epsilon_l_inf, inference_image_path, clean_image_path, timestamp
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             result_id,
@@ -479,8 +473,8 @@ class CentralizedDB:
             inference_data.get('adversarial', False),  # adversarial
             inference_data.get('task_type', ''),       # task
             inference_data.get('attack_type', ''),     # attack_type
-            inference_data.get('ssim_target', 1.0),   # ssim_target (goal)
-            inference_data.get('ssim_actual', 0.0),   # ssim_actual (achieved)
+            inference_data.get('epsilon_target', 1.0), # epsilon_target (goal)
+            inference_data.get('epsilon_l_inf', 0.0),  # epsilon_l_inf (achieved)
             adversarial_image_path,                    # inference_image_path (full path for inference)
             inference_data.get('clean_image_path', ''), # clean_image_path (original unperturbed reference)
             inference_data.get('timestamp', datetime.now().isoformat() + 'Z')  # timestamp
@@ -553,7 +547,7 @@ class CentralizedDB:
 
         query = '''
         SELECT question_id, prompt, model_response, ground_truth, question_type,
-               attack_type, adversarial, ssim_target, ssim_actual, inference_image_path, clean_image_path,
+               attack_type, adversarial, epsilon_target, epsilon_l_inf, inference_image_path, clean_image_path,
                inference_time_seconds, gpu_peak_mb, was_cached, loading_time_seconds
         FROM inference_results
         '''
@@ -585,8 +579,8 @@ class CentralizedDB:
                 'type': row[4],
                 'attack_type': row[5],
                 'adversarial': row[6],
-                'ssim_target': row[7],
-                'ssim_actual': row[8],
+                'epsilon_target': row[7],
+                'epsilon_l_inf': row[8],
                 'inference_image_path': row[9],
                 'clean_image_path': row[10],
                 'inference_time_seconds': row[11],

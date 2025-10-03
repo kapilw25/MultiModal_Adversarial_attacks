@@ -87,17 +87,18 @@ def get_optimal_batch_size():
 
         # Aggressive batch sizing for maximizing 24GB GPU utilization
         # ResNet-50 + gradients ≈ 1-2GB per image with optimizations
+        # UPDATED: Increased to 75 to handle 25 images × 3 epsilons in single batch
         optimal_batch = 1
         if free_memory_gb >= 20:
-            optimal_batch = 16  # Process 16 images simultaneously (22GB available)
+            optimal_batch = 75  # Process 75 operations (25 images × 3 epsilons) - optimized for multi-epsilon
         elif free_memory_gb >= 15:
-            optimal_batch = 12  # Process 12 images simultaneously
+            optimal_batch = 56  # Process 56 operations - scaled proportionally
         elif free_memory_gb >= 10:
-            optimal_batch = 8   # Process 8 images simultaneously
+            optimal_batch = 38  # Process 38 operations - scaled proportionally
         elif free_memory_gb >= 6:
-            optimal_batch = 4   # Process 4 images simultaneously
+            optimal_batch = 19  # Process 19 operations - scaled proportionally
         else:
-            optimal_batch = 2   # Minimum 2 images
+            optimal_batch = 10  # Minimum 10 operations - scaled proportionally
 
         print(f"✅ [DYNAMIC_BATCH] Optimal batch size calculated: {optimal_batch} (based on {free_memory_gb:.1f}GB free)")
         return optimal_batch
@@ -248,7 +249,7 @@ def create_optimized_classifier(device='cuda:0', requires_grad=True, probabilist
     return classifier
 
 def create_tensorrt_classifier(device='cuda:0', requires_grad=True, probabilistic=False, count_queries=True,
-                              max_batch_size=4):
+                              max_batch_size=75):
     """Create TensorRT-optimized classifier for maximum inference speed
 
     Args:
@@ -256,7 +257,7 @@ def create_tensorrt_classifier(device='cuda:0', requires_grad=True, probabilisti
         requires_grad: Enable gradients (not supported for TensorRT)
         probabilistic: Add softmax for probabilistic outputs
         count_queries: Enable query counting
-        max_batch_size: Maximum batch size for dynamic shapes (default: 4)
+        max_batch_size: Maximum batch size for dynamic shapes (default: 75, optimized for 25 images × 3 epsilons)
     """
     if not TENSORRT_AVAILABLE:
         print("⚠️ TensorRT not available, falling back to optimized classifier")
@@ -981,3 +982,181 @@ class UniversalEpsilonOptimizer:
 # def bayesian_optimization_framework(...) - DEPRECATED
 # This function has been removed as the new epsilon-based approach uses direct parameter control
 # without optimization. All attacks now accept epsilon parameters directly for predictable results.
+
+def batch_multi_epsilon_attack(
+    image_paths: List[str],
+    attack_type: str,
+    epsilon_targets: List[float],
+    attack_runner_func: Callable,
+    optimization_level: str = 'high',
+    is_blackbox: bool = False
+) -> List[Dict]:
+    """
+    Generic multi-epsilon batch processing for both white-box and black-box attacks
+
+    Maximizes GPU utilization by batching multiple (image, epsilon) combinations:
+    [img1_eps1, img1_eps2, img1_eps3, img2_eps1, img2_eps2, img2_eps3, ...]
+
+    Example: 25 images × 3 epsilons = 75 operations
+             → Batch 1: 64 operations (full GPU utilization)
+             → Batch 2: 11 operations (partial)
+
+    Args:
+        image_paths: List of image paths to process
+        attack_type: Type of attack (e.g., 'fgsm', 'pgd', 'square', 'simba')
+        epsilon_targets: List of target epsilon values (e.g., [4/255, 8/255, 16/255])
+        attack_runner_func: Function that runs the actual attack
+                           Signature: func(image, epsilon, classifier, attack_type, params) -> result
+        optimization_level: GPU optimization level ('basic', 'high', 'extreme')
+        is_blackbox: Whether this is a black-box attack
+
+    Returns:
+        List of attack results, one per (image, epsilon) combination
+        Each result contains: {
+            'image_path': str,
+            'epsilon_target': float,
+            'epsilon_l_inf': float,
+            'success': bool,
+            'adversarial_image': np.ndarray (if successful),
+            'error': str (if failed)
+        }
+    """
+    num_combinations = len(image_paths) * len(epsilon_targets)
+    attack_category = "Black-Box" if is_blackbox else "White-Box"
+
+    # Format epsilon values as fractions for readability
+    epsilon_fractions = [f"{int(e*255)}/255" for e in epsilon_targets]
+
+    print(f"🚀 Multi-Epsilon Batch {attack_category} Attack")
+    print(f"   Images: {len(image_paths)}")
+    print(f"   Epsilons: {len(epsilon_targets)} → [{', '.join(epsilon_fractions)}]")
+    print(f"   Total operations: {num_combinations}")
+    print(f"   Attack: {attack_type.upper()}")
+
+    # Setup GPU optimizations
+    setup_gpu_optimizations()
+    memory_info = get_gpu_memory_info()
+    print(f"🔍 Initial GPU Memory: {memory_info['free_gb']:.1f}GB free")
+
+    # Create Cartesian product: [(img1, eps1), (img1, eps2), ..., (img2, eps1), ...]
+    operations = []
+    for img_path in image_paths:
+        for epsilon in epsilon_targets:
+            operations.append({
+                'image_path': img_path,
+                'epsilon_target': epsilon,
+                'image': None  # Will be loaded later
+            })
+
+    # Load all unique images once (memory efficient - reused across epsilons)
+    print(f"📂 Loading {len(image_paths)} unique images...")
+    image_cache = {}
+    for img_path in image_paths:
+        try:
+            if validate_image_for_attack(img_path):
+                image_cache[img_path] = load_image(img_path)
+        except Exception as e:
+            logger.warning(f"Failed to load {img_path}: {e}")
+
+    # Assign cached images to operations
+    for op in operations:
+        op['image'] = image_cache.get(op['image_path'])
+
+    # Filter valid operations
+    valid_operations = [op for op in operations if op['image'] is not None]
+    invalid_count = len(operations) - len(valid_operations)
+
+    if invalid_count > 0:
+        print(f"⚠️  Skipped {invalid_count} operations (invalid images)")
+    print(f"✅ Valid operations: {len(valid_operations)}")
+
+    # Determine optimal batch size
+    batch_size = get_optimal_batch_size()
+    print(f"✅ [MULTI_EPSILON_BATCH] Batch size: {batch_size}")
+
+    # Calculate number of batches
+    num_batches = (len(valid_operations) + batch_size - 1) // batch_size
+    print(f"📊 Will process in {num_batches} batch(es)")
+
+    results = []
+    total_start_time = time.time()
+
+    # Process operations in optimized batches
+    for batch_idx in range(0, len(valid_operations), batch_size):
+        batch_ops = valid_operations[batch_idx:batch_idx + batch_size]
+        batch_num = batch_idx // batch_size + 1
+
+        print(f"\n📦 Batch {batch_num}/{num_batches}: {len(batch_ops)} operations")
+        batch_start_time = time.time()
+
+        try:
+            # Group by epsilon for efficient processing (same epsilon shares attack object)
+            epsilon_groups = {}
+            for op in batch_ops:
+                eps = op['epsilon_target']
+                if eps not in epsilon_groups:
+                    epsilon_groups[eps] = []
+                epsilon_groups[eps].append(op)
+
+            print(f"   Epsilon groups: {list(epsilon_groups.keys())}")
+
+            # Process each epsilon group
+            for epsilon_target, ops_group in epsilon_groups.items():
+                print(f"   🎯 Epsilon {epsilon_target:.6f}: {len(ops_group)} images")
+
+                # Run attack on this group using the provided attack_runner_func
+                group_results = attack_runner_func(
+                    images=[op['image'] for op in ops_group],
+                    image_paths=[op['image_path'] for op in ops_group],
+                    epsilon_target=epsilon_target,
+                    attack_type=attack_type,
+                    optimization_level=optimization_level
+                )
+
+                results.extend(group_results)
+
+            batch_elapsed = time.time() - batch_start_time
+            print(f"   ⏱️  Batch {batch_num} completed in {batch_elapsed:.2f}s")
+
+            # Memory optimization between batches
+            if batch_idx + batch_size < len(valid_operations):
+                optimize_memory_usage()
+
+        except Exception as e:
+            print(f"❌ Batch {batch_num} failed: {e}")
+            logger.error(f"Batch processing failed", exc_info=True)
+
+            # Record failures
+            for op in batch_ops:
+                results.append({
+                    'image_path': op['image_path'],
+                    'epsilon_target': op['epsilon_target'],
+                    'success': False,
+                    'error': f'Batch processing failed: {str(e)}'
+                })
+
+    # Final statistics
+    total_elapsed = time.time() - total_start_time
+    successful = len([r for r in results if r.get('success', False)])
+    failed = len(results) - successful
+
+    print(f"\n{'='*60}")
+    print(f"✅ Multi-Epsilon Batch Processing Complete")
+    print(f"{'='*60}")
+    print(f"   📊 Total operations: {len(valid_operations)}")
+    print(f"   ✅ Successful: {successful}")
+    print(f"   ❌ Failed: {failed}")
+
+    # Avoid division by zero
+    if len(valid_operations) > 0:
+        print(f"   📈 Success rate: {100*successful/len(valid_operations):.1f}%")
+        print(f"   ⏱️  Total time: {total_elapsed:.2f}s")
+        print(f"   ⚡ Avg time per operation: {total_elapsed/len(valid_operations):.2f}s")
+    else:
+        print(f"   ⚠️  No valid operations to process")
+
+    final_memory = get_gpu_memory_info()
+    print(f"   🧠 Final GPU Memory: {final_memory['free_gb']:.1f}GB free")
+    print(f"{'='*60}")
+
+    return results

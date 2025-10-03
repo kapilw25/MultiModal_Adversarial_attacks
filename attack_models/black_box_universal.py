@@ -29,7 +29,7 @@ import torchvision.transforms as transforms
 import torchvision.models as models
 from PIL import Image
 from scipy.optimize import minimize, differential_evolution
-from typing import Tuple, Dict, Any, Optional
+from typing import Tuple, Dict, Any, Optional, List
 import logging
 import time
 import json
@@ -44,7 +44,8 @@ try:
         fast_perturbation_calculation, fast_clip_operation, print_attack_info,
         calculate_epsilon, refine_epsilon_tolerance, logger, query_counter,
         batch_preprocess_images, batch_postprocess_images, get_optimal_batch_size,
-        optimize_memory_usage, get_gpu_memory_info, setup_gpu_optimizations
+        optimize_memory_usage, get_gpu_memory_info, setup_gpu_optimizations,
+        batch_multi_epsilon_attack, calculate_l2_norm, calculate_l0_norm
     )
 except ImportError:
     # Fallback for direct execution from attack_models directory
@@ -54,7 +55,8 @@ except ImportError:
         fast_perturbation_calculation, fast_clip_operation, print_attack_info,
         calculate_epsilon, refine_epsilon_tolerance, logger, query_counter,
         batch_preprocess_images, batch_postprocess_images, get_optimal_batch_size,
-        optimize_memory_usage, get_gpu_memory_info, setup_gpu_optimizations
+        optimize_memory_usage, get_gpu_memory_info, setup_gpu_optimizations,
+        batch_multi_epsilon_attack, calculate_l2_norm, calculate_l0_norm
     )
 
 # ART imports for black-box attacks
@@ -142,7 +144,7 @@ def simba_attack(image: np.ndarray, classifier: PyTorchClassifier, **params) -> 
         classifier=prob_classifier,
         attack=params.get('attack_method', 'dct'),
         max_iter=params.get('max_iter', 100),  # Reduced for testing
-        epsilon=params.get('epsilon', 0.1),
+        epsilon=params['epsilon'],  # RESEARCH-QUALITY: No default - fail if missing
         freq_dim=params.get('freq_dim', 32),
         stride=params.get('stride', 1),
         order=params.get('order', 'diag'),
@@ -162,7 +164,7 @@ def boundary_attack(image: np.ndarray, classifier: PyTorchClassifier, **params) 
         batch_size=1,
         targeted=params.get('targeted', False),  # Set to False to avoid needing target labels
         delta=params.get('delta', 0.01),
-        epsilon=params.get('epsilon', 0.01),
+        epsilon=params['epsilon'],  # RESEARCH-QUALITY: No default - fail if missing
         step_adapt=params.get('step_adapt', 0.90),
         max_iter=params.get('max_iter', 100),  # Reduced for testing
         num_trial=params.get('num_trial', 5),  # Reduced for testing
@@ -180,7 +182,7 @@ def sign_opt_attack(image: np.ndarray, classifier: PyTorchClassifier, **params) 
     """Execute SignOPT Attack"""
     attack = SignOPTAttack(
         estimator=classifier,
-        epsilon=params.get('epsilon', 0.05),
+        epsilon=params['epsilon'],  # RESEARCH-QUALITY: No default - fail if missing
         max_iter=params.get('max_iter', 1000),
         query_limit=params.get('query_limit', 20000),
         targeted=params.get('targeted', False),
@@ -411,6 +413,137 @@ def epsilon_based_blackbox_attack(
         image_path=image_path,
         attack_type=attack_type,
         attack_params=None
+    )
+
+def blackbox_batch_runner(images: List[np.ndarray], image_paths: List[str], epsilon_target: float,
+                          attack_type: str, optimization_level: str = 'high') -> List[Dict]:
+    """
+    Batch runner for black-box attacks (processes multiple images with same epsilon)
+
+    This is the attack_runner_func that gets passed to batch_multi_epsilon_attack.
+    Processes a batch of images with the SAME epsilon value.
+
+    FOLLOWS WHITE-BOX PATTERN:
+    - Saves images inside this function
+    - Returns output_path in result dict (not adversarial_image)
+    - Matches white-box result format for consistency
+
+    Args:
+        images: List of preprocessed image arrays
+        image_paths: List of image paths
+        epsilon_target: Single epsilon value for this batch
+        attack_type: Black-box attack type ('square', 'simba', 'boundary', 'sign_opt')
+        optimization_level: GPU optimization level
+
+    Returns:
+        List of attack results, one per image
+    """
+    results = []
+
+    # Create classifier once for the batch (TensorRT enabled for black-box)
+    classifier = create_classifier(
+        device='cuda:0',
+        requires_grad=False,
+        count_queries=True,
+        optimization_level=optimization_level,
+        use_tensorrt=True
+    )
+
+    # Get default parameters for this attack type
+    attack_instance = UniversalEpsilonBlackBoxAttack(epsilon_target=epsilon_target)
+    base_params = attack_instance._get_default_params(attack_type)
+
+    # Set epsilon in parameters
+    if attack_type == 'square':
+        base_params['eps'] = epsilon_target
+    else:
+        base_params['epsilon'] = epsilon_target
+
+    # Process each image in the batch
+    for idx, (image, image_path) in enumerate(zip(images, image_paths)):
+        try:
+            # Reset query counter for this image
+            query_counter.reset()
+
+            # Run attack with base parameters
+            adv_image = attack_instance._run_attack_with_params(image, classifier, attack_type, base_params)
+
+            if adv_image is not None:
+                # Refine epsilon to ±5% tolerance
+                adv_image, epsilon_l_inf = refine_epsilon_tolerance(
+                    original_image=image,
+                    adversarial_image=adv_image,
+                    target_epsilon=epsilon_target,
+                    tolerance=0.05,
+                    max_iterations=100
+                )
+
+                # FOLLOW WHITE-BOX PATTERN: Save image and return output_path
+                # (white-box: line 789-790 in process_single_result)
+                output_path = get_output_path(image_path, attack_type, is_blackbox=True, epsilon=epsilon_target)
+                save_image(adv_image, output_path)
+
+                # Calculate metrics (same as white-box: line 794-801)
+                perturbation = fast_perturbation_calculation(image, adv_image)
+                actual_queries = query_counter.get_count()
+
+                # Return format matches white-box (line 810-821)
+                results.append({
+                    'image_path': image_path,
+                    'output_path': output_path,  # ✅ FIX: Return output_path instead of adversarial_image
+                    'success': True,
+                    'epsilon_target': epsilon_target,
+                    'epsilon_l_inf': epsilon_l_inf,
+                    'mean_perturbation': float(np.mean(perturbation)),
+                    'max_perturbation': float(np.max(perturbation)),
+                    'l2_norm': float(calculate_l2_norm(image, adv_image)),
+                    'l0_norm': int(calculate_l0_norm(image, adv_image)),
+                    'total_queries': int(actual_queries)
+                })
+            else:
+                results.append({
+                    'image_path': image_path,
+                    'epsilon_target': epsilon_target,
+                    'success': False,
+                    'error': 'Attack failed to produce valid adversarial example'
+                })
+
+        except Exception as e:
+            logger.error(f"Black-box attack failed for {image_path}: {e}", exc_info=True)
+            results.append({
+                'image_path': image_path,
+                'epsilon_target': epsilon_target,
+                'success': False,
+                'error': f'Exception: {str(e)}'
+            })
+
+    return results
+
+def batch_multi_epsilon_blackbox_attack(image_paths: List[str], attack_type: str,
+                                        epsilon_targets: List[float],
+                                        optimization_level: str = 'high') -> List[Dict]:
+    """
+    Multi-epsilon batch processing for black-box attacks
+
+    Processes: N images × M epsilons in batches of 75
+    Example: 25 images × 3 epsilons = 75 operations → 1 batch (75)
+
+    Args:
+        image_paths: List of image paths
+        attack_type: Black-box attack type ('square', 'simba', 'boundary', 'sign_opt')
+        epsilon_targets: List of epsilon values (e.g., [4/255, 8/255, 16/255])
+        optimization_level: GPU optimization level
+
+    Returns:
+        List of attack results, one per (image, epsilon) combination
+    """
+    return batch_multi_epsilon_attack(
+        image_paths=image_paths,
+        attack_type=attack_type,
+        epsilon_targets=epsilon_targets,
+        attack_runner_func=blackbox_batch_runner,
+        optimization_level=optimization_level,
+        is_blackbox=True
     )
 
 def main():

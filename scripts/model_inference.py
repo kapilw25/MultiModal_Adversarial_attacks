@@ -145,8 +145,8 @@ class SimpleInferenceEngine:
                         'adversarial': False,
                         'attack_type': 'original',        # For clean images
                         'attack_name': 'original',        # For clean images
-                        'ssim_target': 1.0,              # Target SSIM for clean images
-                        'ssim_actual': 1.0,              # Actual SSIM for clean images
+                        'epsilon_target': 1.0,           # Target epsilon for clean images (no perturbation)
+                        'epsilon_actual': 1.0,           # Actual epsilon for clean images (no perturbation)
                         'task_type': question['type']    # From ground truth questions
                     })
 
@@ -158,7 +158,7 @@ class SimpleInferenceEngine:
         # Get adversarial images with ALL required fields from attack_executions
         cursor.execute('''
             SELECT DISTINCT ae.adversarial_image_path, ae.image_path, ae.attack_name,
-                           ae.ssim, ae.attack_category, ae.ssim_target, ae.task_type
+                           ae.epsilon_l_inf, ae.attack_category, ae.epsilon_target, ae.task_type
             FROM attack_executions ae
             WHERE ae.success = 1
         ''')
@@ -167,7 +167,7 @@ class SimpleInferenceEngine:
 
         print(f"   🎯 Found {len(adv_images)} adversarial images")
 
-        for adv_path, clean_path, attack_name, ssim, attack_category, ssim_target, task_type in adv_images:
+        for adv_path, clean_path, attack_name, epsilon_l_inf, attack_category, epsilon_target, task_type in adv_images:
             if os.path.exists(adv_path):
                 # Find questions for this image
                 clean_image_rel = clean_path.replace("data/clean/", "")
@@ -186,8 +186,8 @@ class SimpleInferenceEngine:
                         'adversarial': True,
                         'attack_type': attack_category,  # attack_category from attack_executions
                         'attack_name': attack_name,      # attack_name from attack_executions
-                        'ssim_target': ssim_target,      # ssim_target from attack_executions (goal)
-                        'ssim_actual': ssim or 0.0,     # ssim from attack_executions (actual achieved)
+                        'epsilon_target': epsilon_target,   # epsilon_target from attack_executions (goal)
+                        'epsilon_actual': epsilon_l_inf or 0.0,  # epsilon_l_inf from attack_executions (actual achieved)
                         'task_type': task_type           # task_type from attack_executions
                     })
 
@@ -224,16 +224,17 @@ class SimpleInferenceEngine:
                         ]
                     }]
 
-                    # Call VLM
-                    response, _ = self.vlm_client(
+                    # Call VLM with metrics collection
+                    response, _, metrics = self.vlm_client(
                         message_text=messages,
                         engine=engine,
                         temp=0.2,
                         max_new_token=512,
-                        sample_n=1
+                        sample_n=1,
+                        collect_metrics=True
                     )
 
-                    # Create result
+                    # Create result with performance metrics
                     result = {
                         'result_id': result_id,
                         'question_id': task['question_id'],
@@ -245,11 +246,25 @@ class SimpleInferenceEngine:
                         'adversarial': task['adversarial'],
                         'task': task['question_type'],
                         'attack_type': task['attack_type'],
-                        'ssim_target': task['ssim_target'],          # Target SSIM (goal)
-                        'ssim_actual': task['ssim_actual'],          # Actual achieved SSIM
+                        'epsilon_target': task['epsilon_target'],    # Target epsilon (goal)
+                        'epsilon_actual': task['epsilon_actual'],    # Actual achieved epsilon
                         'inference_image_path': task['image_path'],  # Image fed to model (clean or adversarial)
                         'clean_image_path': f"data/clean/{task['original_image_path']}",  # Original unperturbed reference
-                        'timestamp': datetime.now().isoformat() + 'Z'
+                        'timestamp': datetime.now().isoformat() + 'Z',
+                        # Performance metrics
+                        'inference_time_seconds': metrics.get('inference_time_seconds'),
+                        'gpu_before_mb': metrics.get('gpu_memory', {}).get('before_inference_mb'),
+                        'gpu_after_mb': metrics.get('gpu_memory', {}).get('after_inference_mb'),
+                        'gpu_peak_mb': metrics.get('gpu_memory', {}).get('peak_mb'),
+                        'gpu_reserved_mb': metrics.get('gpu_memory', {}).get('reserved_mb'),
+                        'total_gpu_mb': metrics.get('gpu_memory', {}).get('total_gpu_mb'),
+                        'cpu_before_mb': metrics.get('cpu_memory', {}).get('before_inference_mb'),
+                        'cpu_after_mb': metrics.get('cpu_memory', {}).get('after_inference_mb'),
+                        'was_cached': metrics.get('model_loading', {}).get('was_cached'),
+                        'loading_time_seconds': metrics.get('model_loading', {}).get('loading_time_seconds'),
+                        'batch_size': metrics.get('batch_info', {}).get('batch_size'),
+                        'position_in_batch': metrics.get('batch_info', {}).get('position_in_batch'),
+                        'total_batch_questions': metrics.get('batch_info', {}).get('total_batch_questions')
                     }
 
                     # Save to database
@@ -274,7 +289,7 @@ class SimpleInferenceEngine:
 
     def generate_result_id(self, engine, task):
         """Generate deterministic result ID using your specification:
-        engine + "clean/adversarial" + attack_type + attack_name + ssim_target + task_type + image_path + question_id
+        engine + "clean/adversarial" + attack_type + attack_name + epsilon_target + task_type + image_path + question_id
         """
         import hashlib
 
@@ -282,13 +297,13 @@ class SimpleInferenceEngine:
         clean_or_adversarial = "adversarial" if task['adversarial'] else "clean"
         attack_type = task['attack_type']      # "attack_category" from attack_executions (or "original" for clean)
         attack_name = task['attack_name']      # "attack_name" from attack_executions (or "original" for clean)
-        ssim_target = str(task['ssim_target']) # "ssim_target" from attack_executions (goal value)
+        epsilon_target = str(task['epsilon_target']) # "epsilon_target" from attack_executions (goal value)
         task_type = task['task_type']          # "task_type" from attack_executions (or question type for clean)
         image_path = task['image_path']        # Full path - "image_path" for clean or "adversarial_image_path" for adversarial
         question_id = task['question_id']
 
         # Create comprehensive combination as per your specification
-        content = f"{engine}_{clean_or_adversarial}_{attack_type}_{attack_name}_{ssim_target}_{task_type}_{image_path}_{question_id}"
+        content = f"{engine}_{clean_or_adversarial}_{attack_type}_{attack_name}_{epsilon_target}_{task_type}_{image_path}_{question_id}"
 
         # Generate deterministic hash
         return hashlib.sha256(content.encode()).hexdigest()[:16]
@@ -311,14 +326,22 @@ class SimpleInferenceEngine:
             INSERT OR REPLACE INTO inference_results (
                 result_id, question_id, prompt, model_response, ground_truth, question_type,
                 answer_id, markers, model_id, adversarial, task, attack_type,
-                ssim_target, ssim_actual, inference_image_path, clean_image_path, timestamp
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                epsilon_target, epsilon_l_inf, inference_image_path, clean_image_path, timestamp,
+                inference_time_seconds, gpu_before_mb, gpu_after_mb, gpu_peak_mb, gpu_reserved_mb,
+                total_gpu_mb, cpu_before_mb, cpu_after_mb, was_cached, loading_time_seconds,
+                batch_size, position_in_batch, total_batch_questions
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             result['result_id'], result['question_id'], result['prompt'],
             result['model_response'], result['ground_truth'], result['question_type'],
             '', '[]', result['model_id'], result['adversarial'], result['task'],
-            result['attack_type'], result['ssim_target'], result['ssim_actual'],
-            result['inference_image_path'], result['clean_image_path'], result['timestamp']
+            result['attack_type'], result['epsilon_target'], result['epsilon_actual'],
+            result['inference_image_path'], result['clean_image_path'], result['timestamp'],
+            result.get('inference_time_seconds'), result.get('gpu_before_mb'),
+            result.get('gpu_after_mb'), result.get('gpu_peak_mb'), result.get('gpu_reserved_mb'),
+            result.get('total_gpu_mb'), result.get('cpu_before_mb'), result.get('cpu_after_mb'),
+            result.get('was_cached'), result.get('loading_time_seconds'),
+            result.get('batch_size'), result.get('position_in_batch'), result.get('total_batch_questions')
         ))
 
         conn.commit()
