@@ -13,24 +13,14 @@ python3 -m venv venv_MM
 source venv_MM/bin/activate
 
 # Step 1: Install base requirements (includes vLLM for batch inference)
-pip install -r requirements.txt
+# Note: --no-build-isolation uses system torch for packages that require it during build
+pip install -r requirements.txt --no-build-isolation
 
-# Step 2: Install flash-attn separately (improves vLLM performance)
-pip install flash-attn>=2.5.0 --no-build-isolation
+# Step 2: Install flash-attn (prebuilt wheel for torch 2.9.0 + CUDA 12.8)
+# Source: https://github.com/mjun0812/flash-attention-prebuild-wheels
+pip install https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v0.4.17/flash_attn-2.8.3+cu128torch2.9-cp310-cp310-linux_x86_64.whl
 
-# Step 3: Install TensorRT for GPU optimization (optional)
-pip install torch-tensorrt>=1.4.0 --extra-index-url https://download.pytorch.org/whl/cu121
-
-# Step 4: Install nvidia-modelopt for quantization support (optional)
-pip install nvidia-modelopt
-
-# Step 5: Download spaCy English model for text processing
-python -m spacy download en_core_web_sm
-
-# Step 6: Install jq for JSON processing (Linux only)
-sudo apt-get install jq
-
-# Step 7: Verify vLLM installation
+# Step 3: Verify vLLM installation
 python -c "from vllm import LLM; print('vLLM installed successfully')"
 ```
 

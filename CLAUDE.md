@@ -8,18 +8,15 @@
         >> then [source venv_<project_name>/bin/activate] && [ pip install -r requirements ]
         >> dont stop untill you resolve all errors
         >> but dont install packages individually at any cost , do you understand? 
->> FRESH MEMORY 
-    >> if image or its directory is shared, view each of the following image with FRESH eyes, before making any conclusion
-    >> re-read ALL lines of current version of code, before making any modification 
 >> no HARDCODE / FALLBACK
-    >> do NOT HARDCODE or do NOT use FALLBACK [e.g - CPU, if OOM on GPU] mechanism at any cost
-    >> [if its difficult to implement, user's requirement, explicitly say so]
-    >> no CPU, only GPU
+    >> np CPU, all heavy computaitons must be done on GPU
+    >> do NOT HARDCODE or do NOT use FALLBACK [e.g - CPU, if OOM on GPU, if automation doest work, hardcode the answer] mechanism at any cost
+    >> [if its difficult to implement, user's requirement, explicitly mention the limitations >> but no FALLBACK
 >> TEST
-    >> create TEST file in [ unit_test/ ] ONLY existing directory 
+    >> for every modified code, run [py_compile, Import check, AST based syntax check, function calling, IMPORT calling, Redundancy, etc] tests >> View the results >> before making any claim about improvements
     >> I will test it manually outside claude terminal, if execution_time > 2 mins
-    >> LOCAL testing:>> run [py_compile/ Syntax check, function calling, IMPORT check, Redundancy, Schema validation, Dry-run mode etc] tests >> View the results >> before making any claim about improvements
-    > before building next code modules >> READ, analyze and explain/ EDA the output of previous code module
+    >> before building next code modules >> READ, analyze and explain/ EDA the output of previous code module
+    >> create TEST file in [ unit_test/ ] ONLY existing directory 
 
 
 >> ORGANIZE / NAMING
@@ -33,4 +30,40 @@
     >> so that next python files can use the output of previous python file directly from [outputs/centralized.db] single datasource
     >> avoid creating txt/json file for logs >> so we  wont have to do text matching  
     >> keep all python files in [ src/ ] directory
+- do not add CLAUDE in git commit
+- in notebook, I will do all the modificaitons MANUALLY
 
+# Github
+> git config user.name "kapilw25"
+  git config user.email "kapilw25@gmail.com" 
+
+#   Simple solution to overwrite everything:
+```
+git fetch && git reset --hard origin/main
+```
+What it does:
+- git fetch - downloads remote changes
+- git reset --hard origin/main - throws away ALL local changes and matches remote exactly
+
+#   TensorBoard via SSH Tunnel
+On Cloud Terminal:
+```
+tensorboard --logdir=tensorboard_logs --port=6006
+```
+
+On Local Terminal:
+```
+ssh -L 6006:localhost:6006 lambda_A100_40GB
+```
+
+Open Browser: http://localhost:6006
+
+# NOTES
+>> note: be brutally honest. You do not have to agree with me, unless I am correct. But do not LIE/ Halluciante too
+>>  Keep explanation SHORT. I cant read verbose explanations
+>> Remove all false advertising / STATIC prints
+
+
+>> note: being Devil's advocate does NOT mean, hallucinate/fake-produce the mistakes which dont exist. If the code is correct , then accept it and move on
+>> WEBSEARCH [not always] : if needed to find the universal practices in Ai/ML research world
+- never modify @CLAUDE.md

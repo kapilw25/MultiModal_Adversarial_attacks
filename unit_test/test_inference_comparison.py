@@ -218,7 +218,13 @@ def run_vllm_inference(engine: str, image_path: str, question: str) -> dict:
             gpu_memory_utilization=0.85,
             max_model_len=4096,
             dtype="half",
-            limit_mm_per_prompt={"image": 1}
+            enforce_eager=True,  # Disable CUDA graphs (helps with multiprocess issues)
+            # Limit image size to reduce memory (vLLM reserves worst-case by default)
+            # 256*28*28 = ~200k pixels max, suitable for charts/documents
+            mm_processor_kwargs={
+                "min_pixels": 28 * 28,
+                "max_pixels": 256 * 28 * 28,
+            },
         )
 
         # Run inference
@@ -311,20 +317,9 @@ def run_test_for_engine(engine: str, verbose: bool = True) -> dict:
         print(f"  Image: {TEST_IMAGE_PATH}")
         print(f"  Question: {TEST_QUESTION}")
 
-    # Run sequential inference
+    # Run vLLM inference FIRST (needs more GPU memory, cleans up better)
     if verbose:
-        print(f"\n  [1/2] Running Sequential inference...")
-    seq_result = run_sequential_inference(engine, TEST_IMAGE_PATH, TEST_QUESTION)
-    if verbose:
-        if seq_result["error"]:
-            print(f"    ERROR: {seq_result['error']}")
-        else:
-            print(f"    Response: {seq_result['response'][:80]}...")
-            print(f"    Time: {seq_result['inference_time_seconds']:.2f}s")
-
-    # Run vLLM inference
-    if verbose:
-        print(f"\n  [2/2] Running vLLM inference...")
+        print(f"\n  [1/2] Running vLLM inference...")
     vllm_result = run_vllm_inference(engine, TEST_IMAGE_PATH, TEST_QUESTION)
     if verbose:
         if vllm_result["error"]:
@@ -332,6 +327,17 @@ def run_test_for_engine(engine: str, verbose: bool = True) -> dict:
         else:
             print(f"    Response: {vllm_result['response'][:80]}...")
             print(f"    Time: {vllm_result['inference_time_seconds']:.2f}s")
+
+    # Run sequential inference SECOND (uses less memory)
+    if verbose:
+        print(f"\n  [2/2] Running Sequential inference...")
+    seq_result = run_sequential_inference(engine, TEST_IMAGE_PATH, TEST_QUESTION)
+    if verbose:
+        if seq_result["error"]:
+            print(f"    ERROR: {seq_result['error']}")
+        else:
+            print(f"    Response: {seq_result['response'][:80]}...")
+            print(f"    Time: {seq_result['inference_time_seconds']:.2f}s")
 
     # Compare results
     comparison = compare_results(seq_result, vllm_result)
