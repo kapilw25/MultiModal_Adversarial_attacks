@@ -18,7 +18,7 @@
 >> TEST
     >> create TEST file in [ unit_test/ ] ONLY existing directory 
     >> I will test it manually outside claude terminal, if execution_time > 2 mins
-    >> note: for every modified code, run [py_compile, function calling, IMPORT calling, Redundancy, etc] tests >> View the results >> before making any claim about improvements
+    >> LOCAL testing:>> run [py_compile/ Syntax check, function calling, IMPORT check, Redundancy, Schema validation, Dry-run mode etc] tests >> View the results >> before making any claim about improvements
     > before building next code modules >> READ, analyze and explain/ EDA the output of previous code module
 
 

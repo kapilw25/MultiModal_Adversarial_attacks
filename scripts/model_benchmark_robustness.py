@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """
-Multi-Dimensional Model Performance Analysis Script
+Model Benchmark Robustness Analysis Script
 
 Goal: Calculate and store robustness/degradation metrics from results_evaluation table
 Creates model_robustness_matrix table with comprehensive adversarial robustness analysis
 
 Data Source: results_evaluation table only (no hardcoded values)
-Output: model_robustness_matrix + aggregation views
+Output: model_robustness_matrix + aggregation views + research plots
+
+Usage:
+    python scripts/model_benchmark_robustness.py           # Interactive menu
+    python scripts/model_benchmark_robustness.py --auto    # Auto-run both (metrics + plots)
 """
 
 import os
 import sys
 import sqlite3
 import numpy as np
+import argparse
 from datetime import datetime
 from tqdm import tqdm
 from scipy import stats
@@ -59,6 +64,141 @@ def calculate_inter_class_distance(correct_predictions, incorrect_predictions):
     except:
         return 0.0
 
+def verify_database_integrity():
+    """
+    Verify database integrity before running any analysis.
+    Returns: (success: bool, message: str, stats: dict)
+    """
+    stats = {}
+
+    # Check 1: Database file exists
+    if not os.path.exists(DB_PATH):
+        return False, f"Database not found: {DB_PATH}", stats
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Check 2: results_evaluation table exists
+        cursor.execute("""
+            SELECT name FROM sqlite_master
+            WHERE type='table' AND name='results_evaluation'
+        """)
+        if not cursor.fetchone():
+            conn.close()
+            return False, "Table 'results_evaluation' not found. Run model_evaluation.py first.", stats
+
+        # Check 3: Required columns exist
+        cursor.execute("PRAGMA table_info(results_evaluation)")
+        columns = {row[1] for row in cursor.fetchall()}
+        required_columns = {'is_correct', 'epsilon_target', 'model_id', 'attack_type', 'task', 'confidence_score'}
+        missing = required_columns - columns
+        if missing:
+            conn.close()
+            return False, f"Missing required columns: {missing}", stats
+
+        # Check 4: Record counts
+        cursor.execute("SELECT COUNT(*) FROM results_evaluation")
+        total_records = cursor.fetchone()[0]
+        stats['total_records'] = total_records
+
+        if total_records == 0:
+            conn.close()
+            return False, "No records in results_evaluation table. Run model_evaluation.py first.", stats
+
+        # Check 5: Evaluation completeness (is_correct should not be NULL)
+        cursor.execute("SELECT COUNT(*) FROM results_evaluation WHERE is_correct IS NULL")
+        null_evaluations = cursor.fetchone()[0]
+        stats['null_evaluations'] = null_evaluations
+
+        if null_evaluations > 0:
+            conn.close()
+            return False, f"{null_evaluations} records have NULL is_correct. Re-run model_evaluation.py.", stats
+
+        # Check 6: Get data summary
+        cursor.execute("SELECT COUNT(DISTINCT model_id) FROM results_evaluation")
+        stats['models'] = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(DISTINCT attack_type) FROM results_evaluation")
+        stats['attack_types'] = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(DISTINCT task) FROM results_evaluation")
+        stats['tasks'] = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(DISTINCT epsilon_target) FROM results_evaluation")
+        stats['epsilon_levels'] = cursor.fetchone()[0]
+
+        conn.close()
+        return True, "Database integrity verified", stats
+
+    except sqlite3.Error as e:
+        return False, f"Database error: {e}", stats
+
+def check_robustness_matrix_exists():
+    """Check if model_robustness_matrix table has data"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT name FROM sqlite_master
+            WHERE type='table' AND name='model_robustness_matrix'
+        """)
+        if not cursor.fetchone():
+            conn.close()
+            return False, 0
+
+        cursor.execute("SELECT COUNT(*) FROM model_robustness_matrix")
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count > 0, count
+    except:
+        return False, 0
+
+def display_interactive_menu():
+    """
+    Display interactive menu for robustness analysis options.
+    Returns: selected option (1, 2, or 3)
+    """
+    print("\n" + "="*60)
+    print("  ROBUSTNESS ANALYSIS OPTIONS")
+    print("="*60)
+
+    # Check if robustness matrix already exists
+    matrix_exists, matrix_count = check_robustness_matrix_exists()
+
+    print("\n  [1] Calculate robustness metrics only")
+    print("      → Creates model_robustness_matrix + aggregation views")
+
+    if matrix_exists:
+        print(f"\n  [2] Generate plots only")
+        print(f"      → Uses existing metrics ({matrix_count} records)")
+    else:
+        print(f"\n  [2] Generate plots only (UNAVAILABLE)")
+        print(f"      → No metrics found. Run option 1 first.")
+
+    print("\n  [3] Both (metrics + plots)")
+    print("      → Full analysis pipeline")
+
+    print("\n" + "-"*60)
+
+    while True:
+        try:
+            choice = input("\nEnter choice [1-3]: ").strip()
+            if choice in ['1', '2', '3']:
+                choice = int(choice)
+
+                # Validate option 2
+                if choice == 2 and not matrix_exists:
+                    print("   No metrics available. Please run option 1 first.")
+                    continue
+
+                return choice
+            else:
+                print("   Invalid choice. Enter 1, 2, or 3.")
+        except KeyboardInterrupt:
+            print("\n\nOperation cancelled.")
+            sys.exit(0)
+
 class ModelPerformanceAnalyzer:
     """Multi-dimensional model performance and robustness analyzer"""
 
@@ -81,7 +221,7 @@ class ModelPerformanceAnalyzer:
             model_id TEXT NOT NULL,
             task TEXT NOT NULL,
             attack_type TEXT NOT NULL,
-            ssim_target REAL NOT NULL,
+            epsilon_target REAL NOT NULL,
 
             -- Performance Metrics
             baseline_accuracy REAL NOT NULL,      -- Clean accuracy for this model+task
@@ -101,13 +241,13 @@ class ModelPerformanceAnalyzer:
 
             -- Meta Information
             evaluation_timestamp TEXT NOT NULL,
-            UNIQUE(model_id, task, attack_type, ssim_target)
+            UNIQUE(model_id, task, attack_type, epsilon_target)
         )
         ''')
 
         # Create indexes for performance
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_robustness_model_task ON model_robustness_matrix(model_id, task)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_robustness_attack ON model_robustness_matrix(attack_type, ssim_target)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_robustness_attack ON model_robustness_matrix(attack_type, epsilon_target)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_robustness_degradation ON model_robustness_matrix(relative_degradation)')
 
         conn.commit()
@@ -127,13 +267,13 @@ class ModelPerformanceAnalyzer:
             COUNT(DISTINCT model_id) as models,
             COUNT(DISTINCT task) as tasks,
             COUNT(DISTINCT attack_type) as attack_types,
-            COUNT(DISTINCT ssim_target) as ssim_targets,
+            COUNT(DISTINCT epsilon_target) as epsilon_targets,
             COUNT(*) as total_records
         FROM results_evaluation
         ''')
 
         counts = cursor.fetchone()
-        print(f"   Available data: {counts[0]} models, {counts[1]} tasks, {counts[2]} attack types, {counts[3]} SSIM targets")
+        print(f"   Available data: {counts[0]} models, {counts[1]} tasks, {counts[2]} attack types, {counts[3]} epsilon targets")
         print(f"   Total records: {counts[4]}")
 
         # Get actual unique values
@@ -146,8 +286,8 @@ class ModelPerformanceAnalyzer:
         cursor.execute('SELECT DISTINCT attack_type FROM results_evaluation ORDER BY attack_type')
         available_attacks = [row[0] for row in cursor.fetchall()]
 
-        cursor.execute('SELECT DISTINCT ssim_target FROM results_evaluation ORDER BY ssim_target')
-        available_ssims = [row[0] for row in cursor.fetchall()]
+        cursor.execute('SELECT DISTINCT epsilon_target FROM results_evaluation ORDER BY epsilon_target')
+        available_epsilons = [row[0] for row in cursor.fetchall()]
 
         conn.close()
 
@@ -155,14 +295,14 @@ class ModelPerformanceAnalyzer:
             'models': available_models,
             'tasks': available_tasks,
             'attack_types': available_attacks,
-            'ssim_targets': available_ssims,
+            'epsilon_targets': available_epsilons,
             'total_records': counts[4]
         }
 
         print(f"   Models: {available_models}")
         print(f"   Tasks: {available_tasks}")
         print(f"   Attack Types: {available_attacks}")
-        print(f"   SSIM Targets: {available_ssims}")
+        print(f"   Epsilon Targets: {available_epsilons}")
 
         return discovery
 
@@ -171,14 +311,14 @@ class ModelPerformanceAnalyzer:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        # Get clean image performance (attack_type='original', ssim_target=1.0)
+        # Get clean image performance (attack_type='original', epsilon_target=1.0)
         cursor.execute('''
         SELECT
             COUNT(*) as total,
             SUM(CASE WHEN is_correct = 1 THEN 1 ELSE 0 END) as correct,
             AVG(confidence_score) as avg_confidence
         FROM results_evaluation
-        WHERE model_id = ? AND task = ? AND attack_type = 'original' AND ssim_target = 1.0
+        WHERE model_id = ? AND task = ? AND attack_type = 'original' AND epsilon_target = 1.0
         ''', (model_id, task))
 
         result = cursor.fetchone()
@@ -190,7 +330,7 @@ class ModelPerformanceAnalyzer:
         accuracy = (result[1] / result[0]) * 100
         return accuracy, result[0], result[2] or 0.0
 
-    def calculate_attack_performance(self, model_id, task, attack_type, ssim_target):
+    def calculate_attack_performance(self, model_id, task, attack_type, epsilon_target):
         """Calculate performance under specific attack conditions"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -204,8 +344,8 @@ class ModelPerformanceAnalyzer:
             confidence_score,
             is_correct
         FROM results_evaluation
-        WHERE model_id = ? AND task = ? AND attack_type = ? AND ssim_target = ?
-        ''', (model_id, task, attack_type, ssim_target))
+        WHERE model_id = ? AND task = ? AND attack_type = ? AND epsilon_target = ?
+        ''', (model_id, task, attack_type, epsilon_target))
 
         results = cursor.fetchall()
 
@@ -220,8 +360,8 @@ class ModelPerformanceAnalyzer:
         cursor.execute('''
         SELECT confidence_score, is_correct
         FROM results_evaluation
-        WHERE model_id = ? AND task = ? AND attack_type = ? AND ssim_target = ?
-        ''', (model_id, task, attack_type, ssim_target))
+        WHERE model_id = ? AND task = ? AND attack_type = ? AND epsilon_target = ?
+        ''', (model_id, task, attack_type, epsilon_target))
 
         detailed_results = cursor.fetchall()
         conn.close()
@@ -243,7 +383,7 @@ class ModelPerformanceAnalyzer:
 
         return absolute_degradation, relative_degradation
 
-    def calculate_advanced_metrics(self, model_id, task, attack_type, ssim_target, correct_confidences, incorrect_confidences):
+    def calculate_advanced_metrics(self, model_id, task, attack_type, epsilon_target, correct_confidences, incorrect_confidences):
         """Calculate advanced research metrics"""
 
         # Kendall's Tau correlation (using confidence scores vs correctness)
@@ -253,9 +393,9 @@ class ModelPerformanceAnalyzer:
         cursor.execute('''
         SELECT confidence_score, is_correct
         FROM results_evaluation
-        WHERE model_id = ? AND task = ? AND attack_type = ? AND ssim_target = ?
+        WHERE model_id = ? AND task = ? AND attack_type = ? AND epsilon_target = ?
         AND confidence_score IS NOT NULL
-        ''', (model_id, task, attack_type, ssim_target))
+        ''', (model_id, task, attack_type, epsilon_target))
 
         metric_data = cursor.fetchall()
         conn.close()
@@ -288,10 +428,10 @@ class ModelPerformanceAnalyzer:
         for model in discovery['models']:
             for task in discovery['tasks']:
                 for attack_type in discovery['attack_types']:
-                    for ssim_target in discovery['ssim_targets']:
+                    for epsilon_target in discovery['epsilon_targets']:
                         total_combinations += 1
 
-        print(f"   Processing {total_combinations} model-task-attack-SSIM combinations...")
+        print(f"   Processing {total_combinations} model-task-attack-epsilon combinations...")
 
         processed = 0
 
@@ -308,10 +448,10 @@ class ModelPerformanceAnalyzer:
                     baseline_accuracy, baseline_questions, baseline_confidence = baselines[task]
 
                     for attack_type in discovery['attack_types']:
-                        for ssim_target in discovery['ssim_targets']:
+                        for epsilon_target in discovery['epsilon_targets']:
 
                             # Skip if this is the baseline combination (already calculated)
-                            if attack_type == 'original' and ssim_target == 1.0:
+                            if attack_type == 'original' and epsilon_target == 1.0:
                                 # Insert baseline record
                                 absolute_deg, relative_deg = self.calculate_degradation_metrics(baseline_accuracy, baseline_accuracy)
 
@@ -320,7 +460,7 @@ class ModelPerformanceAnalyzer:
                                     NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                                 )
                                 ''', (
-                                    model_id, task, attack_type, ssim_target,
+                                    model_id, task, attack_type, epsilon_target,
                                     baseline_accuracy, baseline_accuracy, absolute_deg, relative_deg,
                                     baseline_questions, int(baseline_accuracy * baseline_questions / 100), baseline_confidence,
                                     1.0, 1.0, 0.0,  # Perfect metrics for baseline
@@ -330,7 +470,7 @@ class ModelPerformanceAnalyzer:
                             else:
                                 # Calculate attack performance
                                 attack_acc, attack_questions, attack_conf, correct_conf, incorrect_conf = self.calculate_attack_performance(
-                                    model_id, task, attack_type, ssim_target
+                                    model_id, task, attack_type, epsilon_target
                                 )
 
                                 if attack_questions > 0:  # Only process if data exists
@@ -339,7 +479,7 @@ class ModelPerformanceAnalyzer:
 
                                     # Calculate advanced metrics
                                     rank_corr, eff_dim, inter_class_dist = self.calculate_advanced_metrics(
-                                        model_id, task, attack_type, ssim_target, correct_conf, incorrect_conf
+                                        model_id, task, attack_type, epsilon_target, correct_conf, incorrect_conf
                                     )
 
                                     # Insert record
@@ -348,7 +488,7 @@ class ModelPerformanceAnalyzer:
                                         NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                                     )
                                     ''', (
-                                        model_id, task, attack_type, ssim_target,
+                                        model_id, task, attack_type, epsilon_target,
                                         baseline_accuracy, attack_acc, absolute_deg, relative_deg,
                                         attack_questions, int(attack_acc * attack_questions / 100), attack_conf,
                                         rank_corr, eff_dim, inter_class_dist,
@@ -416,7 +556,7 @@ class ModelPerformanceAnalyzer:
         CREATE VIEW attack_effectiveness AS
         SELECT
             attack_type,
-            ssim_target,
+            epsilon_target,
             AVG(relative_degradation) as avg_impact,
             MIN(attack_accuracy) as worst_case_accuracy,
             COUNT(CASE WHEN relative_degradation > 50 THEN 1 END) as severe_degradation_count,
@@ -424,7 +564,7 @@ class ModelPerformanceAnalyzer:
             AVG(inter_class_distance) as avg_separation_impact
         FROM model_robustness_matrix
         WHERE attack_type != 'original'
-        GROUP BY attack_type, ssim_target
+        GROUP BY attack_type, epsilon_target
         ORDER BY avg_impact DESC
         ''')
 
@@ -466,14 +606,14 @@ class ModelPerformanceAnalyzer:
         # Attack effectiveness
         print(f"\n⚔️ ATTACK EFFECTIVENESS RANKING:")
         cursor.execute('''
-        SELECT attack_type, ssim_target, avg_impact, severe_degradation_count, total_evaluations
+        SELECT attack_type, epsilon_target, avg_impact, severe_degradation_count, total_evaluations
         FROM attack_effectiveness
         ORDER BY avg_impact DESC
         LIMIT 10
         ''')
 
-        for attack, ssim, impact, severe, total in cursor.fetchall():
-            print(f"   {attack} (SSIM {ssim}): {impact:.2f}% avg impact, {severe}/{total} severe cases")
+        for attack, epsilon, impact, severe, total in cursor.fetchall():
+            print(f"   {attack} (epsilon {epsilon}): {impact:.2f}% avg impact, {severe}/{total} severe cases")
 
         # Task robustness
         print(f"\n📋 TASK VULNERABILITY ANALYSIS:")
@@ -491,29 +631,11 @@ class ModelPerformanceAnalyzer:
         print(f"\n💾 Database: {self.db_path} → model_robustness_matrix + views")
         print("🎯 Multi-dimensional robustness analysis complete!")
 
-def main():
-    """Main execution function"""
-    print("="*80)
-    print("🚀 MULTI-DIMENSIONAL MODEL PERFORMANCE ANALYZER")
-    print("="*80)
-    print("Goal: Calculate robustness/degradation metrics from results_evaluation table")
-    print("Output: model_robustness_matrix + aggregation views")
-
-    # Initialize analyzer
-    analyzer = ModelPerformanceAnalyzer()
-
-    # Check if source data exists
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT COUNT(*) FROM results_evaluation')
-    count = cursor.fetchone()[0]
-    conn.close()
-
-    if count == 0:
-        print("❌ No data found in results_evaluation table. Run model_evaluation_2.py first.")
-        return
-
-    print(f"✅ Found {count} records in results_evaluation table")
+def run_metrics_calculation(analyzer):
+    """Run robustness metrics calculation"""
+    print("\n" + "="*60)
+    print("  CALCULATING ROBUSTNESS METRICS")
+    print("="*60)
 
     # Create database schema
     analyzer.create_robustness_matrix_table()
@@ -529,6 +651,95 @@ def main():
 
     # Generate summary
     analyzer.generate_performance_summary()
+
+def run_visualization():
+    """Run visualization plot generation"""
+    print("\n" + "="*60)
+    print("  GENERATING RESEARCH VISUALIZATIONS")
+    print("="*60)
+    try:
+        from utils.model_visualizer import VLMDataAnalyzer, PLOT_DIR
+        visualizer = VLMDataAnalyzer()
+        visualizer.connect_db()
+        if visualizer.load_dynamic_configurations():
+            visualizer.generate_all_plots()
+        visualizer.close_db()
+        print(f"✅ Plots saved to: {PLOT_DIR}")
+        return True
+    except ImportError as e:
+        print(f"❌ Visualization failed: {e}")
+        print("   Ensure utils/model_visualizer.py exists")
+        return False
+    except Exception as e:
+        print(f"❌ Visualization error: {e}")
+        return False
+
+def main():
+    """Main execution function with interactive menu"""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Model Benchmark Robustness Analyzer")
+    parser.add_argument("--auto", action="store_true",
+                        help="Auto-run both metrics + plots (no menu)")
+    args = parser.parse_args()
+
+    print("="*80)
+    print("  MODEL BENCHMARK ROBUSTNESS ANALYZER")
+    print("="*80)
+    print("Goal: Calculate robustness/degradation metrics from results_evaluation table")
+    print("Output: model_robustness_matrix + aggregation views + research plots")
+
+    # STEP 1: Automatic database health check (defensive programming)
+    print("\n" + "-"*60)
+    print("  DATABASE HEALTH CHECK")
+    print("-"*60)
+
+    success, message, stats = verify_database_integrity()
+
+    if not success:
+        print(f"❌ {message}")
+        print("\nPipeline order:")
+        print("  1. python scripts/attack_runner.py")
+        print("  2. python scripts/model_inference_vLLM.py")
+        print("  3. python scripts/model_evaluation.py")
+        print("  4. python scripts/model_benchmark_robustness.py  ← You are here")
+        return
+
+    print(f"✅ {message}")
+    print(f"   Records: {stats['total_records']}")
+    print(f"   Models: {stats['models']} | Attacks: {stats['attack_types']} | Tasks: {stats['tasks']} | Epsilon levels: {stats['epsilon_levels']}")
+
+    # Initialize analyzer
+    analyzer = ModelPerformanceAnalyzer()
+
+    # STEP 2: Auto mode or interactive menu
+    if args.auto:
+        # Auto mode: run both metrics + plots
+        print("\n[AUTO MODE] Running full analysis pipeline...")
+        run_metrics_calculation(analyzer)
+        run_visualization()
+    else:
+        # Interactive menu
+        choice = display_interactive_menu()
+
+        if choice == 1:
+            # Metrics only
+            run_metrics_calculation(analyzer)
+            print("\n💡 To generate plots, run again and select option 2 or 3")
+
+        elif choice == 2:
+            # Plots only (metrics must exist)
+            run_visualization()
+
+        elif choice == 3:
+            # Both
+            run_metrics_calculation(analyzer)
+            run_visualization()
+
+    print("\n" + "="*60)
+    print("  ANALYSIS COMPLETE")
+    print("="*60)
+    print(f"💾 Database: {DB_PATH}")
+    print(f"📊 Plots: results/research_plots/")
 
 if __name__ == "__main__":
     main()
