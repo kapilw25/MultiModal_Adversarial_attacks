@@ -92,6 +92,8 @@ accelerate>=0.25.0
 tabulate
 # GPU optimization libraries
 numba>=0.60.0
+# vLLM for high-throughput VLM inference (continuous batching)
+vllm>=0.6.0
 # Bayesian optimization for adversarial attacks
 optuna>=4.0.0
 typing_extensions>=4.11.0

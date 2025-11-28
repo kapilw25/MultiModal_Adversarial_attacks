@@ -8,20 +8,30 @@ This repository contains tools for evaluating small (4-bit, 3 Billion parameter)
 ### 1. Setup
 
 ```bash
+# Create and activate virtual environment
 python3 -m venv venv_MM
 source venv_MM/bin/activate
-  # Step 1: Install base requirements (without flash-attn/tensorrt)
-  pip install -r requirements.txt
-  # Step 2: Install flash-attn separately with updated build tools
-  pip install flash-attn>=2.5.0 --no-build-isolation
-  # Step 3: Install TensorRT for GPU optimization (optional)
-  pip install torch-tensorrt>=1.4.0 --extra-index-url https://download.pytorch.org/whl/cu121
-  # step4: Install nvidia-modelopt for Quantization Support
-  pip install nvidia-modelopt 
-  # step 5: # Download spaCy English model for text processing
-  python -m spacy download en_core_web_sm 
-  # step6: 
-  sudo apt-get install jq
+
+# Step 1: Install base requirements (includes vLLM for batch inference)
+pip install -r requirements.txt
+
+# Step 2: Install flash-attn separately (improves vLLM performance)
+pip install flash-attn>=2.5.0 --no-build-isolation
+
+# Step 3: Install TensorRT for GPU optimization (optional)
+pip install torch-tensorrt>=1.4.0 --extra-index-url https://download.pytorch.org/whl/cu121
+
+# Step 4: Install nvidia-modelopt for quantization support (optional)
+pip install nvidia-modelopt
+
+# Step 5: Download spaCy English model for text processing
+python -m spacy download en_core_web_sm
+
+# Step 6: Install jq for JSON processing (Linux only)
+sudo apt-get install jq
+
+# Step 7: Verify vLLM installation
+python -c "from vllm import LLM; print('vLLM installed successfully')"
 ```
 
 ### 2. Run Pipeline
